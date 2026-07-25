@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# 443 single-entry shared environment, route, listener, and whitelist helpers.
+# Вспомогательные функции для конфигурации единого входа 443: окружение, маршруты, прослушивание, белые списки.
 
 detect_vps_public_ip_by_family() {
     local family="$1"
@@ -41,13 +41,13 @@ append_vps_public_ips_to_whitelist() {
         if [[ "$seen" != *" ${ip} "* ]]; then
             out_array+=("$ip")
             seen+=" ${ip} "
-            echo -e "${GREEN}✅ 已自动加入 VPS 本机公网 IP：${ip}${PLAIN}"
+            echo -e "${GREEN}✅ Автоматически добавлен публичный IP VPS: ${ip}${PLAIN}"
             added=1
         fi
     done
 
     if [[ "$added" -eq 0 ]]; then
-        echo -e "${YELLOW}⚠️ 未能自动获取 VPS 本机公网 IP；如需要本机自测访问，请手动加入 VPS 公网 IP。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Не удалось автоматически получить публичный IP VPS; если нужен доступ с самого VPS, добавьте IP вручную.${PLAIN}"
     fi
 
     append_local_service_ips_to_whitelist "$1" seen
@@ -73,13 +73,13 @@ append_local_service_ips_to_whitelist() {
         if [[ "$seen_ref" != *" ${entry} "* ]]; then
             out_array+=("$entry")
             seen_ref+=" ${entry} "
-            echo -e "${GREEN}✅ 已自动加入本机/容器访问来源：${entry}${PLAIN}"
+            echo -e "${GREEN}✅ Автоматически добавлен локальный/контейнерный источник: ${entry}${PLAIN}"
             local_added=1
         fi
     done
 
     if [[ "$local_added" -eq 0 ]]; then
-        echo -e "${BLUE}ℹ️ 本机/容器访问来源已在白名单中，无需重复加入。${PLAIN}"
+        echo -e "${BLUE}ℹ️ Локальные/контейнерные источники уже в белом списке.${PLAIN}"
     fi
 }
 
@@ -127,8 +127,8 @@ current_web_proxy_engine() {
 
 web_proxy_engine_label() {
     case "$(normalize_web_proxy_engine "${1:-${WEB_PROXY_ENGINE:-caddy}}" 2>/dev/null || echo caddy)" in
-        nginx) echo "Nginx 本地 HTTPS 反代" ;;
-        *) echo "Caddy 本地 HTTPS 反代" ;;
+        nginx) echo "Nginx локальный HTTPS прокси" ;;
+        *) echo "Caddy локальный HTTPS прокси" ;;
     esac
 }
 
@@ -140,8 +140,8 @@ web_proxy_engine_supports_web_whitelist() {
     local mode="${1:-${ENTRY_MODE:-$(get_entry_mode)}}"
     mode=$(normalize_entry_mode_name "$mode" 2>/dev/null || echo "nginx-stream")
 
-    # Xray fallback reconnects to the local Web proxy, so neither Caddy remote_ip
-    # nor Nginx allow/deny can reliably identify the original client address.
+    # Xray fallback переподключается к локальному Web-прокси, поэтому Caddy remote_ip
+    # и Nginx allow/deny не могут надёжно определить исходный адрес клиента.
     [[ "$mode" == "xray-fallback" ]] && return 1
     return 0
 }
@@ -155,9 +155,9 @@ assert_web_proxy_whitelist_supported() {
     if web_proxy_engine_supports_web_whitelist "$mode" "$engine"; then
         return 0
     fi
-    echo -e "${RED}❌ xray-fallback 模式不支持 Web 白名单。${PLAIN}"
-    echo -e "${YELLOW}原因：Xray fallback 到本地 Web 反代引擎后，Caddy/Nginx 无法可靠拿到真实客户端源 IP。${PLAIN}"
-    echo -e "${YELLOW}请改用 Nginx Stream/TCP Peek 入口模式，或先清除 Web 白名单后再使用该组合。${PLAIN}"
+    echo -e "${RED}❌ Режим xray-fallback не поддерживает веб-белые списки.${PLAIN}"
+    echo -e "${YELLOW}Причина: после fallback Xray на локальный Web-прокси, Caddy/Nginx не могут надёжно получить реальный IP клиента.${PLAIN}"
+    echo -e "${YELLOW}Используйте режимы Nginx Stream/TCP Peek, или очистите веб-белый список перед использованием этой комбинации.${PLAIN}"
     return 1
 }
 
@@ -256,15 +256,15 @@ detect_xui_single_443_defaults() {
 
 print_xui_single_443_detected_defaults() {
     if [[ -z "${XUI_DETECTED_BIN:-}" && -z "${XUI_DETECTED_DB:-}" ]]; then
-        echo -e "${YELLOW}⚠️ 未检测到 3x-ui 命令或数据库，将使用 443 向导默认值。${PLAIN}"
+        echo -e "${YELLOW}⚠️ 3x-ui команда или база данных не обнаружены, будут использованы значения по умолчанию для мастера 443.${PLAIN}"
         return 0
     fi
-    echo -e "${CYAN}▶ 已检测到 3x-ui 当前设置，下面会作为默认值，可按回车沿用：${PLAIN}"
-    [[ -n "${XUI_DETECTED_BIN:-}" ]] && echo -e "  命令：${XUI_DETECTED_BIN}"
-    [[ -n "${XUI_DETECTED_DB:-}" ]] && echo -e "  数据库：${XUI_DETECTED_DB}"
-    echo -e "  面板后端：${XUI_DETECTED_PANEL_ADDR}:${XUI_DETECTED_WEB_PORT}${XUI_DETECTED_WEB_BASE_PATH}"
-    echo -e "  订阅后端：${XUI_DETECTED_SUB_ADDR}:${XUI_DETECTED_SUB_PORT}${XUI_DETECTED_SUB_PATH}"
-    echo -e "  Clash/Mihomo 路径：${XUI_DETECTED_SUB_CLASH_PATH}"
+    echo -e "${CYAN}▶ Обнаружены текущие настройки 3x-ui, они будут использованы как значения по умолчанию (Enter для подтверждения):${PLAIN}"
+    [[ -n "${XUI_DETECTED_BIN:-}" ]] && echo -e "  Команда: ${XUI_DETECTED_BIN}"
+    [[ -n "${XUI_DETECTED_DB:-}" ]] && echo -e "  База данных: ${XUI_DETECTED_DB}"
+    echo -e "  Бэкенд панели: ${XUI_DETECTED_PANEL_ADDR}:${XUI_DETECTED_WEB_PORT}${XUI_DETECTED_WEB_BASE_PATH}"
+    echo -e "  Бэкенд подписки: ${XUI_DETECTED_SUB_ADDR}:${XUI_DETECTED_SUB_PORT}${XUI_DETECTED_SUB_PATH}"
+    echo -e "  Путь Clash/Mihomo: ${XUI_DETECTED_SUB_CLASH_PATH}"
 }
 
 clear_xui_cert_settings_for_single_443() {
@@ -272,7 +272,7 @@ clear_xui_cert_settings_for_single_443() {
     xui_bin=$(detect_xui_command 2>/dev/null || true)
 
     if ! command -v sqlite3 >/dev/null 2>&1; then
-        echo -e "${CYAN}▶ 正在安装 sqlite3，用于清空 3x-ui 数据库里的证书路径...${PLAIN}"
+        echo -e "${CYAN}▶ Установка sqlite3 для очистки путей сертификатов в базе 3x-ui...${PLAIN}"
         install_pkg sqlite3 sqlite >/dev/null 2>&1 || true
     fi
 
@@ -282,10 +282,10 @@ clear_xui_cert_settings_for_single_443() {
 
     if [[ -n "$xui_bin" ]]; then
         if "$xui_bin" cert -webCert "" -webCertKey "" >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ 已通过 3x-ui 官方 cert 命令清空面板证书路径。${PLAIN}"
+            echo -e "${GREEN}✅ Пути сертификатов панели очищены через официальную команду 3x-ui cert.${PLAIN}"
             cert_cmd_done=true
         else
-            echo -e "${YELLOW}⚠️ 官方 cert 命令未能清空，将继续尝试修正数据库。${PLAIN}"
+            echo -e "${YELLOW}⚠️ Официальная команда cert не сработала, будет попытка очистки базы данных.${PLAIN}"
         fi
     fi
 
@@ -295,7 +295,7 @@ clear_xui_cert_settings_for_single_443() {
             [[ -f "$db_path" ]] || continue
             if sqlite3 "$db_path" "update settings set value='' where lower(key) in (${cert_key_sql});" 2>/dev/null || \
                sqlite3 "$db_path" "update setting set value='' where lower(key) in (${cert_key_sql});" 2>/dev/null; then
-                echo -e "${GREEN}✅ 已清空证书字段：${db_path}${PLAIN}"
+                echo -e "${GREEN}✅ Очищены поля сертификатов: ${db_path}${PLAIN}"
                 db_found=true
             fi
         done < <(find_xui_database_candidates)
@@ -308,23 +308,11 @@ clear_xui_cert_settings_for_single_443() {
     done
 
     if ! $cert_cmd_done && ! $db_found; then
-        echo -e "${YELLOW}⚠️ 未找到可自动清空的 3x-ui 证书设置，请在面板里手动清空证书路径并重启。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Не найдены автоматически очищаемые настройки сертификатов 3x-ui, очистите пути вручную в панели и перезапустите.${PLAIN}"
         return 1
     fi
-    echo -e "${GREEN}✅ 已尝试清空 3x-ui 面板/订阅证书路径，443 单入口将由 Web 反代引擎托管证书。${PLAIN}"
+    echo -e "${GREEN}✅ Попытка очистки путей сертификатов 3x-ui выполнена, сертификаты для единого входа 443 будет обслуживать Web-прокси.${PLAIN}"
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 find_xui_database_candidates() {
     local db_path extra_db
@@ -356,7 +344,7 @@ check_xui_cert_settings_for_single_443() {
     local checked=0 found=0
 
     if ! command -v sqlite3 >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️ 未检测到 sqlite3，跳过 3x-ui 证书路径数据库检查。${PLAIN}"
+        echo -e "${YELLOW}⚠️ sqlite3 не обнаружен, проверка путей сертификатов 3x-ui пропущена.${PLAIN}"
         return 2
     fi
 
@@ -368,7 +356,7 @@ check_xui_cert_settings_for_single_443() {
         [[ -n "$rows" ]] || continue
 
         found=1
-        echo -e "${YELLOW}⚠️ ${db_path} 仍有 3x-ui 面板/订阅证书路径。3.x 新安装应选择 Skip SSL；2.x/旧配置在 443 单入口下建议清空：${PLAIN}"
+        echo -e "${YELLOW}⚠️ ${db_path} содержит пути сертификатов панели/подписки 3x-ui. Для 3.x новых установок выбирайте Skip SSL; для 2.x/старых конфигураций при едином входе 443 рекомендуется очистить:${PLAIN}"
         while IFS='|' read -r key value; do
             [[ -n "$key" ]] || continue
             echo -e "  ${key}=${value}"
@@ -376,22 +364,18 @@ check_xui_cert_settings_for_single_443() {
     done < <(find_xui_database_candidates)
 
     if [[ "$checked" -eq 0 ]]; then
-        echo -e "${YELLOW}⚠️ 未找到 3x-ui 数据库，跳过证书路径检查。${PLAIN}"
+        echo -e "${YELLOW}⚠️ База данных 3x-ui не найдена, проверка путей сертификатов пропущена.${PLAIN}"
         return 2
     fi
 
     if [[ "$found" -eq 1 ]]; then
-        echo -e "${YELLOW}建议：3.x 新安装回到安装器选择 Skip SSL / 不申请 SSL；2.x/旧配置进入 [5 面板、节点与订阅工具] -> [3 面板 SSL 修复]，或在 3x-ui 面板里清空证书路径并重启。${PLAIN}"
+        echo -e "${YELLOW}Рекомендация: для 3.x новых установок в установщике выберите Skip SSL / не запрашивать SSL; для 2.x/старых конфигураций используйте [5 Панели, узлы и подписки] -> [3 Восстановление SSL панели] или очистите пути сертификатов в панели 3x-ui и перезапустите.${PLAIN}"
         return 1
     fi
 
-    echo -e "${GREEN}✅ 3x-ui 面板/订阅证书路径未发现残留${PLAIN}"
+    echo -e "${GREEN}✅ Пути сертификатов 3x-ui не содержат остатков.${PLAIN}"
     return 0
 }
-
-
-
-
 
 cleanup_old_nginx_sni_stream_configs() {
     mkdir -p /etc/nginx/stream.d
@@ -402,23 +386,23 @@ cleanup_old_nginx_sni_stream_configs() {
         mv "$conf_file" "$old_dir/" >/dev/null 2>&1 && ((moved++))
     done < <(find /etc/nginx/stream.d -maxdepth 1 -type f -name 'vps_sni_*.conf' 2>/dev/null | sort)
     if [[ "$moved" -gt 0 ]]; then
-        echo -e "${YELLOW}⚠️ 已隔离 ${moved} 个旧 Nginx SNI 配置到：${old_dir}${PLAIN}"
+        echo -e "${YELLOW}⚠️ Изолированы ${moved} старых конфигураций Nginx SNI в: ${old_dir}${PLAIN}"
     fi
 }
 
 probe_reality_sni() {
     local sni="$1"
-    echo -e "${CYAN}▶ 正在检测 REALITY 伪装 SNI 连通性：${sni}:443${PLAIN}"
+    echo -e "${CYAN}▶ Проверка доступности REALITY SNI: ${sni}:443${PLAIN}"
     if ! command -v openssl >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️ 未检测到 openssl，跳过 SNI 连通性检测。${PLAIN}"
+        echo -e "${YELLOW}⚠️ openssl не обнаружен, проверка SNI пропущена.${PLAIN}"
         return 0
     fi
     if timeout 12 openssl s_client -connect "${sni}:443" -servername "$sni" </dev/null 2>/tmp/vps_reality_sni_probe.log | grep -q "BEGIN CERTIFICATE"; then
-        echo -e "${GREEN}✅ REALITY SNI 可连通并返回证书。${PLAIN}"
+        echo -e "${GREEN}✅ REALITY SNI доступен и возвращает сертификат.${PLAIN}"
         return 0
     fi
-    echo -e "${RED}❌ REALITY SNI 检测失败：${sni}:443 未正常返回证书。${PLAIN}"
-    echo -e "${YELLOW}请更换一个外部真实 HTTPS 站点域名，不要使用模板域名或自己的面板域名。${PLAIN}"
+    echo -e "${RED}❌ Ошибка проверки REALITY SNI: ${sni}:443 не вернул сертификат.${PLAIN}"
+    echo -e "${YELLOW}Используйте другой реальный HTTPS-домен, не шаблонный и не свой панельный домен.${PLAIN}"
     return 1
 }
 
@@ -430,60 +414,60 @@ print_sni_stack_preview() {
     web_label=$(web_proxy_engine_label "$web_engine")
     web_backend=$(web_proxy_backend)
     case "$entry_mode" in
-        "nginx-stream") entry_label="Nginx Stream 模式" ;;
-        "xray-fallback") entry_label="Xray Fallback 模式" ;;
-        "tcp-peek") entry_label="TCP Peek + Splice 模式 / vpso-mux 分流器" ;;
+        "nginx-stream") entry_label="Режим Nginx Stream" ;;
+        "xray-fallback") entry_label="Режим Xray Fallback" ;;
+        "tcp-peek") entry_label="Режим TCP Peek + Splice / разделитель vpso-mux" ;;
         *) entry_label="$entry_mode" ;;
     esac
 
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}即将写入的 443 单入口分流配置预览${PLAIN}"
+    echo -e "${BOLD}Предпросмотр конфигурации единого входа 443${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "配置模式 ENTRY_MODE：${entry_mode}"
-    echo -e "Web 反代引擎 WEB_PROXY_ENGINE：${web_engine} (${web_label})"
-    echo -e "公网入口：${NGINX_LISTEN_ADDR}:${NGINX_LISTEN_PORT} -> ${entry_label}"
-    echo -e "面板域名：${PANEL_DOMAIN} -> ${web_backend} -> http://${PANEL_LISTEN_ADDR}:${PANEL_LISTEN_PORT}"
-    echo -e "面板路径：https://${PANEL_DOMAIN}${PANEL_WEB_PATH:-/panel/}"
-    echo -e "普通订阅路径：https://${PANEL_DOMAIN}${SUB_URI_PATH:-/sub/} -> http://${SUB_LISTEN_ADDR}:${SUB_LISTEN_PORT}"
-    echo -e "Clash/Mihomo 路径：https://${PANEL_DOMAIN}${CLASH_URI_PATH:-/clash/} -> http://${SUB_LISTEN_ADDR}:${SUB_LISTEN_PORT}"
+    echo -e "Режим ENTRY_MODE: ${entry_mode}"
+    echo -e "Web-движок WEB_PROXY_ENGINE: ${web_engine} (${web_label})"
+    echo -e "Публичный вход: ${NGINX_LISTEN_ADDR}:${NGINX_LISTEN_PORT} -> ${entry_label}"
+    echo -e "Домен панели: ${PANEL_DOMAIN} -> ${web_backend} -> http://${PANEL_LISTEN_ADDR}:${PANEL_LISTEN_PORT}"
+    echo -e "Путь панели: https://${PANEL_DOMAIN}${PANEL_WEB_PATH:-/panel/}"
+    echo -e "Путь обычной подписки: https://${PANEL_DOMAIN}${SUB_URI_PATH:-/sub/} -> http://${SUB_LISTEN_ADDR}:${SUB_LISTEN_PORT}"
+    echo -e "Путь Clash/Mihomo: https://${PANEL_DOMAIN}${CLASH_URI_PATH:-/clash/} -> http://${SUB_LISTEN_ADDR}:${SUB_LISTEN_PORT}"
     if [[ ${#SITE_DOMAINS[@]} -gt 0 ]]; then
         local i
         for i in "${!SITE_DOMAINS[@]}"; do
-            echo -e "网站/反代域名：${SITE_DOMAINS[$i]} -> ${web_backend} -> ${SITE_BACKEND_ADDRS[$i]}:${SITE_BACKEND_PORTS[$i]}"
+            echo -e "Веб-сайт/прокси домен: ${SITE_DOMAINS[$i]} -> ${web_backend} -> ${SITE_BACKEND_ADDRS[$i]}:${SITE_BACKEND_PORTS[$i]}"
         done
     fi
     if [[ ${#TCP_ROUTE_SNIS[@]} -gt 0 ]]; then
         local tcp_i
         for tcp_i in "${!TCP_ROUTE_SNIS[@]}"; do
-            echo -e "TCP/SNI 入站：${TCP_ROUTE_SNIS[$tcp_i]} -> ${TCP_ROUTE_ADDRS[$tcp_i]}:${TCP_ROUTE_PORTS[$tcp_i]}"
+            echo -e "TCP/SNI входящий: ${TCP_ROUTE_SNIS[$tcp_i]} -> ${TCP_ROUTE_ADDRS[$tcp_i]}:${TCP_ROUTE_PORTS[$tcp_i]}"
         done
     fi
     if [[ ${#XRAY_SNI_ROUTE_SNIS[@]} -gt 0 ]]; then
         local xray_route_i
         for xray_route_i in "${!XRAY_SNI_ROUTE_SNIS[@]}"; do
-            echo -e "Xray 入站分流：${XRAY_SNI_ROUTE_SNIS[$xray_route_i]} -> ${XRAY_SNI_ROUTE_ADDRS[$xray_route_i]}:${XRAY_SNI_ROUTE_PORTS[$xray_route_i]}"
+            echo -e "Xray входящий маршрут: ${XRAY_SNI_ROUTE_SNIS[$xray_route_i]} -> ${XRAY_SNI_ROUTE_ADDRS[$xray_route_i]}:${XRAY_SNI_ROUTE_PORTS[$xray_route_i]}"
         done
     fi
     if [[ ${#SNI_IP_WHITELIST_DOMAINS[@]} -gt 0 ]]; then
-        echo -e "${YELLOW}域名 IP 白名单：${PLAIN}"
+        echo -e "${YELLOW}IP-белые списки доменов:${PLAIN}"
         local wl_i
         for wl_i in "${!SNI_IP_WHITELIST_DOMAINS[@]}"; do
-            echo -e "  ${SNI_IP_WHITELIST_DOMAINS[$wl_i]} 仅允许 ${SNI_IP_WHITELIST_RANGES[$wl_i]}"
+            echo -e "  ${SNI_IP_WHITELIST_DOMAINS[$wl_i]} только ${SNI_IP_WHITELIST_RANGES[$wl_i]}"
         done
     fi
     if [[ "$entry_mode" == "xray-fallback" ]]; then
-        echo -e "Xray 主入站：公网 ${NGINX_LISTEN_PORT} 由 Xray 接管，普通 HTTPS fallback 到 ${web_backend}"
-        echo -e "提示：脚本不会创建或修改 3x-ui/Xray 入站内部配置。"
+        echo -e "Xray основной входящий: публичный ${NGINX_LISTEN_PORT} принимается Xray, обычный HTTPS fallback на ${web_backend}"
+        echo -e "Примечание: скрипт не создаёт и не изменяет внутреннюю конфигурацию входящих 3x-ui/Xray."
     else
-        echo -e "REALITY SNI：${REALITY_SNI} -> ${XRAY_LISTEN_ADDR}:${XRAY_LISTEN_PORT}"
-        echo -e "默认/未知 SNI -> ${XRAY_LISTEN_ADDR}:${XRAY_LISTEN_PORT}"
+        echo -e "REALITY SNI: ${REALITY_SNI} -> ${XRAY_LISTEN_ADDR}:${XRAY_LISTEN_PORT}"
+        echo -e "Стандартный/неизвестный SNI -> ${XRAY_LISTEN_ADDR}:${XRAY_LISTEN_PORT}"
     fi
     echo -e ""
-    echo -e "${YELLOW}确认后会备份现有配置，并按所选 ENTRY_MODE 生成入口配置。${PLAIN}"
-    confirm_risk_action "写入 443 单入口共享配置" \
-        "${entry_label}、${web_label}配置和 443 分流规则" \
-        "使用本次自动备份目录恢复，或进入 443 维护菜单回滚" \
-        "确认公网 443 没有其他服务需要直接占用。"
+    echo -e "${YELLOW}После подтверждения будет создана резервная копия текущей конфигурации и сгенерирован вход в соответствии с выбранным ENTRY_MODE.${PLAIN}"
+    confirm_risk_action "Запись общей конфигурации единого входа 443" \
+        "${entry_label}, ${web_label} конфигурация и правила маршрутизации 443" \
+        "Восстановите из автоматически созданной резервной копии или используйте откат в меню обслуживания 443" \
+        "Убедитесь, что публичный порт 443 не занят другими службами."
 }
 
 caddy_format_configs() {
@@ -578,13 +562,13 @@ print_entry_mode_compat_notice() {
             printf '%s' "${ENTRY_MODE:-}"
         )
         if [[ -z "$env_mode" ]]; then
-            echo -e "${YELLOW}兼容提示：${env_file} 未写 ENTRY_MODE，已按 nginx-stream 读取；下次保存会写入 ENTRY_MODE='nginx-stream'。${PLAIN}"
+            echo -e "${YELLOW}Совместимость: ${env_file} не содержит ENTRY_MODE, сейчас читается как nginx-stream; при сохранении будет записано ENTRY_MODE='nginx-stream'.${PLAIN}"
         else
             case "$env_mode" in
                 "nginx_stream"|"xray_fallback"|"tcp_peek")
                     normalized=$(normalize_entry_mode_name "$env_mode" 2>/dev/null || echo "nginx-stream")
                     if ! rewrite_legacy_entry_mode_assignment "$env_file" "ENTRY_MODE" "$env_mode" 2>/dev/null; then
-                        echo -e "${YELLOW}兼容提示：检测到旧 ENTRY_MODE='${env_mode}'，当前按 '${normalized}' 读取；下次保存会写入新命名。${PLAIN}"
+                        echo -e "${YELLOW}Совместимость: обнаружен старый ENTRY_MODE='${env_mode}', сейчас читается как '${normalized}'; при сохранении будет новое имя.${PLAIN}"
                     fi
                     ;;
             esac
@@ -602,7 +586,7 @@ print_entry_mode_compat_notice() {
             "nginx_stream"|"xray_fallback"|"tcp_peek")
                 normalized=$(normalize_entry_mode_name "$state_engine" 2>/dev/null || echo "nginx-stream")
                 if ! rewrite_legacy_entry_mode_assignment "$state_file" "engine" "$state_engine" 2>/dev/null; then
-                    echo -e "${YELLOW}兼容提示：检测到旧 engine='${state_engine}'，当前按 '${normalized}' 读取；下次切换/重新应用会写入新命名。${PLAIN}"
+                    echo -e "${YELLOW}Совместимость: обнаружен старый engine='${state_engine}', сейчас читается как '${normalized}'; при переключении/повторном применении будет новое имя.${PLAIN}"
                 fi
                 ;;
         esac
@@ -661,12 +645,12 @@ entry_listener_display_name() {
     case "$listener" in
         nginx) echo "Nginx Stream (nginx)" ;;
         xray) echo "Xray Fallback (xray/3x-ui/x-ui)" ;;
-        tcppeek) echo "TCP Peek + Splice 模式 (vpso-mux 分流器)" ;;
-        caddy) echo "Caddy（不应直接接管 443 单入口）" ;;
-        none) echo "未监听" ;;
-        multiple) echo "多个进程监听/匹配" ;;
-        unknown) echo "已监听，但进程不可见" ;;
-        unknown:*) echo "未知进程 ${listener#unknown:}" ;;
+        tcppeek) echo "Режим TCP Peek + Splice (разделитель vpso-mux)" ;;
+        caddy) echo "Caddy (не должен напрямую занимать порт 443)" ;;
+        none) echo "Не слушает" ;;
+        multiple) echo "Несколько процессов слушают/совпадают" ;;
+        unknown) echo "Слушает, но процесс не виден" ;;
+        unknown:*) echo "Неизвестный процесс ${listener#unknown:}" ;;
         *) echo "$listener" ;;
     esac
 }
@@ -689,19 +673,19 @@ listen_line_status() {
     local proc
 
     if [[ "$addr" == "not-configured" || "$port" == "not-configured" ]]; then
-        echo "未配置"
+        echo "Не настроен"
         return 0
     fi
-    if [[ -z "$line" || "$line" == "未监听" || "$line" == "not-configured" ]]; then
-        echo "未监听"
+    if [[ -z "$line" || "$line" == "Не слушает" || "$line" == "not-configured" ]]; then
+        echo "Не слушает"
         return 0
     fi
 
     proc=$(listen_process_from_ss_line "$line")
     if [[ "$proc" == "unknown" ]]; then
-        echo "已监听（进程不可见）"
+        echo "Слушает (процесс не виден)"
     else
-        echo "已监听（${proc}）"
+        echo "Слушает (${proc})"
     fi
 }
 
@@ -773,15 +757,15 @@ detect_current_entry_status() {
     ENTRY_STATUS_LISTENER_DISPLAY=$(entry_listener_display_name "$ENTRY_STATUS_LISTENER")
     ENTRY_STATUS_NGINX_SERVICE=$(service_status_compact nginx)
     if listener_info_has_entry "$listener_info" "nginx"; then
-        ENTRY_STATUS_NGINX_ROLE="正在监听公网 ${NGINX_LISTEN_PORT:-443}"
+        ENTRY_STATUS_NGINX_ROLE="слушает публичный ${NGINX_LISTEN_PORT:-443}"
     else
-        ENTRY_STATUS_NGINX_ROLE="未监听公网 ${NGINX_LISTEN_PORT:-443}；服务运行仅代表 80/其他站点或默认丢弃规则仍可用"
+        ENTRY_STATUS_NGINX_ROLE="не слушает публичный ${NGINX_LISTEN_PORT:-443}; работа службы только означает, что 80/другие сайты или правило сброса по умолчанию доступны"
     fi
     xui_status=$(xui_panel_status_compact)
     if xui_svc=$(xui_panel_service_name 2>/dev/null); then
         xui_status="${xui_svc}.service ${xui_status}"
     fi
-    ENTRY_STATUS_XRAY_SERVICE="面板托管 Xray: ${xui_status} / 独立 xray.service: $(service_status_compact xray)"
+    ENTRY_STATUS_XRAY_SERVICE="Панель управляет Xray: ${xui_status} / независимый xray.service: $(service_status_compact xray)"
     ENTRY_STATUS_TCPPEEK_SERVICE=$(service_status_compact vpso-mux)
     ENTRY_STATUS_CADDY_LISTEN_LINE="not-configured"
     ENTRY_STATUS_XRAY_LISTEN_LINE="not-configured"
@@ -807,40 +791,40 @@ show_current_entry_status() {
     local web_engine web_label
     web_engine=$(normalize_web_proxy_engine "${WEB_PROXY_ENGINE:-caddy}" 2>/dev/null || echo "caddy")
     web_label=$(web_proxy_engine_label "$web_engine")
-    echo -e "${BOLD}当前 443 入口状态${PLAIN}"
-    echo -e "配置模式：${CYAN}${ENTRY_STATUS_MODE}${PLAIN}"
-    echo -e "Web 反代：${web_label} (${web_engine})"
+    echo -e "${BOLD}Текущее состояние единого входа 443${PLAIN}"
+    echo -e "Режим конфигурации: ${CYAN}${ENTRY_STATUS_MODE}${PLAIN}"
+    echo -e "Web-прокси: ${web_label} (${web_engine})"
     print_entry_mode_compat_notice
-    echo -e "公网 443：${ENTRY_STATUS_LISTENER_DISPLAY}"
-    echo -e "监听进程：${ENTRY_STATUS_LISTENER_PROCESS}"
+    echo -e "Публичный 443: ${ENTRY_STATUS_LISTENER_DISPLAY}"
+    echo -e "Процесс слушателя: ${ENTRY_STATUS_LISTENER_PROCESS}"
     if [[ "$ENTRY_STATUS_LISTENER" == "xray" ]]; then
-        echo -e "Xray 公网：${GREEN}公网 443 当前由 Xray/面板托管 Xray 监听${PLAIN}"
+        echo -e "Xray публичный: ${GREEN}публичный 443 сейчас слушается Xray/панельным Xray${PLAIN}"
     else
-        echo -e "Xray 公网：未检测到 Xray 监听公网 443"
+        echo -e "Xray публичный: Xray, слушающий публичный 443, не обнаружен"
     fi
     if [[ "$ENTRY_STATUS_CONSISTENT" == "yes" ]]; then
-        echo -e "一致性：${GREEN}配置模式与实际监听一致${PLAIN}"
+        echo -e "Согласованность: ${GREEN}режим конфигурации и фактический слушатель совпадают${PLAIN}"
     else
-        echo -e "一致性：${YELLOW}配置模式与实际监听不一致${PLAIN}"
-        echo -e "${YELLOW}配置模式与实际监听不一致，建议重新应用当前入口模式。${PLAIN}"
+        echo -e "Согласованность: ${YELLOW}режим конфигурации и фактический слушатель не совпадают${PLAIN}"
+        echo -e "${YELLOW}Несовпадение, рекомендуется повторно применить текущий режим входа.${PLAIN}"
     fi
     echo -e "------------------------------------------------"
-    echo -e "${BOLD}本地监听${PLAIN}"
-    echo -e "Web 反代：${ENTRY_STATUS_CADDY_ADDR}:${ENTRY_STATUS_CADDY_PORT} - $(listen_line_status "$ENTRY_STATUS_CADDY_ADDR" "$ENTRY_STATUS_CADDY_PORT" "$ENTRY_STATUS_CADDY_LISTEN_LINE")"
-    echo -e "Xray： ${ENTRY_STATUS_XRAY_ADDR}:${ENTRY_STATUS_XRAY_PORT} - $(listen_line_status "$ENTRY_STATUS_XRAY_ADDR" "$ENTRY_STATUS_XRAY_PORT" "$ENTRY_STATUS_XRAY_LISTEN_LINE")"
+    echo -e "${BOLD}Локальные слушатели${PLAIN}"
+    echo -e "Web-прокси: ${ENTRY_STATUS_CADDY_ADDR}:${ENTRY_STATUS_CADDY_PORT} - $(listen_line_status "$ENTRY_STATUS_CADDY_ADDR" "$ENTRY_STATUS_CADDY_PORT" "$ENTRY_STATUS_CADDY_LISTEN_LINE")"
+    echo -e "Xray: ${ENTRY_STATUS_XRAY_ADDR}:${ENTRY_STATUS_XRAY_PORT} - $(listen_line_status "$ENTRY_STATUS_XRAY_ADDR" "$ENTRY_STATUS_XRAY_PORT" "$ENTRY_STATUS_XRAY_LISTEN_LINE")"
     echo -e "------------------------------------------------"
-    echo -e "${BOLD}服务状态${PLAIN}"
-    echo -e "nginx：${ENTRY_STATUS_NGINX_SERVICE}（${ENTRY_STATUS_NGINX_ROLE}）"
-    echo -e "TCP Peek + Splice / vpso-mux 分流器：${ENTRY_STATUS_TCPPEEK_SERVICE}"
-    echo -e "Xray/3x-ui/x-ui：${ENTRY_STATUS_XRAY_SERVICE}"
+    echo -e "${BOLD}Состояние служб${PLAIN}"
+    echo -e "nginx: ${ENTRY_STATUS_NGINX_SERVICE} (${ENTRY_STATUS_NGINX_ROLE})"
+    echo -e "TCP Peek + Splice / разделитель vpso-mux: ${ENTRY_STATUS_TCPPEEK_SERVICE}"
+    echo -e "Xray/3x-ui/x-ui: ${ENTRY_STATUS_XRAY_SERVICE}"
 }
 
 show_current_entry_summary() {
     detect_current_entry_status
-    echo -e "${BOLD}当前入口模式：${CYAN}${ENTRY_STATUS_MODE}${PLAIN}"
+    echo -e "${BOLD}Текущий режим входа: ${CYAN}${ENTRY_STATUS_MODE}${PLAIN}"
     print_entry_mode_compat_notice
     if [[ "$ENTRY_STATUS_CONSISTENT" != "yes" ]]; then
-        echo -e "${YELLOW}⚠️ 配置模式与公网 443 实际监听不一致，详情看 [1]，建议确认后重新应用当前入口模式。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Режим конфигурации и фактическое прослушивание 443 не совпадают, проверьте через [1] и повторно примените текущий режим.${PLAIN}"
     fi
 }
 
@@ -848,7 +832,7 @@ load_sni_stack_env() {
     local env_file
     env_file=$(sni_stack_env_path)
     if [[ ! -f "$env_file" ]]; then
-        echo -e "${RED}❌ 未找到 ${env_file}，请先运行主菜单 [19] -> [2] 首次配置 443 单入口。${PLAIN}"
+        echo -e "${RED}❌ ${env_file} не найден, сначала выполните главное меню [19] -> [2] первичную настройку единого входа 443.${PLAIN}"
         return 1
     fi
     # shellcheck disable=SC1090
@@ -868,7 +852,7 @@ get_listen_line_by_port() {
     local port="$1"
     local line
     line=$(ss -lntp 2>/dev/null | grep ":${port}[[:space:]]" | head -n1 || true)
-    echo "${line:-未监听}"
+    echo "${line:-Не слушает}"
 }
 
 print_sni_stack_current_summary() {
@@ -881,26 +865,26 @@ print_sni_stack_current_summary() {
     web_label=$(web_proxy_engine_label "$web_engine")
     web_backend=$(web_proxy_backend)
 
-    echo -e "${BOLD}当前保存的 443 分流配置${PLAIN} ${CYAN}(${env_file})${PLAIN}"
-    echo -e "面板：      https://${PANEL_DOMAIN}${PANEL_WEB_PATH} -> ${PANEL_LISTEN_ADDR}:${PANEL_LISTEN_PORT}"
-    echo -e "普通订阅：  https://${PANEL_DOMAIN}${SUB_URI_PATH} -> ${SUB_LISTEN_ADDR}:${SUB_LISTEN_PORT}"
-    echo -e "Clash 订阅：https://${PANEL_DOMAIN}${CLASH_URI_PATH} -> ${SUB_LISTEN_ADDR}:${SUB_LISTEN_PORT}"
-    echo -e "REALITY：   ${REALITY_SNI} -> ${XRAY_LISTEN_ADDR}:${XRAY_LISTEN_PORT}"
+    echo -e "${BOLD}Текущая сохранённая конфигурация маршрутизации 443${PLAIN} ${CYAN}(${env_file})${PLAIN}"
+    echo -e "Панель: https://${PANEL_DOMAIN}${PANEL_WEB_PATH} -> ${PANEL_LISTEN_ADDR}:${PANEL_LISTEN_PORT}"
+    echo -e "Обычная подписка: https://${PANEL_DOMAIN}${SUB_URI_PATH} -> ${SUB_LISTEN_ADDR}:${SUB_LISTEN_PORT}"
+    echo -e "Подписка Clash: https://${PANEL_DOMAIN}${CLASH_URI_PATH} -> ${SUB_LISTEN_ADDR}:${SUB_LISTEN_PORT}"
+    echo -e "REALITY: ${REALITY_SNI} -> ${XRAY_LISTEN_ADDR}:${XRAY_LISTEN_PORT}"
     if [[ ${#TCP_ROUTE_SNIS[@]} -gt 0 ]]; then
         local tcp_i
         for tcp_i in "${!TCP_ROUTE_SNIS[@]}"; do
-            echo -e "TCP/SNI：   ${TCP_ROUTE_SNIS[$tcp_i]} -> ${TCP_ROUTE_ADDRS[$tcp_i]}:${TCP_ROUTE_PORTS[$tcp_i]}"
+            echo -e "TCP/SNI: ${TCP_ROUTE_SNIS[$tcp_i]} -> ${TCP_ROUTE_ADDRS[$tcp_i]}:${TCP_ROUTE_PORTS[$tcp_i]}"
         done
     fi
     if [[ ${#XRAY_SNI_ROUTE_SNIS[@]} -gt 0 ]]; then
         local xray_route_i
         for xray_route_i in "${!XRAY_SNI_ROUTE_SNIS[@]}"; do
-            echo -e "Xray 入站：  ${XRAY_SNI_ROUTE_SNIS[$xray_route_i]} -> ${XRAY_SNI_ROUTE_ADDRS[$xray_route_i]}:${XRAY_SNI_ROUTE_PORTS[$xray_route_i]}"
+            echo -e "Xray входящий: ${XRAY_SNI_ROUTE_SNIS[$xray_route_i]} -> ${XRAY_SNI_ROUTE_ADDRS[$xray_route_i]}:${XRAY_SNI_ROUTE_PORTS[$xray_route_i]}"
         done
     fi
-    echo -e "Web 反代：  ${web_label} (${web_backend})"
-    echo -e "公网入口：  ${NGINX_LISTEN_ADDR}:${NGINX_LISTEN_PORT} -> ${web_label} ${web_backend}"
-    echo -e "配置文件：  Nginx ${nginx_conf}"
+    echo -e "Web-прокси: ${web_label} (${web_backend})"
+    echo -e "Публичный вход: ${NGINX_LISTEN_ADDR}:${NGINX_LISTEN_PORT} -> ${web_label} ${web_backend}"
+    echo -e "Файлы конфигурации: Nginx ${nginx_conf}"
     if [[ "$web_engine" == "nginx" ]]; then
         echo -e "           Nginx Web ${nginx_web_conf}"
     else
@@ -908,22 +892,22 @@ print_sni_stack_current_summary() {
     fi
     print_sni_ip_whitelist_summary
     echo -e "------------------------------------------------"
-    echo -e "${BOLD}当前实际监听状态${PLAIN}"
-    echo -e "Nginx 入口：  $(get_listen_line_by_port "$NGINX_LISTEN_PORT")"
-    echo -e "${web_label}：$(get_listen_line_by_port "$CADDY_LISTEN_PORT")"
-    echo -e "面板后端：    $(get_listen_line_by_port "$PANEL_LISTEN_PORT")"
-    echo -e "订阅后端：    $(get_listen_line_by_port "$SUB_LISTEN_PORT")"
-    echo -e "REALITY 后端：$(get_listen_line_by_port "$XRAY_LISTEN_PORT")"
+    echo -e "${BOLD}Текущее состояние фактического прослушивания${PLAIN}"
+    echo -e "Nginx вход: $(get_listen_line_by_port "$NGINX_LISTEN_PORT")"
+    echo -e "${web_label}: $(get_listen_line_by_port "$CADDY_LISTEN_PORT")"
+    echo -e "Бэкенд панели: $(get_listen_line_by_port "$PANEL_LISTEN_PORT")"
+    echo -e "Бэкенд подписки: $(get_listen_line_by_port "$SUB_LISTEN_PORT")"
+    echo -e "Бэкенд REALITY: $(get_listen_line_by_port "$XRAY_LISTEN_PORT")"
     if [[ ${#TCP_ROUTE_SNIS[@]} -gt 0 ]]; then
         local tcp_i
         for tcp_i in "${!TCP_ROUTE_SNIS[@]}"; do
-            echo -e "TCP/SNI 后端 ${TCP_ROUTE_SNIS[$tcp_i]}：$(get_listen_line_by_port "${TCP_ROUTE_PORTS[$tcp_i]}")"
+            echo -e "Бэкенд TCP/SNI ${TCP_ROUTE_SNIS[$tcp_i]}: $(get_listen_line_by_port "${TCP_ROUTE_PORTS[$tcp_i]}")"
         done
     fi
     if [[ ${#XRAY_SNI_ROUTE_SNIS[@]} -gt 0 ]]; then
         local xray_route_i
         for xray_route_i in "${!XRAY_SNI_ROUTE_SNIS[@]}"; do
-            echo -e "Xray 入站后端 ${XRAY_SNI_ROUTE_SNIS[$xray_route_i]}：$(get_listen_line_by_port "${XRAY_SNI_ROUTE_PORTS[$xray_route_i]}")"
+            echo -e "Бэкенд Xray входящего ${XRAY_SNI_ROUTE_SNIS[$xray_route_i]}: $(get_listen_line_by_port "${XRAY_SNI_ROUTE_PORTS[$xray_route_i]}")"
         done
     fi
 }
@@ -1080,21 +1064,21 @@ set_xray_fallback_main_route_from_index() {
 }
 
 print_xray_fallback_mode_explanation() {
-    echo -e "${YELLOW}Xray 本身可以有多个入站。但在 xray-fallback 模式下，公网 443 默认由一个 Xray 主入站接管。脚本暂不支持在该模式下继续按多个 SNI 分流到多个本地 Xray 入站。${PLAIN}"
-    echo -e "${YELLOW}该模式只负责 Xray 主入站监听公网 443，并 fallback 普通 HTTPS 到所选 Web 反代引擎。${PLAIN}"
-    echo -e "${YELLOW}如需多个本地 Xray 入站通过 443 按 SNI 分流，请使用 Nginx Stream 模式或 TCP Peek + Splice 模式。${PLAIN}"
-    echo -e "${YELLOW}如果 Web 域名开启 CDN/WAF/源站保护/Cloudflare 回源限制/Web 白名单，403 或拒绝访问通常是 Web/CDN/白名单/SNI 策略阻断，不一定是证书或反代引擎故障。${PLAIN}"
+    echo -e "${YELLOW}Xray может иметь несколько входящих. Но в режиме xray-fallback публичный 443 по умолчанию принимается одним основным входящим Xray. Скрипт в этом режиме не поддерживает маршрутизацию по нескольким SNI на несколько локальных Xray-входящих.${PLAIN}"
+    echo -e "${YELLOW}Этот режим только обеспечивает, чтобы основной входящий Xray слушал публичный 443 и делал fallback обычного HTTPS на выбранный Web-прокси.${PLAIN}"
+    echo -e "${YELLOW}Если нужна маршрутизация по SNI на несколько локальных Xray-входящих через 443, используйте режимы Nginx Stream или TCP Peek + Splice.${PLAIN}"
+    echo -e "${YELLOW}Если веб-домен использует CDN/WAF/защиту источника/ограничения Cloudflare/веб-белые списки, код 403 или отказ в доступе — это обычно блокировка на уровне Web/CDN/белого списка/SNI, а не ошибка сертификата или прокси.${PLAIN}"
 }
 
 print_xray_fallback_main_route_summary() {
     local idx
     idx=$(xray_fallback_main_route_index 2>/dev/null || true)
     if [[ -n "$idx" ]]; then
-        echo -e "${GREEN}当前 xray-fallback 主入站：${XRAY_SNI_ROUTE_SNIS[$idx]} -> ${XRAY_SNI_ROUTE_ADDRS[$idx]}:${XRAY_SNI_ROUTE_PORTS[$idx]}${PLAIN}"
+        echo -e "${GREEN}Текущий основной входящий xray-fallback: ${XRAY_SNI_ROUTE_SNIS[$idx]} -> ${XRAY_SNI_ROUTE_ADDRS[$idx]}:${XRAY_SNI_ROUTE_PORTS[$idx]}${PLAIN}"
     elif [[ -n "${XRAY_FALLBACK_MAIN_SNI:-}" ]]; then
-        echo -e "${YELLOW}当前 xray-fallback 主入站记录：${XRAY_FALLBACK_MAIN_SNI} -> ${XRAY_FALLBACK_MAIN_ADDR:-?}:${XRAY_FALLBACK_MAIN_PORT:-?}，但未匹配到现有规则。${PLAIN}"
+        echo -e "${YELLOW}Запись основного входящего xray-fallback: ${XRAY_FALLBACK_MAIN_SNI} -> ${XRAY_FALLBACK_MAIN_ADDR:-?}:${XRAY_FALLBACK_MAIN_PORT:-?}, но не совпадает с существующими правилами.${PLAIN}"
     elif [[ "$(get_entry_mode)" == "xray-fallback" ]]; then
-        echo -e "${YELLOW}当前未记录 xray-fallback 主入站；请确认 Xray 主入站已按当前模式监听公网 443。${PLAIN}"
+        echo -e "${YELLOW}Основной входящий xray-fallback не записан; убедитесь, что основной входящий Xray слушает публичный 443 в соответствии с текущим режимом.${PLAIN}"
     fi
 }
 
@@ -1104,12 +1088,12 @@ select_xray_fallback_main_route_for_switch() {
     count=${#XRAY_SNI_ROUTE_SNIS[@]}
 
     if [[ "$count" -eq 0 ]]; then
-        echo -e "${YELLOW}未找到 $(xray_sni_routes_path) 中的 Xray 入站分流规则。${PLAIN}"
-        echo -e "${YELLOW}切换到 xray-fallback 时，将由用户已配置的 Xray 主入站接管公网 443；脚本不会修改 3x-ui/Xray 入站内部配置。${PLAIN}"
-        confirm_risk_action "继续切换到 xray-fallback" \
-            "公网 443 将由 Xray 主入站接管，普通 HTTPS fallback 到所选 Web 反代引擎" \
-            "取消切换，先在 Xray 入站管理中记录一个主入站候选" \
-            "确认你已经在 3x-ui/Xray 中准备好将作为主入站的配置。" || return 1
+        echo -e "${YELLOW}Не найдены правила маршрутизации Xray-входящих в $(xray_sni_routes_path).${PLAIN}"
+        echo -e "${YELLOW}При переключении на xray-fallback публичный 443 будет приниматься основным входящим Xray, настроенным пользователем; скрипт не изменяет внутреннюю конфигурацию входящих 3x-ui/Xray.${PLAIN}"
+        confirm_risk_action "Продолжить переключение на xray-fallback" \
+            "Публичный 443 будет приниматься основным входящим Xray, обычный HTTPS fallback на выбранный Web-прокси" \
+            "Отменить переключение, сначала записать основной входящий кандидат в управлении Xray-входящими" \
+            "Убедитесь, что вы уже подготовили основной входящий в 3x-ui/Xray." || return 1
         XRAY_FALLBACK_MAIN_SNI=""
         XRAY_FALLBACK_MAIN_ADDR=""
         XRAY_FALLBACK_MAIN_PORT=""
@@ -1119,32 +1103,32 @@ select_xray_fallback_main_route_for_switch() {
     print_xray_fallback_mode_explanation
     echo -e "------------------------------------------------"
     if [[ "$count" -eq 1 ]]; then
-        echo -e "${CYAN}检测到 1 条 Xray 入站分流规则，可作为 xray-fallback 主入站候选：${PLAIN}"
+        echo -e "${CYAN}Обнаружено 1 правило маршрутизации Xray-входящего, может использоваться как кандидат основного входящего xray-fallback:${PLAIN}"
         echo -e "1. ${XRAY_SNI_ROUTE_SNIS[0]} -> ${XRAY_SNI_ROUTE_ADDRS[0]}:${XRAY_SNI_ROUTE_PORTS[0]}"
-        confirm_risk_action "使用该规则作为 xray-fallback 主入站候选" \
-            "该规则会被记录为 xray-fallback 主入站；其他模式下仍按 xray-sni-routes.conf 正常分流" \
-            "取消切换，先确认 3x-ui/Xray 主入站配置" \
-            "确认该本地入站就是你希望在 xray-fallback 模式下接管公网 443 的主入站。" || return 1
+        confirm_risk_action "Использовать это правило как кандидат основного входящего xray-fallback" \
+            "Это правило будет записано как основной входящий xray-fallback; в других режимах оно будет работать как обычная маршрутизация" \
+            "Отменить переключение, сначала проверьте конфигурацию основного входящего 3x-ui/Xray" \
+            "Убедитесь, что этот локальный входящий — тот, который должен принимать публичный 443 в режиме xray-fallback." || return 1
         set_xray_fallback_main_route_from_index 0
         return 0
     fi
 
-    echo -e "${CYAN}检测到多条 Xray 入站分流规则，请选择其中一条作为 xray-fallback 主入站：${PLAIN}"
+    echo -e "${CYAN}Обнаружено несколько правил маршрутизации Xray-входящих, выберите одно как основной входящий xray-fallback:${PLAIN}"
     for idx in "${!XRAY_SNI_ROUTE_SNIS[@]}"; do
         echo -e "${GREEN}$((idx + 1)).${PLAIN} ${XRAY_SNI_ROUTE_SNIS[$idx]} -> ${XRAY_SNI_ROUTE_ADDRS[$idx]}:${XRAY_SNI_ROUTE_PORTS[$idx]}"
     done
-    echo -e "${RED}0. 取消切换${PLAIN}"
-    read_trimmed choice "请选择 xray-fallback 主入站候选: "
+    echo -e "${RED}0. Отменить переключение${PLAIN}"
+    read_trimmed choice "Выберите кандидат основного входящего xray-fallback: "
     if [[ -z "$choice" || "$choice" == "0" ]]; then
-        echo -e "${BLUE}已取消切换到 xray-fallback。${PLAIN}"
+        echo -e "${BLUE}Переключение на xray-fallback отменено.${PLAIN}"
         return 1
     fi
     if ! [[ "$choice" =~ ^[0-9]+$ ]] || (( choice < 1 || choice > count )); then
-        echo -e "${RED}❌ 序号无效，已取消切换。${PLAIN}"
+        echo -e "${RED}❌ Неверный номер, переключение отменено.${PLAIN}"
         return 1
     fi
     set_xray_fallback_main_route_from_index "$((choice - 1))" || return 1
-    echo -e "${GREEN}✅ 已选择 xray-fallback 主入站候选：${XRAY_FALLBACK_MAIN_SNI} -> ${XRAY_FALLBACK_MAIN_ADDR}:${XRAY_FALLBACK_MAIN_PORT}${PLAIN}"
+    echo -e "${GREEN}✅ Выбран кандидат основного входящего xray-fallback: ${XRAY_FALLBACK_MAIN_SNI} -> ${XRAY_FALLBACK_MAIN_ADDR}:${XRAY_FALLBACK_MAIN_PORT}${PLAIN}"
 }
 
 xray_sni_route_port_conflict() {
@@ -1161,7 +1145,7 @@ xray_sni_route_port_conflict() {
     done
     for i in "${!TCP_ROUTE_SNIS[@]}"; do
         if [[ "$addr" == "${TCP_ROUTE_ADDRS[$i]}" && "$port" == "${TCP_ROUTE_PORTS[$i]}" ]]; then
-            echo "旧 TCP/SNI:${TCP_ROUTE_SNIS[$i]}"
+            echo "старый TCP/SNI:${TCP_ROUTE_SNIS[$i]}"
             return 0
         fi
     done
@@ -1189,20 +1173,20 @@ print_xray_route_port_status() {
 
     echo -e "${CYAN}${sni}${PLAIN} -> ${addr}:${port}"
     if [[ "${CADDY_LISTEN_PORT:-}" == "$port" ]]; then
-        echo -e "${RED}  ❌ 与 Web 反代引擎本地端口 ${CADDY_LISTEN_PORT} 冲突，请换一个本地入站端口。${PLAIN}"
+        echo -e "${RED}  ❌ Конфликт с локальным портом Web-прокси ${CADDY_LISTEN_PORT}, выберите другой порт.${PLAIN}"
     fi
 
     conflict=$(xray_sni_route_port_conflict "$addr" "$port" "$(xray_sni_route_index "$sni" 2>/dev/null || true)" || true)
-    [[ -n "$conflict" ]] && echo -e "${YELLOW}  ⚠️ 与规则 ${conflict} 使用了相同的 ${addr}:${port}，请确认是否故意复用。${PLAIN}"
+    [[ -n "$conflict" ]] && echo -e "${YELLOW}  ⚠️ Конфликт с правилом ${conflict}, использующим тот же ${addr}:${port}, проверьте, не намеренно ли это.${PLAIN}"
 
     line=$(xray_route_listen_line_by_addr_port "$addr" "$port")
     if [[ -n "$line" ]]; then
-        echo -e "${GREEN}  ✅ 端口已监听：${line}${PLAIN}"
+        echo -e "${GREEN}  ✅ Порт слушается: ${line}${PLAIN}"
         if echo "$line" | grep -Eq '(^|[[:space:]])(0\.0\.0\.0|\*|\[::\]):'"${port}"'[[:space:]]'; then
-            echo -e "${YELLOW}  ⚠️ 检测到可能监听在 0.0.0.0/[::]，存在公网暴露风险，建议改为 127.0.0.1。${PLAIN}"
+            echo -e "${YELLOW}  ⚠️ Обнаружено прослушивание на 0.0.0.0/[::], есть риск публичного доступа, рекомендуется изменить на 127.0.0.1.${PLAIN}"
         fi
     else
-        echo -e "${YELLOW}  ⚠️ 未检测到 ${addr}:${port} 监听，请先去 3x-ui 创建并启用对应入站。${PLAIN}"
+        echo -e "${YELLOW}  ⚠️ ${addr}:${port} не слушается, сначала создайте и включите соответствующий входящий в 3x-ui.${PLAIN}"
     fi
 }
 
@@ -1323,21 +1307,21 @@ rename_sni_ip_whitelist_domain() {
 
 print_sni_ip_whitelist_summary() {
     if [[ ${#SNI_IP_WHITELIST_DOMAINS[@]} -eq 0 ]]; then
-        echo -e "IP 白名单：  未启用"
+        echo -e "IP-белый список: не включён"
         return 0
     fi
 
     local i
-    echo -e "IP 白名单："
+    echo -e "IP-белый список:"
     for i in "${!SNI_IP_WHITELIST_DOMAINS[@]}"; do
-        echo -e "  - ${SNI_IP_WHITELIST_DOMAINS[$i]} 仅允许：${SNI_IP_WHITELIST_RANGES[$i]}"
+        echo -e "  - ${SNI_IP_WHITELIST_DOMAINS[$i]} разрешено: ${SNI_IP_WHITELIST_RANGES[$i]}"
     done
 }
 
 sni_stack_health_check() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧪 443 单入口分流链路体检${PLAIN}"
+    echo -e "${BOLD}🧪 Проверка цепочки единого входа 443${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
     load_sni_stack_env || return 1
 
@@ -1356,15 +1340,15 @@ sni_stack_health_check() {
         if ss -lntp 2>/dev/null | grep -q ":${port}[[:space:]]"; then
             local line
             line=$(ss -lntp 2>/dev/null | grep ":${port}[[:space:]]" | head -n1)
-            echo -e "${GREEN}✅ ${name} 端口 ${port} 有监听：${line}${PLAIN}"
+            echo -e "${GREEN}✅ ${name} порт ${port} слушается: ${line}${PLAIN}"
             if [[ -n "$expect_addr" ]] && ! echo "$line" | grep -q "$expect_addr"; then
-                echo -e "${YELLOW}⚠️ ${name} 期望监听 ${expect_addr}:${port}，请确认是否被改成公网监听。${PLAIN}"
+                echo -e "${YELLOW}⚠️ ${name} ожидается слушать ${expect_addr}:${port}, проверьте, не изменён ли адрес на публичный.${PLAIN}"
                 ((warn++))
             else
                 ((ok++))
             fi
         else
-            echo -e "${RED}❌ ${name} 端口 ${port} 未监听。${PLAIN}"
+            echo -e "${RED}❌ ${name} порт ${port} не слушается.${PLAIN}"
             ((fail++))
         fi
     }
@@ -1386,27 +1370,27 @@ sni_stack_health_check() {
         fi
     }
 
-    check_listen "Nginx 公网入口" "$NGINX_LISTEN_PORT" ""
-    check_listen "$(web_proxy_engine_label) 本地 TLS" "$CADDY_LISTEN_PORT" "$CADDY_LISTEN_ADDR"
+    check_listen "Nginx публичный вход" "$NGINX_LISTEN_PORT" ""
+    check_listen "$(web_proxy_engine_label) локальный TLS" "$CADDY_LISTEN_PORT" "$CADDY_LISTEN_ADDR"
     check_listen "Xray/3x-ui REALITY" "$XRAY_LISTEN_PORT" "$XRAY_LISTEN_ADDR"
-    check_listen "3x-ui 面板" "$PANEL_LISTEN_PORT" "$PANEL_LISTEN_ADDR"
-    check_listen "3x-ui 订阅" "$SUB_LISTEN_PORT" "$SUB_LISTEN_ADDR"
+    check_listen "Панель 3x-ui" "$PANEL_LISTEN_PORT" "$PANEL_LISTEN_ADDR"
+    check_listen "Подписка 3x-ui" "$SUB_LISTEN_PORT" "$SUB_LISTEN_ADDR"
     if [[ ${#SITE_DOMAINS[@]} -gt 0 ]]; then
         local i
         for i in "${!SITE_DOMAINS[@]}"; do
-            check_backend "网站后端 ${SITE_DOMAINS[$i]}" "${SITE_BACKEND_ADDRS[$i]}" "${SITE_BACKEND_PORTS[$i]}"
+            check_backend "Бэкенд сайта ${SITE_DOMAINS[$i]}" "${SITE_BACKEND_ADDRS[$i]}" "${SITE_BACKEND_PORTS[$i]}"
         done
     fi
     if [[ ${#TCP_ROUTE_SNIS[@]} -gt 0 ]]; then
         local tcp_i
         for tcp_i in "${!TCP_ROUTE_SNIS[@]}"; do
-            check_listen "TCP/SNI 入站 ${TCP_ROUTE_SNIS[$tcp_i]}" "${TCP_ROUTE_PORTS[$tcp_i]}" "${TCP_ROUTE_ADDRS[$tcp_i]}"
+            check_listen "TCP/SNI входящий ${TCP_ROUTE_SNIS[$tcp_i]}" "${TCP_ROUTE_PORTS[$tcp_i]}" "${TCP_ROUTE_ADDRS[$tcp_i]}"
         done
     fi
     if [[ ${#XRAY_SNI_ROUTE_SNIS[@]} -gt 0 ]]; then
         local xray_route_i
         for xray_route_i in "${!XRAY_SNI_ROUTE_SNIS[@]}"; do
-            check_listen "Xray 入站 ${XRAY_SNI_ROUTE_SNIS[$xray_route_i]}" "${XRAY_SNI_ROUTE_PORTS[$xray_route_i]}" "${XRAY_SNI_ROUTE_ADDRS[$xray_route_i]}"
+            check_listen "Xray входящий ${XRAY_SNI_ROUTE_SNIS[$xray_route_i]}" "${XRAY_SNI_ROUTE_PORTS[$xray_route_i]}" "${XRAY_SNI_ROUTE_ADDRS[$xray_route_i]}"
         done
     fi
 
@@ -1418,7 +1402,7 @@ sni_stack_health_check() {
     fi
 
     echo -e "------------------------------------------------"
-    if check_domain_dns_sanity "$PANEL_DOMAIN" "面板域名" "warn"; then
+    if check_domain_dns_sanity "$PANEL_DOMAIN" "Домен панели" "warn"; then
         ((ok++))
     else
         ((warn++))
@@ -1427,7 +1411,7 @@ sni_stack_health_check() {
         local dns_site
         for dns_site in "${SITE_DOMAINS[@]}"; do
             [[ -z "$dns_site" ]] && continue
-            if check_domain_dns_sanity "$dns_site" "网站/反代域名" "warn"; then
+            if check_domain_dns_sanity "$dns_site" "Домен сайта/прокси" "warn"; then
                 ((ok++))
             else
                 ((warn++))
@@ -1438,10 +1422,10 @@ sni_stack_health_check() {
         local tcp_sni
         for tcp_sni in "${TCP_ROUTE_SNIS[@]}"; do
             [[ -z "$tcp_sni" ]] && continue
-            if check_domain_dns_sanity "$tcp_sni" "TCP/SNI 入站域名" "warn"; then
+            if check_domain_dns_sanity "$tcp_sni" "Домен TCP/SNI входящего" "warn"; then
                 ((ok++))
             else
-                echo -e "${YELLOW}⚠️ 如果客户端使用服务器 IP 连接并手动指定 SNI，可忽略该 DNS 警告。${PLAIN}"
+                echo -e "${YELLOW}⚠️ Если клиент подключается по IP и вручную указывает SNI, это предупреждение можно игнорировать.${PLAIN}"
                 ((warn++))
             fi
         done
@@ -1450,45 +1434,45 @@ sni_stack_health_check() {
         local xray_route_sni
         for xray_route_sni in "${XRAY_SNI_ROUTE_SNIS[@]}"; do
             [[ -z "$xray_route_sni" ]] && continue
-            if check_domain_dns_sanity "$xray_route_sni" "Xray 入站域名" "warn"; then
+            if check_domain_dns_sanity "$xray_route_sni" "Домен Xray входящего" "warn"; then
                 ((ok++))
             else
-                echo -e "${YELLOW}⚠️ 如果客户端使用服务器 IP 连接并手动指定 SNI，可忽略该 DNS 警告。${PLAIN}"
+                echo -e "${YELLOW}⚠️ Если клиент подключается по IP и вручную указывает SNI, это предупреждение можно игнорировать.${PLAIN}"
                 ((warn++))
             fi
         done
     fi
 
     echo -e "------------------------------------------------"
-    nginx -t >/dev/null 2>&1 && echo -e "${GREEN}✅ nginx -t 通过${PLAIN}" && ((ok++)) || { echo -e "${RED}❌ nginx -t 失败${PLAIN}"; ((fail++)); }
+    nginx -t >/dev/null 2>&1 && echo -e "${GREEN}✅ nginx -t пройден${PLAIN}" && ((ok++)) || { echo -e "${RED}❌ nginx -t не пройден${PLAIN}"; ((fail++)); }
     if [[ "$(current_web_proxy_engine)" == "caddy" ]]; then
-        caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1 && echo -e "${GREEN}✅ Caddy 配置校验通过${PLAIN}" && ((ok++)) || { echo -e "${RED}❌ Caddy 配置校验失败${PLAIN}"; ((fail++)); }
+        caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1 && echo -e "${GREEN}✅ Проверка конфигурации Caddy пройдена${PLAIN}" && ((ok++)) || { echo -e "${RED}❌ Проверка конфигурации Caddy не пройдена${PLAIN}"; ((fail++)); }
     fi
     if grep -Eq '^[[:space:]]*server_tokens[[:space:]]+off;' /etc/nginx/nginx.conf 2>/dev/null; then
-        echo -e "${GREEN}✅ Nginx 已关闭版本号显示 server_tokens off${PLAIN}"
+        echo -e "${GREEN}✅ Nginx отключил отображение версии server_tokens off${PLAIN}"
         ((ok++))
     else
-        echo -e "${YELLOW}⚠️ 未确认 Nginx server_tokens off，错误页可能显示版本号。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Nginx server_tokens off не подтверждён, на страницах ошибок может отображаться версия.${PLAIN}"
         ((warn++))
     fi
     if [[ -f /etc/nginx/conf.d/00-vps-default-drop.conf ]]; then
-        echo -e "${GREEN}✅ Nginx 80 默认站点已设置为丢弃连接${PLAIN}"
+        echo -e "${GREEN}✅ Nginx стандартный сайт на 80 настроен на сброс соединения${PLAIN}"
         ((ok++))
     else
-        echo -e "${YELLOW}⚠️ 未找到 80 默认丢弃配置，错误域名可能命中默认页。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Не найден конфиг сброса на 80, неверные домены могут попадать на стандартную страницу.${PLAIN}"
         ((warn++))
     fi
 
     if command -v openssl >/dev/null 2>&1; then
         if timeout 10 openssl s_client -connect "127.0.0.1:${NGINX_LISTEN_PORT}" -servername "$PANEL_DOMAIN" </dev/null 2>/dev/null | grep -q "BEGIN CERTIFICATE"; then
-            echo -e "${GREEN}✅ 面板 SNI 可从入口命中 Web 反代引擎证书链${PLAIN}"
+            echo -e "${GREEN}✅ SNI панели проходит через вход и достигает цепочки сертификатов Web-прокси${PLAIN}"
             ((ok++))
         else
-            echo -e "${YELLOW}⚠️ 面板 SNI 测试未拿到证书，请检查入口模式与 Web 反代引擎。${PLAIN}"
+            echo -e "${YELLOW}⚠️ Проверка SNI панели не получила сертификат, проверьте режим входа и Web-прокси.${PLAIN}"
             ((warn++))
         fi
     fi
 
     echo -e "------------------------------------------------"
-    echo -e "体检结果：${GREEN}通过 ${ok}${PLAIN} / ${YELLOW}警告 ${warn}${PLAIN} / ${RED}失败 ${fail}${PLAIN}"
+    echo -e "Результат проверки: ${GREEN}OK ${ok}${PLAIN} / ${YELLOW}Предупреждения ${warn}${PLAIN} / ${RED}Ошибки ${fail}${PLAIN}"
 }
