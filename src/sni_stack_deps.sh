@@ -1,38 +1,38 @@
 # shellcheck shell=bash
-# Caddy and nginx-stream dependency installation for the 443 stack.
+# Установка зависимостей Caddy и nginx-stream для стека 443.
 
 install_caddy_if_needed() {
     command -v caddy >/dev/null 2>&1 && return 0
-    echo -e "${CYAN}▶ 未检测到 Caddy，正在安装...${PLAIN}"
+    echo -e "${CYAN}▶ Caddy не обнаружен, установка...${PLAIN}"
     if is_debian; then
         local key_tmp repo_tmp
         install_pkg debian-keyring debian-archive-keyring apt-transport-https curl gpg || return 1
-        command -v curl >/dev/null 2>&1 || { echo -e "${RED}❌ 缺少 curl，无法添加 Caddy 源。${PLAIN}"; return 1; }
-        command -v gpg >/dev/null 2>&1 || { echo -e "${RED}❌ 缺少 gpg，无法校验 Caddy 源。${PLAIN}"; return 1; }
+        command -v curl >/dev/null 2>&1 || { echo -e "${RED}❌ Отсутствует curl, невозможно добавить репозиторий Caddy.${PLAIN}"; return 1; }
+        command -v gpg >/dev/null 2>&1 || { echo -e "${RED}❌ Отсутствует gpg, невозможно проверить репозиторий Caddy.${PLAIN}"; return 1; }
         key_tmp=$(mktemp /tmp/caddy-key.XXXXXX) || return 1
         repo_tmp=$(mktemp /tmp/caddy-repo.XXXXXX) || { rm -f "$key_tmp"; return 1; }
         if ! curl -fsSL --connect-timeout 10 --max-time 60 --retry 2 --retry-delay 1 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' -o "$key_tmp"; then
             rm -f "$key_tmp"
             rm -f "$repo_tmp"
-            echo -e "${RED}❌ Caddy GPG key 下载失败。${PLAIN}"
+            echo -e "${RED}❌ Не удалось загрузить GPG key Caddy.${PLAIN}"
             return 1
         fi
         if ! gpg --batch --yes --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg "$key_tmp"; then
             rm -f "$key_tmp"
             rm -f "$repo_tmp"
-            echo -e "${RED}❌ Caddy GPG key 写入失败。${PLAIN}"
+            echo -e "${RED}❌ Не удалось записать GPG key Caddy.${PLAIN}"
             return 1
         fi
         if ! curl -fsSL --connect-timeout 10 --max-time 60 --retry 2 --retry-delay 1 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' -o "$repo_tmp"; then
             rm -f "$key_tmp"
             rm -f "$repo_tmp"
-            echo -e "${RED}❌ Caddy APT 源配置下载失败。${PLAIN}"
+            echo -e "${RED}❌ Не удалось загрузить конфигурацию репозитория Caddy APT.${PLAIN}"
             return 1
         fi
         if ! mv "$repo_tmp" /etc/apt/sources.list.d/caddy-stable.list; then
             rm -f "$key_tmp"
             rm -f "$repo_tmp"
-            echo -e "${RED}❌ Caddy APT 源配置写入失败。${PLAIN}"
+            echo -e "${RED}❌ Не удалось записать конфигурацию репозитория Caddy APT.${PLAIN}"
             return 1
         fi
         rm -f "$key_tmp"
@@ -42,11 +42,11 @@ install_caddy_if_needed() {
         if command -v yum-config-manager >/dev/null 2>&1; then
             yum-config-manager --add-repo https://openrepo.io/repo/caddy/caddy.repo >/dev/null 2>&1 || return 1
         else
-            echo -e "${YELLOW}⚠️ 未检测到 yum-config-manager，将尝试直接从系统源安装 Caddy。${PLAIN}"
+            echo -e "${YELLOW}⚠️ yum-config-manager не обнаружен, попытка установить Caddy из системного репозитория.${PLAIN}"
         fi
         install_pkg caddy || return 1
     else
-        echo -e "${RED}❌ 暂不支持当前系统自动安装 Caddy。${PLAIN}"
+        echo -e "${RED}❌ Автоматическая установка Caddy не поддерживается на текущей системе.${PLAIN}"
         return 1
     fi
     command -v caddy >/dev/null 2>&1
@@ -67,11 +67,11 @@ EOF
 }
 
 install_nginx_stream_stack() {
-    echo -e "${CYAN}▶ 正在检查 Nginx stream 组件...${PLAIN}"
+    echo -e "${CYAN}▶ Проверка компонентов Nginx stream...${PLAIN}"
     local need_install=0
     local nginx_build
     if ! command -v nginx >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️ 未检测到 Nginx，正在安装基础组件...${PLAIN}"
+        echo -e "${YELLOW}⚠️ Nginx не обнаружен, установка базовых компонентов...${PLAIN}"
         need_install=1
     else
         nginx_build=$(nginx -V 2>&1 || true)
@@ -80,15 +80,15 @@ install_nginx_stream_stack() {
     if [[ "$need_install" -eq 0 ]]; then
         if [[ "$nginx_build" == *"--with-stream=dynamic"* ]]; then
             if grep -Rqs 'load_module .*ngx_stream_module\.so' /etc/nginx/nginx.conf /etc/nginx/modules-enabled 2>/dev/null; then
-                echo -e "${GREEN}✅ 已检测到 Nginx stream 动态模块加载配置，跳过安装步骤。${PLAIN}"
+                echo -e "${GREEN}✅ Обнаружена загрузка динамического модуля Nginx stream, установка пропущена.${PLAIN}"
             else
-                echo -e "${YELLOW}⚠️ Nginx 支持动态 stream 模块，但未确认模块已加载，正在尝试补齐模块...${PLAIN}"
+                echo -e "${YELLOW}⚠️ Nginx поддерживает динамический stream-модуль, но загрузка не подтверждена, попытка установки модуля...${PLAIN}"
                 need_install=1
             fi
         elif [[ "$nginx_build" == *"--with-stream"* || "$nginx_build" == *"--with-stream_ssl_preread_module"* ]]; then
-            echo -e "${GREEN}✅ 已检测到 Nginx stream 静态支持，跳过安装步骤。${PLAIN}"
+            echo -e "${GREEN}✅ Обнаружена статическая поддержка Nginx stream, установка пропущена.${PLAIN}"
         else
-            echo -e "${YELLOW}⚠️ 未确认 Nginx stream 支持，正在尝试补齐模块...${PLAIN}"
+            echo -e "${YELLOW}⚠️ Поддержка Nginx stream не подтверждена, попытка установки модуля...${PLAIN}"
             need_install=1
         fi
     fi
@@ -98,10 +98,10 @@ install_nginx_stream_stack() {
             install_pkg nginx libnginx-mod-stream
         elif is_redhat; then
             install_pkg nginx
-            install_pkg nginx-mod-stream || echo -e "${YELLOW}⚠️ nginx-mod-stream 安装失败或仓库未提供，将继续检测 Nginx stream 支持。${PLAIN}"
+            install_pkg nginx-mod-stream || echo -e "${YELLOW}⚠️ nginx-mod-stream не установлен или репозиторий не предоставляет, продолжение с проверкой поддержки stream.${PLAIN}"
         fi
     fi
-    command -v nginx >/dev/null 2>&1 || { echo -e "${RED}❌ Nginx 安装失败。${PLAIN}"; return 1; }
+    command -v nginx >/dev/null 2>&1 || { echo -e "${RED}❌ Не удалось установить Nginx.${PLAIN}"; return 1; }
     mkdir -p /etc/nginx/stream.d
     if ! grep -Eq '^[[:space:]]*stream[[:space:]]*\{' /etc/nginx/nginx.conf 2>/dev/null; then
         cp -f /etc/nginx/nginx.conf "/etc/nginx/nginx.conf.bak_$(date +%s)" 2>/dev/null || true
@@ -155,7 +155,7 @@ server {
 EOF
 
     if [[ "$moved" -gt 0 ]]; then
-        echo -e "${YELLOW}⚠️ 已隔离 ${moved} 个 Nginx 默认站点配置到：${quarantine_dir}${PLAIN}"
+        echo -e "${YELLOW}⚠️ Изолированы ${moved} стандартных конфигураций сайтов Nginx в: ${quarantine_dir}${PLAIN}"
     fi
-    echo -e "${GREEN}✅ 已关闭 Nginx 版本号显示，并写入 80 端口默认丢弃规则。${PLAIN}"
+    echo -e "${GREEN}✅ Отключено отображение версии Nginx, добавлено правило сброса на 80 порту.${PLAIN}"
 }
