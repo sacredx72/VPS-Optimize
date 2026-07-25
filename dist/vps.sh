@@ -460,7 +460,7 @@ is_trusted_remote_script_url() {
             echo "Официальный установочный скрипт Docker"
             return 0
             ;;
-        "https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh"|\
+        "https://raw.githubusercontent.com/AlexeyLCP/lucx-ui/main/install.sh"|\
         "https://raw.githubusercontent.com/mhsanaei/3x-ui/v2.9.4/install.sh")
             echo "Официальный установочный скрипт 3x-ui"
             return 0
