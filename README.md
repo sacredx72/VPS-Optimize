@@ -14,7 +14,7 @@ VPS-Optimize 是一个面向 VPS 日常运维的 Bash 控制面板，通过 `cy`
 从项目官方 GitHub 地址下载：
 
 ```bash
-wget -qO vps.sh https://raw.githubusercontent.com/Chunlion/VPS-Optimize/main/dist/vps.sh && chmod +x vps.sh && ./vps.sh
+wget -qO vps.sh https://raw.githubusercontent.com/sacredx72/VPS-Optimize/main/dist/vps.sh && chmod +x vps.sh && ./vps.sh
 ```
 
 不要通过来源不明的 GitHub 加速代理下载并直接以 root 执行。
