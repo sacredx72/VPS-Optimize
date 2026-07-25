@@ -1,15 +1,15 @@
 # shellcheck shell=bash
-# Port process release and server reboot workflows.
+# Освобождение портов и перезагрузка сервера.
 
 func_port_kill() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${BOLD}🔍 网络端口占用排查与进程释放${PLAIN}"
+        echo -e "${BOLD}🔍 Проверка занятости портов и освобождение процессов${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}当前系统中正在监听的活动端口列表：${PLAIN}"
+        echo -e "${YELLOW}Список активных прослушиваемых портов:${PLAIN}"
         echo -e "------------------------------------------------"
-        printf "%-10s %-15s %-20s\n" "协议" "端口" "关联进程 (PID)"
+        printf "%-10s %-15s %-20s\n" "Протокол" "Порт" "Процесс (PID)"
         
         ss -tulnp | grep -E 'LISTEN|UNCONN' | while read -r line; do
             local proto=$(echo "$line" | awk '{print $1}')
@@ -19,7 +19,7 @@ func_port_kill() {
             
             local proc_info=""
             if [[ -z "$proc" || -z "$pid" ]]; then
-                proc_info="系统底层 / 无权限读取"
+                proc_info="Системный / нет прав"
             else
                 proc_info="$proc (PID: $pid)"
             fi
@@ -27,12 +27,12 @@ func_port_kill() {
         done | sort -n -k2 | uniq
         
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}👉 指南：找到您想释放的冲突端口，输入它即可强杀对应进程。${PLAIN}"
-        echo -e "${RED}⚠️ 高危：请勿随意终止 sshd (通常为 22) 的端口，否则会断网失联！${PLAIN}"
+        echo -e "${GREEN}👉 Найдите конфликтующий порт и введите его для принудительного завершения процесса.${PLAIN}"
+        echo -e "${RED}⚠️ Не завершайте процесс sshd (обычно порт 22), иначе потеряете связь!${PLAIN}"
         echo -e "------------------------------------------------"
         
         local p_choice
-        read_trimmed p_choice "❓ 请输入要强杀释放的端口号 (输入 0 返回主菜单): "
+        read_trimmed p_choice "❓ Введите порт для принудительного завершения (0 для возврата в главное меню): "
         
         if [[ "$p_choice" == "0" ]]; then break; fi
         
@@ -40,31 +40,33 @@ func_port_kill() {
             local ssh_match
             ssh_match=$(ss -tulnp 2>/dev/null | awk -v port="$p_choice" '$5 ~ ":" port "$" && $0 ~ /(sshd|ssh)/ {print}')
             if [[ -n "$ssh_match" || "$p_choice" == "22" ]]; then
-                echo -e "${RED}❌ 检测到你选择的是 SSH 相关端口或默认 SSH 端口，为避免失联，已拒绝强杀。${PLAIN}"
+                echo -e "${RED}❌ Обнаружен SSH-порт, завершение отклонено во избежание потери связи.${PLAIN}"
                 sleep 2
                 continue
             fi
-            confirm_danger "强杀占用端口 ${p_choice} 的进程" "会对 TCP/UDP ${p_choice} 占用进程发送 SIGKILL，相关服务会立即中断。" "如果杀错服务，需要手动重启对应 systemd 服务或容器。" || {
-                echo -e "${BLUE}已取消强杀操作。${PLAIN}"
+            confirm_danger "Принудительно завершить процесс, занимающий порт ${p_choice}" \
+                "Будет отправлен SIGKILL процессу, использующему TCP/UDP ${p_choice}, служба будет немедленно прервана." \
+                "Если процесс завершён ошибочно, потребуется вручную перезапустить соответствующую systemd-службу или контейнер." || {
+                echo -e "${BLUE}Завершение отменено.${PLAIN}"
                 sleep 1
                 continue
             }
-            echo -e "${CYAN}▶ 正在调用底层系统命令强杀端口 $p_choice ...${PLAIN}"
+            echo -e "${CYAN}▶ Принудительное завершение процесса на порту $p_choice ...${PLAIN}"
             
-            # [依赖前置检查]: 确保存在 fuser 工具
+            # Установка fuser, если отсутствует
             if ! command -v fuser >/dev/null 2>&1; then
                 install_pkg psmisc
             fi
             
-            # [极简实现]: 一行代码杀掉占用该 TCP/UDP 端口的所有进程
+            # Однострочное завершение всех процессов, использующих TCP/UDP порт
             if fuser -k -9 -n tcp "$p_choice" >/dev/null 2>&1 || fuser -k -9 -n udp "$p_choice" >/dev/null 2>&1; then
-                echo -e "${GREEN}✅ 目标进程已被系统底层强制回收 (SIGKILL)。端口已释放！${PLAIN}"
+                echo -e "${GREEN}✅ Процесс принудительно завершён (SIGKILL). Порт освобождён!${PLAIN}"
             else
-                echo -e "${BLUE}ℹ️ 未发现任何可被终止的进程占用该端口，或权限不足。${PLAIN}"
+                echo -e "${BLUE}ℹ️ Не найдено процессов для завершения на этом порту или недостаточно прав.${PLAIN}"
             fi
             sleep 2
         else
-            echo -e "${RED}❌ 输入无效！请输入纯数字端口号。${PLAIN}"
+            echo -e "${RED}❌ Неверный ввод! Введите числовой порт.${PLAIN}"
             sleep 1
         fi
     done
@@ -73,15 +75,17 @@ func_port_kill() {
 func_reboot_server() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🔁 重启服务器${PLAIN}"
+    echo -e "${BOLD}🔁 Перезагрузка сервера${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    confirm_danger "立即重启服务器" "当前 SSH 会话会断开，所有运行中的服务会短暂中断。" "请确认云厂商控制台可用，并确保关键配置已经保存。" || {
-        echo -e "${BLUE}已取消重启操作。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+    confirm_danger "Немедленная перезагрузка сервера" \
+        "Текущая SSH-сессия будет разорвана, все работающие службы временно прервутся." \
+        "Убедитесь, что консоль облачного провайдера доступна и важные конфигурации сохранены." || {
+        echo -e "${BLUE}Перезагрузка отменена.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     }
     reboot
 }
 # ---------------------------------------------------------
-# 19. 脚本热更新
+# 19. Горячее обновление скрипта
 # ---------------------------------------------------------
