@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Service health dashboard and runtime issue summaries.
+# Панель состояния служб и сводки проблем выполнения.
 
 print_log_capacity_group() {
     local label="$1"
@@ -18,21 +18,21 @@ print_log_capacity_group() {
     done < <(compgen -G "$pattern" 2>/dev/null | sort || true)
 
     if (( count == 0 )); then
-        echo "- ${label}: 未发现日志文件"
+        echo "- ${label}: файлы логов не обнаружены"
         return 0
     fi
 
-    echo "- ${label}: ${count} 个文件，总量 $(format_bytes "$total")；最大 $(format_bytes "$largest_size") ${largest_file}"
+    echo "- ${label}: ${count} файлов, общий объём $(format_bytes "$total"); наибольший $(format_bytes "$largest_size") ${largest_file}"
 }
 
 print_log_capacity_summary() {
-    echo -e "${CYAN}🧾 日志容量摘要${PLAIN}"
+    echo -e "${CYAN}🧾 Сводка по объёму логов${PLAIN}"
     print_log_capacity_group "/var/log/vps-optimize/*" "/var/log/vps-optimize/*"
     print_log_capacity_group "/var/log/vpso-mux*" "/var/log/vpso-mux*"
     print_log_capacity_group "/var/log/vps-traffic-guard.log" "/var/log/vps-traffic-guard.log*"
-    echo "- Bash 日志默认超过 $(format_bytes "$VPSO_DEFAULT_LOG_MAX_BYTES") 后保留 ${VPSO_DEFAULT_LOG_ROTATE_KEEP} 份轮转副本；systemd journal 仍按系统策略输出。"
-    echo "- 本页只汇总容量；不会轮转或重开已经被长期进程打开的日志 fd。"
-    echo "- daemon 直写文件时，请配合 systemd/journal、服务重载/重启，或可重开文件的日志实现。"
+    echo "- Логи Bash по умолчанию ротируются при превышении $(format_bytes "$VPSO_DEFAULT_LOG_MAX_BYTES") с сохранением ${VPSO_DEFAULT_LOG_ROTATE_KEEP} копий; journald всё ещё выводит по системной политике."
+    echo "- На этой странице только сводка; ротация не выполняется для уже открытых лог-файлов долго работающих процессов."
+    echo "- Для демонов, пишущих напрямую в файлы, используйте systemd/journal, перезагрузку/рестарт службы или код, умеющий переоткрывать файлы."
 }
 
 vpso_permission_mode() {
@@ -46,17 +46,17 @@ vpso_permission_recommendation() {
     lower=$(printf '%s' "$file" | tr '[:upper:]' '[:lower:]')
 
     if [[ -x "$file" && ! -d "$file" ]]; then
-        printf '755|可执行文件'
+        printf '755|исполняемый файл'
     elif [[ "$lower" == *.json ]]; then
-        printf '644/640|普通状态 JSON'
+        printf '644/640|обычный JSON состояния'
     elif [[ "$lower" =~ (token|secret|private|key|subscription|subscribe|whitelist|sni-stack|xray|caddy|vpso-mux) ]]; then
-        printf '600|可能包含 token、secret、私钥、订阅源或白名单'
+        printf '600|может содержать токен, секрет, приватный ключ, источник подписки или белый список'
     elif [[ "$file" == /etc/vps-optimize/*.conf || "$file" == /etc/vps-optimize/*.yaml ]]; then
-        printf '600|配置文件'
+        printf '600|конфигурационный файл'
     elif [[ "$file" == /var/log/* ]]; then
-        printf '640/644|日志文件'
+        printf '640/644|лог-файл'
     else
-        printf '644/640|普通状态文件'
+        printf '644/640|обычный файл состояния'
     fi
 }
 
@@ -97,13 +97,13 @@ check_vpso_file_permissions() {
     local checked=0 warnings=0 fixed=0 file mode rec expected reason target_mode
 
     if [[ "$action" == "fix" ]]; then
-        confirm_risk_action "修复 VPS-Optimize 文件权限" \
-            "/etc/vps-optimize、/var/lib/vps-optimize、/var/log/vps-optimize 下权限过宽或不符合建议的文件" \
-            "如某个服务因此无法读取文件，可根据本页输出手动 chmod 回原权限，或从备份恢复配置文件" \
-            "修复前建议确认当前服务状态；本操作不会批量删除文件。" || return 1
+        confirm_risk_action "Исправить права на файлы VPS-Optimize" \
+            "Файлы в /etc/vps-optimize, /var/lib/vps-optimize, /var/log/vps-optimize, у которых права слишком широкие или не соответствуют рекомендации" \
+            "Если какая-то служба не может прочитать файл, можно вручную вернуть права по выводу или восстановить из резервной копии" \
+            "Перед исправлением рекомендуется проверить состояние служб; эта операция не удаляет файлы массово." || return 1
     fi
 
-    echo -e "${CYAN}🔒 配置与状态文件权限体检${PLAIN}"
+    echo -e "${CYAN}🔒 Проверка прав на конфигурационные и файлы состояния${PLAIN}"
     while IFS= read -r file; do
         [[ -e "$file" && ! -d "$file" ]] || continue
         checked=$((checked + 1))
@@ -112,26 +112,26 @@ check_vpso_file_permissions() {
         expected="${rec%%|*}"
         reason="${rec#*|}"
         if vpso_permission_matches "$mode" "$expected"; then
-            echo "- OK   ${file} mode=${mode} (${reason}; 建议 ${expected})"
+            echo "- OK   ${file} mode=${mode} (${reason}; рекомендуется ${expected})"
             continue
         fi
         warnings=$((warnings + 1))
-        echo "- WARN ${file} mode=${mode} (${reason}; 建议 ${expected})"
+        echo "- WARN ${file} mode=${mode} (${reason}; рекомендуется ${expected})"
         if [[ "$action" == "fix" ]]; then
             target_mode=$(vpso_permission_fix_mode "$expected")
             if [[ -n "$target_mode" ]] && chmod "$target_mode" "$file" 2>/dev/null; then
                 fixed=$((fixed + 1))
-                echo "       已修复为 ${target_mode}"
+                echo "       исправлено на ${target_mode}"
             else
-                echo "       未能自动修复，请手动检查权限。"
+                echo "       не удалось автоматически исправить, проверьте вручную."
             fi
         fi
     done < <(collect_vpso_permission_files)
 
     if (( checked == 0 )); then
-        echo "- 未发现待检查文件。"
+        echo "- Файлы для проверки не найдены."
     else
-        echo "- 已检查 ${checked} 个文件；发现 ${warnings} 个需要关注；本次修复 ${fixed} 个。"
+        echo "- Проверено ${checked} файлов; обнаружено ${warnings} требующих внимания; исправлено ${fixed}."
     fi
 }
 
@@ -146,8 +146,8 @@ HEALTH_RECOVERY_UNITS=(
     "8|Xray|xray.service"
     "9|Sing-box|sing-box.service"
     "10|S-UI|s-ui.service"
-    "11|TCP Peek 分流器|vpso-mux.service"
-    "12|流量保护检查器|vps-traffic-guard.service"
+    "11|TCP Peek разделитель|vpso-mux.service"
+    "12|Проверка защиты трафика|vps-traffic-guard.service"
 )
 
 health_unit_exists() {
@@ -161,13 +161,13 @@ health_unit_exists() {
 health_unit_status_label() {
     local unit="$1"
     if ! health_unit_exists "$unit"; then
-        printf '%b' "${BLUE}未安装${PLAIN}"
+        printf '%b' "${BLUE}Не установлен${PLAIN}"
     elif systemctl is-active --quiet "$unit"; then
-        printf '%b' "${GREEN}运行中${PLAIN}"
+        printf '%b' "${GREEN}Запущен${PLAIN}"
     elif systemctl is-failed --quiet "$unit"; then
-        printf '%b' "${RED}失败${PLAIN}"
+        printf '%b' "${RED}Ошибка${PLAIN}"
     else
-        printf '%b' "${YELLOW}未运行${PLAIN}"
+        printf '%b' "${YELLOW}Не запущен${PLAIN}"
     fi
 }
 
@@ -188,7 +188,7 @@ print_failed_systemd_units() {
         count=$((count + 1))
         echo "  - ${line}"
     done < <(systemctl --failed --no-legend --no-pager 2>/dev/null | awk 'NF {print $1 " " $2 " " $3 " " $4}' | head -n 12)
-    (( count > 0 )) || echo "  - 未发现失败单元"
+    (( count > 0 )) || echo "  - Не обнаружено ошибочных юнитов"
 }
 
 collect_failed_service_units() {
@@ -200,17 +200,17 @@ health_restart_unit() {
     local unit="$2"
 
     if ! health_unit_exists "$unit"; then
-        echo -e "${YELLOW}⚠️ 未检测到 ${unit}，跳过。${PLAIN}"
+        echo -e "${YELLOW}⚠️ ${unit} не обнаружен, пропуск.${PLAIN}"
         return 1
     fi
 
     systemctl reset-failed "$unit" >/dev/null 2>&1 || true
     if systemctl restart "$unit" >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ ${label} 已重启：${unit}${PLAIN}"
+        echo -e "${GREEN}✅ ${label} перезапущен: ${unit}${PLAIN}"
         return 0
     fi
 
-    echo -e "${RED}❌ ${label} 重启失败：${unit}${PLAIN}"
+    echo -e "${RED}❌ ${label} не удалось перезапустить: ${unit}${PLAIN}"
     journalctl -u "$unit" -n 20 --no-pager 2>/dev/null || true
     return 1
 }
@@ -221,16 +221,16 @@ health_restart_selected_unit() {
     for item in "${HEALTH_RECOVERY_UNITS[@]}"; do
         IFS='|' read -r number label unit <<< "$item"
         if [[ "$selected" == "$number" ]]; then
-            confirm_risk_action "重启 ${label}" \
-                "${unit} 服务进程" \
-                "查看 journalctl -u ${unit} 日志，修正配置后重新启动" \
-                "该服务会短暂中断；不要关闭当前 SSH 会话。" || return 1
+            confirm_risk_action "Перезапустить ${label}" \
+                "Служба ${unit}" \
+                "Проверьте journalctl -u ${unit}, исправьте конфигурацию и перезапустите вручную" \
+                "Служба будет временно прервана; не закрывайте текущую SSH-сессию." || return 1
             health_restart_unit "$label" "$unit"
             return
         fi
     done
 
-    echo -e "${RED}❌ 无效选择。${PLAIN}"
+    echo -e "${RED}❌ Неверный выбор.${PLAIN}"
     return 1
 }
 
@@ -240,21 +240,21 @@ health_restart_failed_services() {
 
     mapfile -t failed_units < <(collect_failed_service_units)
     if [[ ${#failed_units[@]} -eq 0 ]]; then
-        echo -e "${GREEN}未发现失败服务。${PLAIN}"
+        echo -e "${GREEN}Ошибочных служб не обнаружено.${PLAIN}"
         return 0
     fi
 
-    echo -e "${CYAN}将尝试重启以下失败服务：${PLAIN}"
+    echo -e "${CYAN}Будут перезапущены следующие ошибочные службы:${PLAIN}"
     printf '  - %s\n' "${failed_units[@]}"
-    confirm_risk_action "重启失败的 systemd 服务" \
-        "当前处于失败状态的服务单元" \
-        "查看对应 journalctl 日志，修正配置后单独重启失败服务" \
-        "会跳过 ssh/sshd，其他服务会短暂中断。" || return 1
+    confirm_risk_action "Перезапустить ошибочные systemd-службы" \
+        "Службы, находящиеся в состоянии ошибки" \
+        "Проверьте соответствующий journalctl, исправьте конфигурацию и перезапустите вручную" \
+        "ssh/sshd будут пропущены, остальные службы временно прервутся." || return 1
 
     for unit in "${failed_units[@]}"; do
         case "$unit" in
             ssh.service|sshd.service)
-                echo -e "${YELLOW}⚠️ 跳过 ${unit}，避免影响当前 SSH 会话。${PLAIN}"
+                echo -e "${YELLOW}⚠️ ${unit} пропущен, чтобы не разорвать текущую SSH-сессию.${PLAIN}"
                 skipped=$((skipped + 1))
                 continue
                 ;;
@@ -268,14 +268,14 @@ health_restart_failed_services() {
     done
 
     systemctl reset-failed >/dev/null 2>&1 || true
-    echo -e "${CYAN}处理结果：成功 ${ok}，失败 ${fail}，跳过 ${skipped}。${PLAIN}"
+    echo -e "${CYAN}Результат: успешно ${ok}, ошибок ${fail}, пропущено ${skipped}.${PLAIN}"
 }
 
 health_reset_failed_state() {
     if systemctl reset-failed >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ 已执行 systemctl reset-failed。${PLAIN}"
+        echo -e "${GREEN}✅ Выполнен systemctl reset-failed.${PLAIN}"
     else
-        echo -e "${RED}❌ reset-failed 执行失败。${PLAIN}"
+        echo -e "${RED}❌ Не удалось выполнить reset-failed.${PLAIN}"
         return 1
     fi
 }
@@ -289,35 +289,35 @@ health_enable_auto_restart_for_unit() {
         [[ "$selected" == "$number" ]] || continue
 
         if [[ "$unit" != *.service ]]; then
-            echo -e "${YELLOW}⚠️ ${unit} 不是服务单元，跳过自动重启配置。${PLAIN}"
+            echo -e "${YELLOW}⚠️ ${unit} не является служебным юнитом, настройка автоматического перезапуска пропущена.${PLAIN}"
             return 1
         fi
         if ! health_unit_exists "$unit"; then
-            echo -e "${YELLOW}⚠️ 未检测到 ${unit}，跳过。${PLAIN}"
+            echo -e "${YELLOW}⚠️ ${unit} не обнаружен, пропуск.${PLAIN}"
             return 1
         fi
 
-        confirm_risk_action "启用 ${label} 失败自动重启" \
+        confirm_risk_action "Включить автоматический перезапуск для ${label}" \
             "/etc/systemd/system/${unit}.d/10-vps-optimize-restart.conf" \
-            "删除该 drop-in 后执行 systemctl daemon-reload" \
-            "服务崩溃后 systemd 会自动拉起；配置错误仍需要查看日志修复。" || return 1
+            "Удалите этот drop-in и выполните systemctl daemon-reload" \
+            "При сбое systemd автоматически перезапустит службу; ошибки конфигурации всё равно требуют просмотра логов." || return 1
 
         dropin_dir="/etc/systemd/system/${unit}.d"
         dropin_file="${dropin_dir}/10-vps-optimize-restart.conf"
-        mkdir -p "$dropin_dir" || { echo -e "${RED}❌ 创建 drop-in 目录失败。${PLAIN}"; return 1; }
+        mkdir -p "$dropin_dir" || { echo -e "${RED}❌ Не удалось создать drop-in каталог.${PLAIN}"; return 1; }
         cat > "$dropin_file" <<'EOF'
 [Service]
 Restart=on-failure
 RestartSec=5s
 EOF
-        systemctl daemon-reload >/dev/null 2>&1 || { echo -e "${RED}❌ systemctl daemon-reload 失败。${PLAIN}"; return 1; }
+        systemctl daemon-reload >/dev/null 2>&1 || { echo -e "${RED}❌ Не удалось выполнить systemctl daemon-reload.${PLAIN}"; return 1; }
         systemctl enable "$unit" >/dev/null 2>&1 || true
-        echo -e "${GREEN}✅ 已启用自动重启：${dropin_file}${PLAIN}"
+        echo -e "${GREEN}✅ Автоматический перезапуск включён: ${dropin_file}${PLAIN}"
         health_restart_unit "$label" "$unit" || true
         return
     done
 
-    echo -e "${RED}❌ 无效选择。${PLAIN}"
+    echo -e "${RED}❌ Неверный выбор.${PLAIN}"
     return 1
 }
 
@@ -327,29 +327,29 @@ health_show_failed_unit_logs() {
 
     mapfile -t failed_units < <(collect_failed_service_units)
     if [[ ${#failed_units[@]} -gt 0 ]]; then
-        echo -e "${CYAN}失败服务：${PLAIN}"
+        echo -e "${CYAN}Ошибочные службы:${PLAIN}"
         for i in "${!failed_units[@]}"; do
             echo -e "${GREEN} $((i + 1)). ${failed_units[$i]}${PLAIN}"
         done
-        echo " 0. 输入其他服务名"
-        read_trimmed choice "请选择编号，或直接输入服务名: "
+        echo " 0. Ввести другое имя службы"
+        read_trimmed choice "Выберите номер или введите имя службы: "
         if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#failed_units[@]} )); then
             unit="${failed_units[$((choice - 1))]}"
         elif [[ "$choice" == "0" ]]; then
-            read_trimmed unit "请输入服务名（例如 caddy.service）: "
+            read_trimmed unit "Введите имя службы (например caddy.service): "
         elif [[ "$choice" =~ ^[0-9]+$ ]]; then
-            echo -e "${RED}❌ 编号无效。${PLAIN}"
+            echo -e "${RED}❌ Неверный номер.${PLAIN}"
             return 1
         else
             unit="$choice"
         fi
     else
-        read_trimmed unit "请输入服务名（例如 caddy.service）: "
+        read_trimmed unit "Введите имя службы (например caddy.service): "
     fi
     [[ -n "$unit" ]] || return 0
     [[ "$unit" == *.service || "$unit" == *.timer || "$unit" == *.socket ]] || unit="${unit}.service"
     if ! health_unit_exists "$unit"; then
-        echo -e "${YELLOW}⚠️ 未检测到 ${unit}。${PLAIN}"
+        echo -e "${YELLOW}⚠️ ${unit} не обнаружен.${PLAIN}"
         return 1
     fi
     journalctl -u "$unit" -n 80 --no-pager 2>/dev/null || true
@@ -361,31 +361,31 @@ func_health_service_recovery_menu() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "诊断/健康检查 > 服务恢复"
-        echo -e "${BOLD}🧰 服务重启与自动拉起${PLAIN}"
+        print_breadcrumb "Диагностика/здоровье > Восстановление служб"
+        echo -e "${BOLD}🧰 Перезапуск служб и автоматический подъём${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${CYAN}失败单元：${PLAIN}"
+        echo -e "${CYAN}Ошибочные юниты:${PLAIN}"
         print_failed_systemd_units
         echo -e "------------------------------------------------"
-        echo -e "${BOLD}${BLUE}常用服务${PLAIN}"
+        echo -e "${BOLD}${BLUE}Часто используемые службы${PLAIN}"
         local item number label unit
         for item in "${HEALTH_RECOVERY_UNITS[@]}"; do
             IFS='|' read -r number label unit <<< "$item"
             echo -e "${GREEN} ${number}. ${label}${PLAIN} [${unit}] $(health_unit_status_label "$unit")"
         done
         echo -e "------------------------------------------------"
-        echo -e "${GREEN} r. 重启一个常用服务${PLAIN}"
-        echo -e "${GREEN} f. 重启失败服务${PLAIN}"
-        echo -e "${GREEN} a. 为常用服务启用失败自动重启${PLAIN}"
-        echo -e "${GREEN} x. 清除已恢复的失败状态${PLAIN}"
-        echo -e "${GREEN} l. 查看服务日志${PLAIN}"
-        echo -e "${RED} 0. 返回上级菜单 / q 返回${PLAIN}"
+        echo -e "${GREEN} r. Перезапустить одну службу${PLAIN}"
+        echo -e "${GREEN} f. Перезапустить ошибочные службы${PLAIN}"
+        echo -e "${GREEN} a. Включить автоматический перезапуск для службы${PLAIN}"
+        echo -e "${GREEN} x. Сбросить флаги ошибок${PLAIN}"
+        echo -e "${GREEN} l. Просмотреть логи службы${PLAIN}"
+        echo -e "${RED} 0. Вернуться в предыдущее меню / q${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
-        read_trimmed choice "👉 请选择操作: "
+        read_trimmed choice "👉 Выберите действие: "
         case "$choice" in
             r|R)
-                read_trimmed choice "请输入要重启的服务编号: "
+                read_trimmed choice "Введите номер службы для перезапуска: "
                 health_restart_selected_unit "$choice"
                 pause_return
                 ;;
@@ -394,7 +394,7 @@ func_health_service_recovery_menu() {
                 pause_return
                 ;;
             a|A)
-                read_trimmed choice "请输入要启用自动重启的服务编号: "
+                read_trimmed choice "Введите номер службы для включения автоперезапуска: "
                 health_enable_auto_restart_for_unit "$choice"
                 pause_return
                 ;;
@@ -407,7 +407,7 @@ func_health_service_recovery_menu() {
                 pause_return
                 ;;
             0|q|Q) return ;;
-            *) echo -e "${RED}❌ 无效选择。${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор.${PLAIN}"; sleep 1 ;;
         esac
     done
 }
@@ -415,54 +415,54 @@ func_health_service_recovery_menu() {
 func_health_dashboard() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    print_breadcrumb "诊断/健康检查"
-    echo -e "${BOLD}📈 服务健康总览${PLAIN}"
+    print_breadcrumb "Диагностика/здоровье"
+    echo -e "${BOLD}📈 Общий обзор состояния служб${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
 
-    local ssh_state="${RED}未运行${PLAIN}"
+    local ssh_state="${RED}Не запущен${PLAIN}"
     if systemctl is-active --quiet sshd || systemctl is-active --quiet ssh; then
-        ssh_state="${GREEN}运行中${PLAIN}"
+        ssh_state="${GREEN}Запущен${PLAIN}"
     fi
 
-    local caddy_state="${RED}未安装/未运行${PLAIN}"
+    local caddy_state="${RED}Не установлен/не запущен${PLAIN}"
     if command -v caddy >/dev/null 2>&1; then
         if systemctl is-active --quiet caddy; then
-            caddy_state="${GREEN}运行中${PLAIN}"
+            caddy_state="${GREEN}Запущен${PLAIN}"
         else
-            caddy_state="${YELLOW}已安装但未运行${PLAIN}"
+            caddy_state="${YELLOW}Установлен, но не запущен${PLAIN}"
         fi
     fi
 
-    local docker_state="${RED}未安装/未运行${PLAIN}"
+    local docker_state="${RED}Не установлен/не запущен${PLAIN}"
     if command -v docker >/dev/null 2>&1; then
         if systemctl is-active --quiet docker; then
-            docker_state="${GREEN}运行中${PLAIN}"
+            docker_state="${GREEN}Запущен${PLAIN}"
         else
-            docker_state="${YELLOW}已安装但未运行${PLAIN}"
+            docker_state="${YELLOW}Установлен, но не запущен${PLAIN}"
         fi
     fi
 
-    local f2b_state="${RED}未安装${PLAIN}"
+    local f2b_state="${RED}Не установлен${PLAIN}"
     if command -v fail2ban-server >/dev/null 2>&1; then
         if systemctl is-active --quiet fail2ban; then
-            f2b_state="${GREEN}运行中${PLAIN}"
+            f2b_state="${GREEN}Запущен${PLAIN}"
         else
-            f2b_state="${YELLOW}已安装但未运行${PLAIN}"
+            f2b_state="${YELLOW}Установлен, но не запущен${PLAIN}"
         fi
     fi
 
-    local fw_state="${RED}未启用${PLAIN}"
+    local fw_state="${RED}Не включён${PLAIN}"
     if is_debian; then
         if ufw status 2>/dev/null | grep -qwi active; then
-            fw_state="${GREEN}UFW 运行中${PLAIN}"
+            fw_state="${GREEN}UFW запущен${PLAIN}"
         else
-            fw_state="${YELLOW}UFW 未启用${PLAIN}"
+            fw_state="${YELLOW}UFW не включён${PLAIN}"
         fi
     else
         if systemctl is-active --quiet firewalld; then
-            fw_state="${GREEN}Firewalld 运行中${PLAIN}"
+            fw_state="${GREEN}Firewalld запущен${PLAIN}"
         else
-            fw_state="${YELLOW}Firewalld 未启用${PLAIN}"
+            fw_state="${YELLOW}Firewalld не включён${PLAIN}"
         fi
     fi
 
@@ -477,13 +477,13 @@ func_health_dashboard() {
     system_state=$(systemctl is-system-running 2>/dev/null || true)
     [[ -z "$system_state" ]] && system_state="unknown"
 
-    echo -e "SSH 服务状态       : [ $ssh_state ]  监听端口: ${CYAN}${current_p}${PLAIN}"
-    echo -e "Caddy 服务状态     : [ $caddy_state ]"
-    echo -e "Docker 服务状态    : [ $docker_state ]"
-    echo -e "Fail2ban 服务状态  : [ $f2b_state ]"
-    echo -e "防火墙服务状态      : [ $fw_state ]"
-    echo -e "systemd 整体状态    : [ $(health_system_state_label "$system_state") ]"
-    echo -e "失败 systemd 单元数 : ${YELLOW}${failed_units}${PLAIN}"
+    echo -e "SSH служба        : [ $ssh_state ]   порт: ${CYAN}${current_p}${PLAIN}"
+    echo -e "Caddy служба      : [ $caddy_state ]"
+    echo -e "Docker служба     : [ $docker_state ]"
+    echo -e "Fail2ban служба   : [ $f2b_state ]"
+    echo -e "Брандмауэр        : [ $fw_state ]"
+    echo -e "Общее состояние systemd : [ $(health_system_state_label "$system_state") ]"
+    echo -e "Ошибочных юнитов systemd : ${YELLOW}${failed_units}${PLAIN}"
     echo -e "------------------------------------------------"
     print_project_runtime_overview
     echo -e "------------------------------------------------"
@@ -494,7 +494,7 @@ func_health_dashboard() {
         echo -e "------------------------------------------------"
     fi
 
-    echo -e "${CYAN}🔌 当前监听端口 Top 12${PLAIN}"
+    echo -e "${CYAN}🔌 Топ 12 прослушиваемых портов${PLAIN}"
     ss -tuln 2>/dev/null | grep -E 'LISTEN|UNCONN' | awk '{print $5}' | awk -F: '{print $NF}' | grep -E '^[0-9]+$' | sort -nu | head -n 12 | tr '\n' ' '
     echo ""
 
@@ -517,17 +517,17 @@ func_health_dashboard() {
             fi
         done < <(find "$cert_root" -type f -name "*.crt" 2>/dev/null)
 
-        echo -e "${CYAN}🔐 证书健康摘要${PLAIN}"
+        echo -e "${CYAN}🔐 Сводка по сертификатам${PLAIN}"
         if [[ "$cert_total" -eq 0 ]]; then
-            echo -e "${BLUE}ℹ️ 未检索到可分析证书文件。${PLAIN}"
+            echo -e "${BLUE}ℹ️ Не найдено файлов сертификатов для анализа.${PLAIN}"
         else
-            echo -e "证书总数: ${GREEN}${cert_total}${PLAIN} | 15天内到期: ${YELLOW}${cert_warn}${PLAIN}"
+            echo -e "Всего сертификатов: ${GREEN}${cert_total}${PLAIN} | Истекают в течение 15 дней: ${YELLOW}${cert_warn}${PLAIN}"
         fi
     fi
 
     echo -e "------------------------------------------------"
-    echo -e "${YELLOW}💡 若失败单元 > 0，可进入 s 服务恢复处理。${PLAIN}"
-    echo -e "${CYAN}输入 s 服务恢复，输入 d 生成反馈诊断信息，输入 p 查看权限体检，输入 P 修复权限，输入 ? 查看帮助，其他任意键返回。${PLAIN}"
+    echo -e "${YELLOW}💡 Если ошибочных юнитов > 0, можно войти в s для восстановления служб.${PLAIN}"
+    echo -e "${CYAN}Введите s для восстановления служб, d для генерации диагностики, p для проверки прав, P для исправления прав, ? для справки, любая другая клавиша для возврата.${PLAIN}"
     local health_choice
     read -n 1 -s -r health_choice
     echo ""
