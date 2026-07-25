@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Ordinary Caddy/Nginx reverse proxy workflows outside the 443 single-entry stack.
+# Обычные рабочие процессы обратного прокси Caddy/Nginx вне стека единого входа 443.
 
 write_caddy_reverse_proxy_conf() {
     local domain="$1"
@@ -42,75 +42,75 @@ print_caddy_validate_failure() {
 
     echo -e "${RED}❌ ${title}${PLAIN}"
     if [[ -s "$log_file" ]]; then
-        echo -e "${YELLOW}Caddy 校验错误：${PLAIN}"
+        echo -e "${YELLOW}Ошибка проверки Caddy:${PLAIN}"
         tail -n 40 "$log_file" 2>/dev/null || true
-        echo -e "${YELLOW}完整日志：${log_file}${PLAIN}"
+        echo -e "${YELLOW}Полный лог: ${log_file}${PLAIN}"
     else
-        echo -e "${YELLOW}Caddy 未返回详细错误，请手动执行：caddy validate --config /etc/caddy/Caddyfile${PLAIN}"
+        echo -e "${YELLOW}Caddy не вернул подробной ошибки, выполните вручную: caddy validate --config /etc/caddy/Caddyfile${PLAIN}"
     fi
     if [[ -n "$generated_conf" && -f "$generated_conf" ]]; then
-        echo -e "${YELLOW}本次新增配置：${generated_conf}${PLAIN}"
+        echo -e "${YELLOW}Новая конфигурация: ${generated_conf}${PLAIN}"
         sed -n '1,80p' "$generated_conf" 2>/dev/null || true
     fi
 }
 
 func_caddy_add_reverse_proxy() {
-    echo -e "${CYAN}▶ 正在检查并安装 Caddy...${PLAIN}"
+    echo -e "${CYAN}▶ Проверка и установка Caddy...${PLAIN}"
     if ! install_caddy_if_needed; then
-        echo -e "${RED}❌ Caddy 安装失败，请检查软件源、网络或系统版本。${PLAIN}"
+        echo -e "${RED}❌ Не удалось установить Caddy, проверьте источник пакетов, сеть или версию системы.${PLAIN}"
         return 1
     fi
     if ! ensure_caddy_module_layout; then
-        echo -e "${RED}❌ Caddy 配置目录初始化失败，请检查 /etc/caddy 权限。${PLAIN}"
+        echo -e "${RED}❌ Не удалось инициализировать каталог конфигурации Caddy, проверьте права /etc/caddy.${PLAIN}"
         return 1
     fi
 
     local validate_log
     validate_log=$(mktemp /tmp/vps-caddy-validate.XXXXXX.log) || return 1
     if ! validate_caddy_config_with_log "$validate_log"; then
-        print_caddy_validate_failure "当前 Caddy 配置校验失败，未写入新增反代。" "$validate_log"
-        echo -e "${YELLOW}请先修复 /etc/caddy/Caddyfile 或 /etc/caddy/conf.d/*.caddy 后再添加域名。${PLAIN}"
+        print_caddy_validate_failure "Текущая конфигурация Caddy не прошла проверку, новый прокси не записан." "$validate_log"
+        echo -e "${YELLOW}Сначала исправьте /etc/caddy/Caddyfile или /etc/caddy/conf.d/*.caddy, затем добавьте домен.${PLAIN}"
         return 1
     fi
 
     local domain domain_input backend_addr port is_https
-    read_trimmed domain_input "请输入解析后的域名 (如 panel.site.com): "
-    read_trimmed port "请输入面板本地映射端口 (如 40000): "
-    backend_addr=$(ask_with_default "后端地址" "127.0.0.1")
+    read_trimmed domain_input "Введите разрешённый домен (например panel.site.com): "
+    read_trimmed port "Введите локальный порт бэкенда панели (например 40000): "
+    backend_addr=$(ask_with_default "Адрес бэкенда" "127.0.0.1")
     backend_addr=$(normalize_backend_addr_input "$backend_addr")
     domain=$(normalize_domain_input "$domain_input")
 
     if ! is_valid_domain "$domain"; then
-        print_domain_validation_error "域名" "$domain_input" "$domain"
+        print_domain_validation_error "домен" "$domain_input" "$domain"
         return 1
     fi
     if ! is_valid_port "$port"; then
-        echo -e "${RED}❌ 端口格式错误：${port}，端口必须是 1-65535。${PLAIN}"
+        echo -e "${RED}❌ Неверный порт: ${port}, должен быть 1-65535.${PLAIN}"
         return 1
     fi
 
     if ! is_valid_backend_addr "$backend_addr"; then
-        echo -e "${RED}❌ 后端地址无效：${backend_addr}${PLAIN}"
+        echo -e "${RED}❌ Неверный адрес бэкенда: ${backend_addr}${PLAIN}"
         return 1
     fi
 
     local domain_conf="/etc/caddy/conf.d/${domain}.caddy"
     if grep -q "^[[:space:]]*$domain" /etc/caddy/Caddyfile 2>/dev/null || [[ -e "$domain_conf" ]]; then
-        echo -e "${RED}❌ 错误：已存在该域名的配置块！请先清理或更换域名后再添加。${PLAIN}"
+        echo -e "${RED}❌ Ошибка: конфигурация для этого домена уже существует! Очистите или смените домен.${PLAIN}"
         return 1
     fi
 
-    read_trimmed is_https "❓ 后端面板是否开启了自带的 SSL 证书？(y/n): "
+    read_trimmed is_https "❓ Бэкенд панели использует собственный SSL-сертификат? (y/n): "
 
     local enable_ip_whitelist ip_whitelist_input ip_whitelist_ranges current_client_ip
     local -a ip_whitelist_array=()
-    read_trimmed enable_ip_whitelist "❓ 是否只允许指定 IP/CIDR 访问该域名？(y/n，默认 n): "
+    read_trimmed enable_ip_whitelist "❓ Разрешить доступ к домену только с указанных IP/CIDR? (y/n, по умолчанию n): "
     if is_yes "$enable_ip_whitelist"; then
         current_client_ip=$(detect_ssh_client_ip)
-        [[ -n "$current_client_ip" ]] && echo -e "${YELLOW}当前 SSH 来源 IP 可能是：${current_client_ip}，请确认已加入白名单，避免把自己挡在外面。${PLAIN}"
-        read_trimmed ip_whitelist_input "请输入允许访问 ${domain} 的 IP/CIDR（多个用空格或英文逗号分隔）: "
+        [[ -n "$current_client_ip" ]] && echo -e "${YELLOW}Текущий IP-источник SSH возможно: ${current_client_ip}, убедитесь, что он добавлен в белый список, чтобы не заблокировать себя.${PLAIN}"
+        read_trimmed ip_whitelist_input "Введите IP/CIDR, разрешённые для ${domain} (несколько через пробел или запятую): "
         if ! normalize_ip_whitelist_input "$ip_whitelist_input" ip_whitelist_array; then
-            echo -e "${RED}❌ 白名单为空或格式错误，已取消本次反代配置。${PLAIN}"
+            echo -e "${RED}❌ Белый список пуст или неверный формат, настройка прокси отменена.${PLAIN}"
             return 1
         fi
         append_vps_public_ips_to_whitelist ip_whitelist_array
@@ -124,21 +124,21 @@ func_caddy_add_reverse_proxy() {
 
     write_caddy_reverse_proxy_conf "$domain" "$backend_addr" "$port" "$is_https" "$domain_conf" "$ip_whitelist_ranges"
 
-    echo -e "${CYAN}▶ 正在校验 Caddy 配置文件...${PLAIN}"
+    echo -e "${CYAN}▶ Проверка конфигурации Caddy...${PLAIN}"
     if validate_caddy_config_with_log "$validate_log"; then
         if systemctl reload caddy >/dev/null 2>&1 || systemctl restart caddy >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ Caddy 反代配置已追加并生效！请访问 https://$domain${PLAIN}"
-            [[ -n "$ip_whitelist_ranges" ]] && echo -e "${GREEN}✅ 已为 ${domain} 启用 IP 白名单：${ip_whitelist_ranges}${PLAIN}"
-            echo -e "${CYAN}配置备份已保留：${backup_file}${PLAIN}"
+            echo -e "${GREEN}✅ Конфигурация обратного прокси Caddy добавлена и активна! https://$domain${PLAIN}"
+            [[ -n "$ip_whitelist_ranges" ]] && echo -e "${GREEN}✅ Для ${domain} включён IP-белый список: ${ip_whitelist_ranges}${PLAIN}"
+            echo -e "${CYAN}Резервная копия конфигурации сохранена: ${backup_file}${PLAIN}"
         else
-            echo -e "${RED}❌ Caddy 配置校验通过，但服务重载失败，正在回滚...${PLAIN}"
+            echo -e "${RED}❌ Конфигурация Caddy проверена, но перезагрузка службы не удалась, выполняется откат...${PLAIN}"
             [[ -f "$backup_file" ]] && mv "$backup_file" /etc/caddy/Caddyfile
             quarantine_path "$domain_conf" "/etc/vps-optimize/quarantine/caddy-conf" >/dev/null 2>&1 || true
             systemctl reload caddy >/dev/null 2>&1 || systemctl restart caddy >/dev/null 2>&1 || true
             return 1
         fi
     else
-        print_caddy_validate_failure "写入新增反代后 Caddy 校验失败，正在自动回滚。" "$validate_log" "$domain_conf"
+        print_caddy_validate_failure "После записи нового прокси проверка Caddy не удалась, автоматический откат." "$validate_log" "$domain_conf"
         [[ -f "$backup_file" ]] && mv "$backup_file" /etc/caddy/Caddyfile
         quarantine_path "$domain_conf" "/etc/vps-optimize/quarantine/caddy-conf" >/dev/null 2>&1 || true
         return 1
@@ -152,11 +152,11 @@ nginx_proxy_conf_path() {
 
 install_nginx_http_if_needed() {
     command -v nginx >/dev/null 2>&1 && return 0
-    echo -e "${CYAN}▶ 未检测到 Nginx，正在安装...${PLAIN}"
+    echo -e "${CYAN}▶ Nginx не обнаружен, установка...${PLAIN}"
     if is_debian || is_redhat; then
         install_pkg nginx || return 1
     else
-        echo -e "${RED}❌ 当前系统暂不支持自动安装 Nginx。${PLAIN}"
+        echo -e "${RED}❌ Автоматическая установка Nginx не поддерживается на текущей системе.${PLAIN}"
         return 1
     fi
     command -v nginx >/dev/null 2>&1
@@ -165,7 +165,7 @@ install_nginx_http_if_needed() {
 ensure_nginx_http_conf_d() {
     local nginx_conf="/etc/nginx/nginx.conf"
     mkdir -p /etc/nginx/conf.d || return 1
-    [[ -f "$nginx_conf" ]] || { echo -e "${RED}❌ 未找到 ${nginx_conf}。${PLAIN}"; return 1; }
+    [[ -f "$nginx_conf" ]] || { echo -e "${RED}❌ ${nginx_conf} не найден.${PLAIN}"; return 1; }
     if grep -q '/etc/nginx/conf.d/\*.conf' "$nginx_conf" 2>/dev/null; then
         return 0
     fi
@@ -174,7 +174,7 @@ ensure_nginx_http_conf_d() {
         sed -i '/^[[:space:]]*http[[:space:]]*{/a\    include /etc/nginx/conf.d/*.conf;' "$nginx_conf"
         return 0
     fi
-    echo -e "${RED}❌ nginx.conf 中未找到 http {}，无法安全追加 conf.d include。${PLAIN}"
+    echo -e "${RED}❌ В nginx.conf не найден блок http {}, невозможно безопасно добавить include conf.d.${PLAIN}"
     return 1
 }
 
@@ -261,8 +261,8 @@ nginx_proxy_domain_exists() {
 
 nginx_proxy_warn_if_single_entry_enabled() {
     if [[ -f /etc/vps-optimize/sni-stack.env || -f /etc/vps-optimize/443-engine.conf ]]; then
-        echo -e "${RED}❌ 已检测到 443 单入口配置。Nginx HTTPS 反代会抢占公网 443，已拒绝继续。${PLAIN}"
-        echo -e "${YELLOW}请改用：主菜单 [19 443 单入口管理中心] -> [8 管理 Web 域名/反代]。${PLAIN}"
+        echo -e "${RED}❌ Обнаружена конфигурация единого входа 443. HTTPS-прокси Nginx будет занимать публичный порт 443, продолжение отклонено.${PLAIN}"
+        echo -e "${YELLOW}Используйте: главное меню [19 Центр управления единым входом 443] -> [8 Управление веб-доменами/прокси].${PLAIN}"
         return 1
     fi
     return 0
@@ -276,7 +276,7 @@ quarantine_legacy_nginx_https_proxy_configs() {
         moved=$((moved + 1))
     done
     if [[ "$moved" -gt 0 ]]; then
-        echo -e "${YELLOW}⚠️ 已隔离 ${moved} 个旧 Nginx HTTPS 反代配置，避免抢占公网 443。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Изолированы ${moved} старых конфигураций Nginx HTTPS прокси, чтобы не занимать публичный 443.${PLAIN}"
     fi
 }
 
@@ -287,32 +287,32 @@ nginx_proxy_ensure_certificate() {
     local reuse_cert CF_TOKEN verify_rc
 
     if [[ -s "$cert_file" && -s "$key_file" ]]; then
-        read_trimmed reuse_cert "检测到已有证书 ${cert_file}，是否复用？(Y/n，默认 yes): "
+        read_trimmed reuse_cert "Обнаружен существующий сертификат ${cert_file}, использовать повторно? (Y/n, по умолчанию yes): "
         if ! is_no "$reuse_cert"; then
-            echo -e "${GREEN}✅ 已复用现有证书：${cert_file}${PLAIN}"
+            echo -e "${GREEN}✅ Использован существующий сертификат: ${cert_file}${PLAIN}"
             return 0
         fi
     fi
 
-    echo -e "${YELLOW}Nginx 反代证书继续使用现有 acme.sh + Cloudflare DNS API 流程。${PLAIN}"
-    echo -e "${YELLOW}证书将安装到 /etc/caddy/certs/${domain}.crt|key，并软链到 /root/cert/。${PLAIN}"
-    read_secret_trimmed CF_TOKEN "请输入 Cloudflare API Token（需有该域名 DNS 编辑权限）: "
+    echo -e "${YELLOW}Сертификат для Nginx прокси будет получен через acme.sh + Cloudflare DNS API.${PLAIN}"
+    echo -e "${YELLOW}Сертификат будет установлен в /etc/caddy/certs/${domain}.crt|key и символическая ссылка в /root/cert/.${PLAIN}"
+    read_secret_trimmed CF_TOKEN "Введите Cloudflare API Token (нужны права на DNS-правки для этого домена): "
     if [[ -z "$CF_TOKEN" || ${#CF_TOKEN} -lt 20 ]]; then
-        echo -e "${RED}❌ Cloudflare Token 长度异常。${PLAIN}"
+        echo -e "${RED}❌ Неверная длина Cloudflare Token.${PLAIN}"
         return 1
     fi
     verify_cf_token_online "$CF_TOKEN"
     verify_rc=$?
     if [[ "$verify_rc" -eq 0 ]]; then
-        echo -e "${GREEN}✅ Cloudflare Token 校验通过。${PLAIN}"
+        echo -e "${GREEN}✅ Проверка Cloudflare Token пройдена.${PLAIN}"
     elif [[ "$verify_rc" -eq 2 ]]; then
-        echo -e "${YELLOW}⚠️ 未安装 curl，跳过在线校验。${PLAIN}"
+        echo -e "${YELLOW}⚠️ curl не установлен, пропускаем онлайн-проверку.${PLAIN}"
     else
-        echo -e "${RED}❌ Cloudflare Token 在线校验失败。${PLAIN}"
+        echo -e "${RED}❌ Ошибка онлайн-проверки Cloudflare Token.${PLAIN}"
         return 1
     fi
     issue_and_install_cert_for_domain "$domain" "$CF_TOKEN" || return 1
-    [[ -s "$cert_file" && -s "$key_file" ]] || { echo -e "${RED}❌ 证书安装后仍缺失：${cert_file}|${key_file}${PLAIN}"; return 1; }
+    [[ -s "$cert_file" && -s "$key_file" ]] || { echo -e "${RED}❌ Сертификат отсутствует после установки: ${cert_file}|${key_file}${PLAIN}"; return 1; }
 }
 
 write_nginx_reverse_proxy_conf() {
@@ -373,41 +373,41 @@ EOF
 }
 
 func_nginx_add_reverse_proxy() {
-    echo -e "${CYAN}▶ 正在配置 Nginx HTTPS 反代...${PLAIN}"
+    echo -e "${CYAN}▶ Настройка HTTPS прокси Nginx...${PLAIN}"
     nginx_proxy_warn_if_single_entry_enabled || return 1
     local domain domain_input port is_https conf_file enable_ip_whitelist ip_whitelist_input ip_whitelist_ranges current_client_ip
     local -a ip_whitelist_array=()
-    read_trimmed domain_input "请输入解析后的域名 (如 panel.example.com): "
-    read_trimmed port "请输入本地后端端口 (如 40000): "
+    read_trimmed domain_input "Введите разрешённый домен (например panel.example.com): "
+    read_trimmed port "Введите локальный порт бэкенда (например 40000): "
     domain=$(normalize_domain_input "$domain_input")
 
     if ! is_valid_domain "$domain"; then
-        print_domain_validation_error "域名" "$domain_input" "$domain"
+        print_domain_validation_error "домен" "$domain_input" "$domain"
         return 1
     fi
     if ! is_valid_port "$port"; then
-        echo -e "${RED}❌ 端口格式错误：${port}，端口必须是 1-65535。${PLAIN}"
+        echo -e "${RED}❌ Неверный порт: ${port}, должен быть 1-65535.${PLAIN}"
         return 1
     fi
 
     conf_file=$(nginx_proxy_conf_path "$domain")
     if nginx_proxy_domain_exists "$domain"; then
-        echo -e "${RED}❌ Nginx 中已存在该域名配置，请先清理或更换域名后再添加。${PLAIN}"
+        echo -e "${RED}❌ Конфигурация для этого домена уже существует в Nginx, очистите или смените домен.${PLAIN}"
         return 1
     fi
     if [[ -e "/etc/caddy/conf.d/${domain}.caddy" ]] || grep -q "^[[:space:]]*$domain" /etc/caddy/Caddyfile 2>/dev/null; then
-        echo -e "${RED}❌ Caddy 中已存在该域名配置，请避免同一域名同时由 Caddy 和 Nginx 接管。${PLAIN}"
+        echo -e "${RED}❌ Домен уже существует в Caddy, не используйте один домен в Caddy и Nginx одновременно.${PLAIN}"
         return 1
     fi
 
-    read_trimmed is_https "后端是否是自带证书的 HTTPS 服务？(y/n，默认 n): "
-    read_trimmed enable_ip_whitelist "是否只允许指定 IP/CIDR 访问该 Nginx 域名？(y/n，默认 n): "
+    read_trimmed is_https "Бэкенд использует собственный HTTPS-сертификат? (y/n, по умолчанию n): "
+    read_trimmed enable_ip_whitelist "Разрешить доступ к Nginx домену только с указанных IP/CIDR? (y/n, по умолчанию n): "
     if is_yes "$enable_ip_whitelist"; then
         current_client_ip=$(detect_ssh_client_ip)
-        [[ -n "$current_client_ip" ]] && echo -e "${YELLOW}当前 SSH 来源 IP 可能是：${current_client_ip}，请确认已加入白名单，避免把自己挡在外面。${PLAIN}"
-        read_trimmed ip_whitelist_input "请输入允许访问 ${domain} 的 IP/CIDR（多个用空格或英文逗号分隔）: "
+        [[ -n "$current_client_ip" ]] && echo -e "${YELLOW}Текущий IP-источник SSH возможно: ${current_client_ip}, убедитесь, что он добавлен в белый список, чтобы не заблокировать себя.${PLAIN}"
+        read_trimmed ip_whitelist_input "Введите IP/CIDR, разрешённые для ${domain} (несколько через пробел или запятую): "
         if ! normalize_ip_whitelist_input "$ip_whitelist_input" ip_whitelist_array; then
-            echo -e "${RED}❌ 白名单为空或格式错误，已取消本次反代配置。${PLAIN}"
+            echo -e "${RED}❌ Белый список пуст или неверный формат, настройка прокси отменена.${PLAIN}"
             return 1
         fi
         append_vps_public_ips_to_whitelist ip_whitelist_array
@@ -416,15 +416,15 @@ func_nginx_add_reverse_proxy() {
         ip_whitelist_ranges=""
     fi
     nginx_proxy_ensure_certificate "$domain" || return 1
-    install_nginx_http_if_needed || { echo -e "${RED}❌ Nginx 安装失败，请检查软件源、网络或系统版本。${PLAIN}"; return 1; }
+    install_nginx_http_if_needed || { echo -e "${RED}❌ Не удалось установить Nginx, проверьте источник пакетов, сеть или версию системы.${PLAIN}"; return 1; }
     ensure_nginx_http_conf_d || return 1
     harden_nginx_public_errors
     write_nginx_proxy_map_conf || return 1
     write_nginx_reverse_proxy_conf "$domain" "$port" "$is_https" "$conf_file" "$ip_whitelist_ranges" || return 1
 
-    echo -e "${CYAN}▶ 正在校验 Nginx 配置...${PLAIN}"
+    echo -e "${CYAN}▶ Проверка конфигурации Nginx...${PLAIN}"
     if ! nginx -t >/dev/null 2>&1; then
-        echo -e "${RED}❌ Nginx 配置校验失败，已隔离新增配置。${PLAIN}"
+        echo -e "${RED}❌ Проверка конфигурации Nginx не удалась, новая конфигурация изолирована.${PLAIN}"
         quarantine_path "$conf_file" "/etc/vps-optimize/quarantine/nginx-proxy" >/dev/null 2>&1 || true
         nginx -t
         return 1
@@ -432,13 +432,13 @@ func_nginx_add_reverse_proxy() {
 
     systemctl enable nginx >/dev/null 2>&1 || true
     if systemctl reload nginx >/dev/null 2>&1 || systemctl restart nginx >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ Nginx 反代已生效：https://${domain}${PLAIN}"
-        echo -e "${GREEN}✅ 后端：127.0.0.1:${port}${PLAIN}"
-        [[ -n "$ip_whitelist_ranges" ]] && echo -e "${GREEN}✅ 已为 ${domain} 启用 IP 白名单：${ip_whitelist_ranges}${PLAIN}"
-        echo -e "${CYAN}配置文件：${conf_file}${PLAIN}"
-        echo -e "${CYAN}证书路径：/etc/caddy/certs/${domain}.crt 和 /etc/caddy/certs/${domain}.key${PLAIN}"
+        echo -e "${GREEN}✅ Nginx прокси активен: https://${domain}${PLAIN}"
+        echo -e "${GREEN}✅ Бэкенд: 127.0.0.1:${port}${PLAIN}"
+        [[ -n "$ip_whitelist_ranges" ]] && echo -e "${GREEN}✅ Для ${domain} включён IP-белый список: ${ip_whitelist_ranges}${PLAIN}"
+        echo -e "${CYAN}Файл конфигурации: ${conf_file}${PLAIN}"
+        echo -e "${CYAN}Путь к сертификату: /etc/caddy/certs/${domain}.crt и /etc/caddy/certs/${domain}.key${PLAIN}"
     else
-        echo -e "${RED}❌ Nginx 配置校验通过，但 reload/restart 失败。可能是 Caddy、443 单入口或其他服务占用了 80/443。${PLAIN}"
+        echo -e "${RED}❌ Проверка конфигурации Nginx пройдена, но перезагрузка службы не удалась. Возможно, Caddy, единый вход 443 или другая служба заняла 80/443.${PLAIN}"
         quarantine_path "$conf_file" "/etc/vps-optimize/quarantine/nginx-proxy" >/dev/null 2>&1 || true
         return 1
     fi
@@ -447,20 +447,20 @@ func_nginx_add_reverse_proxy() {
 func_nginx_add_insecure() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🛡️ Nginx 后端 HTTPS 跳过证书校验${PLAIN}"
+    echo -e "${BOLD}🛡️ Nginx пропуск проверки сертификата бэкенда HTTPS${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
     nginx_proxy_warn_if_single_entry_enabled || return 1
 
     local domain domain_input port conf_file backup_file ip_whitelist_ranges
-    read_trimmed domain_input "请输入要设置的域名 (如 panel.example.com): "
-    read_trimmed port "请输入 HTTPS 后端本地端口 (如 40000): "
+    read_trimmed domain_input "Введите домен для настройки (например panel.example.com): "
+    read_trimmed port "Введите локальный HTTPS-порт бэкенда (например 40000): "
     domain=$(normalize_domain_input "$domain_input")
     if ! is_valid_domain "$domain"; then
-        print_domain_validation_error "域名" "$domain_input" "$domain"
+        print_domain_validation_error "домен" "$domain_input" "$domain"
         return 1
     fi
     if ! is_valid_port "$port"; then
-        echo -e "${RED}❌ 端口格式错误：${port}，端口必须是 1-65535。${PLAIN}"
+        echo -e "${RED}❌ Неверный порт: ${port}, должен быть 1-65535.${PLAIN}"
         return 1
     fi
 
@@ -473,9 +473,9 @@ func_nginx_add_insecure() {
     conf_file=$(nginx_proxy_conf_path "$domain")
     if [[ -f "$conf_file" ]]; then
         backup_file="${conf_file}.bak_$(date +%s)"
-        cp -p "$conf_file" "$backup_file" || { echo -e "${RED}❌ 备份失败，已取消。${PLAIN}"; return 1; }
+        cp -p "$conf_file" "$backup_file" || { echo -e "${RED}❌ Резервное копирование не удалось, отмена.${PLAIN}"; return 1; }
         ip_whitelist_ranges=$(nginx_proxy_whitelist_ranges_from_conf "$conf_file")
-        echo -e "${CYAN}已备份现有配置：${backup_file}${PLAIN}"
+        echo -e "${CYAN}Создана резервная копия текущей конфигурации: ${backup_file}${PLAIN}"
     else
         ip_whitelist_ranges=""
     fi
@@ -483,15 +483,15 @@ func_nginx_add_insecure() {
     write_nginx_reverse_proxy_conf "$domain" "$port" "y" "$conf_file" "$ip_whitelist_ranges" || return 1
     if nginx -t >/dev/null 2>&1; then
         if systemctl reload nginx >/dev/null 2>&1 || systemctl restart nginx >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ Nginx 已设置为 HTTPS 后端并跳过后端证书校验：${domain} -> https://127.0.0.1:${port}${PLAIN}"
-            [[ -n "$ip_whitelist_ranges" ]] && echo -e "${GREEN}✅ 已保留 IP 白名单：${ip_whitelist_ranges}${PLAIN}"
+            echo -e "${GREEN}✅ Nginx настроен на HTTPS бэкенд с пропуском проверки сертификата: ${domain} -> https://127.0.0.1:${port}${PLAIN}"
+            [[ -n "$ip_whitelist_ranges" ]] && echo -e "${GREEN}✅ IP-белый список сохранён: ${ip_whitelist_ranges}${PLAIN}"
         else
-            echo -e "${RED}❌ Nginx 校验通过，但 reload/restart 失败。${PLAIN}"
+            echo -e "${RED}❌ Проверка Nginx пройдена, но перезагрузка службы не удалась.${PLAIN}"
             [[ -n "$backup_file" && -f "$backup_file" ]] && cp -p "$backup_file" "$conf_file"
             return 1
         fi
     else
-        echo -e "${RED}❌ Nginx 配置校验失败，正在回滚。${PLAIN}"
+        echo -e "${RED}❌ Проверка конфигурации Nginx не удалась, откат.${PLAIN}"
         [[ -n "$backup_file" && -f "$backup_file" ]] && cp -p "$backup_file" "$conf_file"
         nginx -t
         return 1
@@ -501,54 +501,54 @@ func_nginx_add_insecure() {
 func_proxy_add_insecure() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🛡️ 后端 HTTPS 跳过证书校验${PLAIN}"
+    echo -e "${BOLD}🛡️ Пропуск проверки сертификата бэкенда HTTPS${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${GREEN}  1. Caddy 跳过后端证书校验${PLAIN}"
-    echo -e "${GREEN}  2. Nginx 跳过后端证书校验${PLAIN}"
-    echo -e "${RED}  0. 取消${PLAIN}"
+    echo -e "${GREEN}  1. Caddy пропуск проверки сертификата бэкенда${PLAIN}"
+    echo -e "${GREEN}  2. Nginx пропуск проверки сертификата бэкенда${PLAIN}"
+    echo -e "${RED}  0. Отмена${PLAIN}"
     local choice
-    read_trimmed choice "请选择操作: "
+    read_trimmed choice "Выберите действие: "
     case "$choice" in
         1) func_caddy_add_insecure ;;
         2) func_nginx_add_insecure ;;
-        0|q|Q|"") echo -e "${BLUE}已取消。${PLAIN}" ;;
-        *) echo -e "${RED}❌ 无效选择。${PLAIN}" ;;
+        0|q|Q|"") echo -e "${BLUE}Отмена.${PLAIN}" ;;
+        *) echo -e "${RED}❌ Неверный выбор.${PLAIN}" ;;
     esac
 }
 
 func_nginx_manage_ip_whitelist() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🔐 Nginx 域名 IP 白名单${PLAIN}"
+    echo -e "${BOLD}🔐 IP-белый список Nginx для доменов${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}适用于未启用 443 单入口、由 Nginx HTTPS 反代直接对外服务的域名。${PLAIN}"
-    echo -e "${YELLOW}如果该域名已接入 443 单入口，请用主菜单 [19 443 单入口管理中心] -> [8 管理 Web 域名/反代] -> [5 管理域名 IP 白名单]，不要在 Nginx HTTP 层限制。${PLAIN}"
+    echo -e "${YELLOW}Применяется для доменов, где не включён единый вход 443 и Nginx HTTPS прокси обслуживает напрямую.${PLAIN}"
+    echo -e "${YELLOW}Если домен уже использует единый вход 443, используйте главное меню [19 Центр управления единым входом 443] -> [8 Управление веб-доменами/прокси] -> [5 Управление IP-белым списком домена], не ограничивайте на уровне Nginx HTTP.${PLAIN}"
     echo -e "------------------------------------------------"
 
     local domain domain_input conf_file action backup_file
-    read_trimmed domain_input "请输入要管理的域名 (如 panel.example.com): "
+    read_trimmed domain_input "Введите домен для управления (например panel.example.com): "
     domain=$(normalize_domain_input "$domain_input")
     if ! is_valid_domain "$domain"; then
-        print_domain_validation_error "域名" "$domain_input" "$domain"
+        print_domain_validation_error "домен" "$domain_input" "$domain"
         return 1
     fi
     conf_file=$(nginx_proxy_conf_path "$domain")
     if [[ ! -f "$conf_file" ]]; then
-        echo -e "${RED}❌ 未找到 ${conf_file}。该入口只管理脚本创建的 Nginx HTTPS 反代配置。${PLAIN}"
+        echo -e "${RED}❌ ${conf_file} не найден. Этот пункт управляет только конфигурациями Nginx HTTPS прокси, созданными скриптом.${PLAIN}"
         return 1
     fi
 
-    echo -e "当前配置文件：${conf_file}"
+    echo -e "Текущий файл конфигурации: ${conf_file}"
     if grep -q '# vps-optimize-ip-whitelist-start' "$conf_file" 2>/dev/null; then
-        echo -e "${YELLOW}当前状态：已启用脚本管理的 IP 白名单。${PLAIN}"
-        echo -e "当前白名单：$(nginx_proxy_whitelist_ranges_from_conf "$conf_file")"
+        echo -e "${YELLOW}Текущее состояние: включён управляемый скриптом IP-белый список.${PLAIN}"
+        echo -e "Текущий белый список: $(nginx_proxy_whitelist_ranges_from_conf "$conf_file")"
     else
-        echo -e "${BLUE}当前状态：未启用脚本管理的 IP 白名单。${PLAIN}"
+        echo -e "${BLUE}Текущее состояние: управляемый скриптом IP-белый список не включён.${PLAIN}"
     fi
-    echo -e "1. 设置/覆盖白名单"
-    echo -e "2. 清除白名单"
-    echo -e "0/q. 取消"
-    read_trimmed action "请选择操作: "
+    echo -e "1. Установить/перезаписать белый список"
+    echo -e "2. Очистить белый список"
+    echo -e "0/q. Отмена"
+    read_trimmed action "Выберите действие: "
 
     backup_file="${conf_file}.bak_$(date +%s)"
     case "$action" in
@@ -556,27 +556,27 @@ func_nginx_manage_ip_whitelist() {
             local ip_whitelist_input ip_whitelist_ranges current_client_ip
             local -a ip_whitelist_array=()
             current_client_ip=$(detect_ssh_client_ip)
-            [[ -n "$current_client_ip" ]] && echo -e "${YELLOW}当前 SSH 来源 IP 可能是：${current_client_ip}，请确认已加入白名单。${PLAIN}"
-            read_trimmed ip_whitelist_input "请输入允许访问 ${domain} 的 IP/CIDR（多个用空格或英文逗号分隔）: "
+            [[ -n "$current_client_ip" ]] && echo -e "${YELLOW}Текущий IP-источник SSH возможно: ${current_client_ip}, убедитесь, что он добавлен в белый список.${PLAIN}"
+            read_trimmed ip_whitelist_input "Введите IP/CIDR, разрешённые для ${domain} (несколько через пробел или запятую): "
             if ! normalize_ip_whitelist_input "$ip_whitelist_input" ip_whitelist_array; then
-                echo -e "${RED}❌ 白名单为空或格式错误，已取消操作。${PLAIN}"
+                echo -e "${RED}❌ Белый список пуст или неверный формат, отмена.${PLAIN}"
                 return 1
             fi
             append_vps_public_ips_to_whitelist ip_whitelist_array
             ip_whitelist_ranges=$(join_array_by_space "${ip_whitelist_array[@]}")
-            cp -p "$conf_file" "$backup_file" || { echo -e "${RED}❌ 备份失败，已取消。${PLAIN}"; return 1; }
+            cp -p "$conf_file" "$backup_file" || { echo -e "${RED}❌ Резервное копирование не удалось, отмена.${PLAIN}"; return 1; }
             if insert_nginx_ip_whitelist_block "$conf_file" "$ip_whitelist_ranges" && nginx -t >/dev/null 2>&1; then
                 if systemctl reload nginx >/dev/null 2>&1 || systemctl restart nginx >/dev/null 2>&1; then
-                    echo -e "${GREEN}✅ 已为 ${domain} 启用 Nginx IP 白名单：${ip_whitelist_ranges}${PLAIN}"
-                    echo -e "${CYAN}配置备份已保留：${backup_file}${PLAIN}"
+                    echo -e "${GREEN}✅ Для ${domain} включён IP-белый список Nginx: ${ip_whitelist_ranges}${PLAIN}"
+                    echo -e "${CYAN}Резервная копия конфигурации сохранена: ${backup_file}${PLAIN}"
                 else
-                    echo -e "${RED}❌ Nginx 重载失败，正在回滚...${PLAIN}"
+                    echo -e "${RED}❌ Перезагрузка Nginx не удалась, откат...${PLAIN}"
                     cp -p "$backup_file" "$conf_file"
                     systemctl reload nginx >/dev/null 2>&1 || systemctl restart nginx >/dev/null 2>&1 || true
                     return 1
                 fi
             else
-                echo -e "${RED}❌ 写入后 Nginx 校验失败，正在回滚...${PLAIN}"
+                echo -e "${RED}❌ Проверка Nginx после записи не удалась, откат...${PLAIN}"
                 cp -p "$backup_file" "$conf_file"
                 nginx -t
                 return 1
@@ -584,25 +584,25 @@ func_nginx_manage_ip_whitelist() {
             ;;
         2)
             if ! grep -q '# vps-optimize-ip-whitelist-start' "$conf_file" 2>/dev/null; then
-                echo -e "${BLUE}该域名没有脚本管理的白名单块，无需清除。${PLAIN}"
+                echo -e "${BLUE}Для этого домена нет блока белого списка, созданного скриптом.${PLAIN}"
                 return 0
             fi
-            cp -p "$conf_file" "$backup_file" || { echo -e "${RED}❌ 备份失败，已取消。${PLAIN}"; return 1; }
+            cp -p "$conf_file" "$backup_file" || { echo -e "${RED}❌ Резервное копирование не удалось, отмена.${PLAIN}"; return 1; }
             if strip_nginx_ip_whitelist_block "$conf_file" && nginx -t >/dev/null 2>&1; then
                 systemctl reload nginx >/dev/null 2>&1 || systemctl restart nginx >/dev/null 2>&1 || true
-                echo -e "${GREEN}✅ 已清除 ${domain} 的 Nginx IP 白名单。${PLAIN}"
-                echo -e "${CYAN}配置备份已保留：${backup_file}${PLAIN}"
+                echo -e "${GREEN}✅ IP-белый список Nginx для ${domain} очищен.${PLAIN}"
+                echo -e "${CYAN}Резервная копия конфигурации сохранена: ${backup_file}${PLAIN}"
             else
-                echo -e "${RED}❌ 清除后 Nginx 校验失败，正在回滚...${PLAIN}"
+                echo -e "${RED}❌ Проверка Nginx после очистки не удалась, откат...${PLAIN}"
                 cp -p "$backup_file" "$conf_file"
                 return 1
             fi
             ;;
         0|q|Q|"")
-            echo -e "${BLUE}已取消。${PLAIN}"
+            echo -e "${BLUE}Отмена.${PLAIN}"
             ;;
         *)
-            echo -e "${RED}❌ 无效操作。${PLAIN}"
+            echo -e "${RED}❌ Неверное действие.${PLAIN}"
             ;;
     esac
 }
@@ -610,28 +610,28 @@ func_nginx_manage_ip_whitelist() {
 func_proxy_manage_ip_whitelist() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🔐 域名 IP 白名单（Caddy / Nginx）${PLAIN}"
+    echo -e "${BOLD}🔐 IP-белый список доменов (Caddy / Nginx)${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${GREEN}  1. Caddy 域名 IP 白名单${PLAIN}"
-    echo -e "${GREEN}  2. Nginx 域名 IP 白名单${PLAIN}"
-    echo -e "${RED}  0. 取消${PLAIN}"
+    echo -e "${GREEN}  1. IP-белый список Caddy для доменов${PLAIN}"
+    echo -e "${GREEN}  2. IP-белый список Nginx для доменов${PLAIN}"
+    echo -e "${RED}  0. Отмена${PLAIN}"
     local choice
-    read_trimmed choice "请选择操作: "
+    read_trimmed choice "Выберите действие: "
     case "$choice" in
         1) func_caddy_manage_ip_whitelist ;;
         2) func_nginx_manage_ip_whitelist ;;
-        0|q|Q|"") echo -e "${BLUE}已取消。${PLAIN}" ;;
-        *) echo -e "${RED}❌ 无效选择。${PLAIN}" ;;
+        0|q|Q|"") echo -e "${BLUE}Отмена.${PLAIN}" ;;
+        *) echo -e "${RED}❌ Неверный выбор.${PLAIN}" ;;
     esac
 }
 
 func_nginx_clear_proxy_config() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧹 清空 Nginx HTTPS 反代配置${PLAIN}"
+    echo -e "${BOLD}🧹 Очистка конфигураций HTTPS прокси Nginx${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}只隔离 VPS-Optimize 创建的 /etc/nginx/conf.d/vps_proxy_*.conf 和 00-vps-proxy-map.conf。${PLAIN}"
-    echo -e "${YELLOW}不会清理 /etc/nginx/stream.d，也不会影响 443 单入口配置。${PLAIN}"
+    echo -e "${YELLOW}Будут изолированы только файлы /etc/nginx/conf.d/vps_proxy_*.conf и 00-vps-proxy-map.conf, созданные VPS-Optimize.${PLAIN}"
+    echo -e "${YELLOW}Не затрагиваются /etc/nginx/stream.d и конфигурации единого входа 443.${PLAIN}"
     echo -e "------------------------------------------------"
 
     local -a files=()
@@ -640,14 +640,14 @@ func_nginx_clear_proxy_config() {
         [[ -f "$conf_file" ]] && files+=("$conf_file")
     done
     if [[ ${#files[@]} -eq 0 ]]; then
-        echo -e "${BLUE}未检测到脚本创建的 Nginx HTTPS 反代配置。${PLAIN}"
+        echo -e "${BLUE}Конфигураций HTTPS прокси Nginx, созданных скриптом, не обнаружено.${PLAIN}"
         return 0
     fi
     printf '  - %s\n' "${files[@]}"
-    if ! confirm_danger "清空 Nginx HTTPS 反代配置" \
-        "上述 Nginx HTTPS 反代配置会被移入隔离目录，相关域名将不再由 Nginx 反代访问。" \
-        "从隔离目录 /etc/vps-optimize/quarantine/nginx-proxy 手动移回对应文件后执行 nginx -t && systemctl reload nginx。"; then
-        echo -e "${BLUE}已取消清空操作。${PLAIN}"
+    if ! confirm_danger "Очистка конфигураций HTTPS прокси Nginx" \
+        "Указанные конфигурации Nginx HTTPS будут перемещены в карантин, связанные домены перестанут обслуживаться через Nginx." \
+        "Восстановите вручную из карантина /etc/vps-optimize/quarantine/nginx-proxy и выполните nginx -t && systemctl reload nginx."; then
+        echo -e "${BLUE}Очистка отменена.${PLAIN}"
         return 0
     fi
 
@@ -658,15 +658,15 @@ func_nginx_clear_proxy_config() {
         if quarantine_path "$conf_file" "/etc/vps-optimize/quarantine/nginx-proxy" >/dev/null 2>&1; then
             moved=$((moved + 1))
         else
-            echo -e "${YELLOW}⚠️ 隔离失败：${conf_file}${PLAIN}"
+            echo -e "${YELLOW}⚠️ Не удалось изолировать: ${conf_file}${PLAIN}"
         fi
     done
     if nginx -t >/dev/null 2>&1; then
         systemctl reload nginx >/dev/null 2>&1 || systemctl restart nginx >/dev/null 2>&1 || true
-        echo -e "${GREEN}✅ 已隔离 ${moved} 个 Nginx HTTPS 反代配置。${PLAIN}"
-        echo -e "${CYAN}备份目录：${backup_dir}${PLAIN}"
+        echo -e "${GREEN}✅ Изолировано ${moved} конфигураций HTTPS прокси Nginx.${PLAIN}"
+        echo -e "${CYAN}Резервная копия: ${backup_dir}${PLAIN}"
     else
-        echo -e "${RED}❌ 清理后 Nginx 校验失败，请检查 nginx -t 输出。${PLAIN}"
+        echo -e "${RED}❌ Проверка Nginx после очистки не удалась, проверьте nginx -t.${PLAIN}"
         nginx -t
         return 1
     fi
@@ -675,18 +675,18 @@ func_nginx_clear_proxy_config() {
 func_proxy_clear_config() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧹 清空反代配置（Caddy / Nginx）${PLAIN}"
+    echo -e "${BOLD}🧹 Очистка конфигураций прокси (Caddy / Nginx)${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${GREEN}  1. 清空 Caddy 反代配置${PLAIN}"
-    echo -e "${GREEN}  2. 清空 Nginx HTTPS 反代配置${PLAIN}"
-    echo -e "${RED}  0. 取消${PLAIN}"
+    echo -e "${GREEN}  1. Очистка Caddy прокси${PLAIN}"
+    echo -e "${GREEN}  2. Очистка HTTPS прокси Nginx${PLAIN}"
+    echo -e "${RED}  0. Отмена${PLAIN}"
     local choice
-    read_trimmed choice "请选择操作: "
+    read_trimmed choice "Выберите действие: "
     case "$choice" in
         1) func_caddy_clear_config ;;
         2) func_nginx_clear_proxy_config ;;
-        0|q|Q|"") echo -e "${BLUE}已取消。${PLAIN}" ;;
-        *) echo -e "${RED}❌ 无效选择。${PLAIN}" ;;
+        0|q|Q|"") echo -e "${BLUE}Отмена.${PLAIN}" ;;
+        *) echo -e "${RED}❌ Неверный выбор.${PLAIN}" ;;
     esac
 }
 
@@ -705,12 +705,12 @@ collect_editable_proxy_config_files() {
     proxy_config_paths=()
     proxy_config_kinds=()
 
-    append_editable_proxy_config_file "Caddy 主配置" "/etc/caddy/Caddyfile" "caddy"
+    append_editable_proxy_config_file "Основной конфиг Caddy" "/etc/caddy/Caddyfile" "caddy"
     local conf_file
     for conf_file in /etc/caddy/conf.d/*.caddy; do
-        [[ -f "$conf_file" ]] && append_editable_proxy_config_file "Caddy 站点 $(basename "$conf_file")" "$conf_file" "caddy"
+        [[ -f "$conf_file" ]] && append_editable_proxy_config_file "Сайт Caddy $(basename "$conf_file")" "$conf_file" "caddy"
     done
-    append_editable_proxy_config_file "Nginx 主配置" "/etc/nginx/nginx.conf" "nginx"
+    append_editable_proxy_config_file "Основной конфиг Nginx" "/etc/nginx/nginx.conf" "nginx"
     for conf_file in /etc/nginx/conf.d/*.conf; do
         [[ -f "$conf_file" ]] && append_editable_proxy_config_file "Nginx conf.d $(basename "$conf_file")" "$conf_file" "nginx"
     done
@@ -739,15 +739,15 @@ validate_proxy_config_kind() {
     local kind="$1"
     case "$kind" in
         caddy)
-            command -v caddy >/dev/null 2>&1 || { echo -e "${RED}❌ 未检测到 caddy 命令，无法校验配置。${PLAIN}"; return 1; }
+            command -v caddy >/dev/null 2>&1 || { echo -e "${RED}❌ caddy не обнаружен, невозможно проверить конфигурацию.${PLAIN}"; return 1; }
             caddy validate --config /etc/caddy/Caddyfile
             ;;
         nginx)
-            command -v nginx >/dev/null 2>&1 || { echo -e "${RED}❌ 未检测到 nginx 命令，无法校验配置。${PLAIN}"; return 1; }
+            command -v nginx >/dev/null 2>&1 || { echo -e "${RED}❌ nginx не обнаружен, невозможно проверить конфигурацию.${PLAIN}"; return 1; }
             nginx -t
             ;;
         *)
-            echo -e "${RED}❌ 未知配置类型：${kind}${PLAIN}"
+            echo -e "${RED}❌ Неизвестный тип конфигурации: ${kind}${PLAIN}"
             return 1
             ;;
     esac
@@ -770,10 +770,10 @@ func_edit_applied_proxy_config() {
 
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}📝 查看/编辑已应用配置文件${PLAIN}"
+    echo -e "${BOLD}📝 Просмотр/редактирование применённых конфигураций${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
     if [[ ${#proxy_config_paths[@]} -eq 0 ]]; then
-        echo -e "${YELLOW}未检测到可编辑的 Caddy/Nginx 配置文件。${PLAIN}"
+        echo -e "${YELLOW}Не обнаружено редактируемых конфигурационных файлов Caddy/Nginx.${PLAIN}"
         return 0
     fi
 
@@ -781,69 +781,69 @@ func_edit_applied_proxy_config() {
     for i in "${!proxy_config_paths[@]}"; do
         printf '%b%3d. %s%b\n' "$GREEN" "$((i + 1))" "${proxy_config_labels[$i]} -> ${proxy_config_paths[$i]}" "$PLAIN"
     done
-    echo -e "${RED}  0. 取消${PLAIN}"
+    echo -e "${RED}  0. Отмена${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
 
     local choice idx target_file target_kind backup_file editor confirm rollback_confirm
-    read_trimmed choice "请选择要查看/编辑的配置文件: "
+    read_trimmed choice "Выберите конфигурационный файл для просмотра/редактирования: "
     [[ "$choice" == "0" || "$choice" == "q" || "$choice" == "Q" ]] && return 0
     if ! [[ "$choice" =~ ^[0-9]+$ ]] || (( choice < 1 || choice > ${#proxy_config_paths[@]} )); then
-        echo -e "${RED}❌ 无效选择。${PLAIN}"
+        echo -e "${RED}❌ Неверный выбор.${PLAIN}"
         return 1
     fi
 
     idx=$((choice - 1))
     target_file="${proxy_config_paths[$idx]}"
     target_kind="${proxy_config_kinds[$idx]}"
-    [[ -f "$target_file" ]] || { echo -e "${RED}❌ 文件不存在：${target_file}${PLAIN}"; return 1; }
+    [[ -f "$target_file" ]] || { echo -e "${RED}❌ Файл не существует: ${target_file}${PLAIN}"; return 1; }
 
     echo -e "${CYAN}------------------------------------------------${PLAIN}"
-    echo -e "${BOLD}当前文件：${target_file}${PLAIN}"
+    echo -e "${BOLD}Текущий файл: ${target_file}${PLAIN}"
     echo -e "${CYAN}------------------------------------------------${PLAIN}"
     nl -ba "$target_file"
     echo -e "${CYAN}------------------------------------------------${PLAIN}"
-    read_trimmed confirm "是否打开编辑器修改该文件？(y/n，默认 n): "
+    read_trimmed confirm "Открыть редактор для изменения этого файла? (y/n, по умолчанию n): "
     is_yes "$confirm" || return 0
 
     editor=$(proxy_config_editor_command) || {
-        echo -e "${RED}❌ 未找到可用编辑器。请先安装 nano/vim/vi，或设置 EDITOR。${PLAIN}"
+        echo -e "${RED}❌ Не найден доступный редактор. Установите nano/vim/vi или установите EDITOR.${PLAIN}"
         return 1
     }
     backup_file="${target_file}.bak_$(date +%s)"
-    cp -p "$target_file" "$backup_file" || { echo -e "${RED}❌ 备份失败，已取消编辑。${PLAIN}"; return 1; }
-    echo -e "${CYAN}编辑前备份：${backup_file}${PLAIN}"
+    cp -p "$target_file" "$backup_file" || { echo -e "${RED}❌ Резервное копирование не удалось, редактирование отменено.${PLAIN}"; return 1; }
+    echo -e "${CYAN}Резервная копия перед редактированием: ${backup_file}${PLAIN}"
 
     "$editor" "$target_file" || {
-        echo -e "${RED}❌ 编辑器异常退出，配置未重新加载。${PLAIN}"
+        echo -e "${RED}❌ Редактор завершился с ошибкой, конфигурация не перезагружена.${PLAIN}"
         return 1
     }
 
     if cmp -s "$target_file" "$backup_file"; then
-        echo -e "${BLUE}配置未变化。${PLAIN}"
+        echo -e "${BLUE}Конфигурация не изменилась.${PLAIN}"
         return 0
     fi
 
-    echo -e "${CYAN}▶ 正在校验配置...${PLAIN}"
+    echo -e "${CYAN}▶ Проверка конфигурации...${PLAIN}"
     if ! validate_proxy_config_kind "$target_kind"; then
-        echo -e "${RED}❌ 校验失败，服务不会 reload。${PLAIN}"
-        read_trimmed rollback_confirm "是否恢复编辑前备份？(Y/n，默认 yes): "
+        echo -e "${RED}❌ Проверка не удалась, служба не будет перезагружена.${PLAIN}"
+        read_trimmed rollback_confirm "Восстановить резервную копию до редактирования? (Y/n, по умолчанию yes): "
         if ! is_no "$rollback_confirm"; then
-            cp -p "$backup_file" "$target_file" && echo -e "${GREEN}✅ 已恢复：${target_file}${PLAIN}"
+            cp -p "$backup_file" "$target_file" && echo -e "${GREEN}✅ Восстановлено: ${target_file}${PLAIN}"
         else
-            echo -e "${YELLOW}⚠️ 已保留未通过校验的修改，请手动修正后再 reload。${PLAIN}"
+            echo -e "${YELLOW}⚠️ Оставлены изменения, не прошедшие проверку, исправьте вручную перед reload.${PLAIN}"
         fi
         return 1
     fi
 
     if reload_proxy_config_kind "$target_kind"; then
-        echo -e "${GREEN}✅ 配置已校验并重新加载。${PLAIN}"
-        echo -e "${CYAN}备份文件：${backup_file}${PLAIN}"
+        echo -e "${GREEN}✅ Конфигурация проверена и перезагружена.${PLAIN}"
+        echo -e "${CYAN}Резервный файл: ${backup_file}${PLAIN}"
     else
-        echo -e "${RED}❌ 配置校验通过，但服务 reload/restart 失败。${PLAIN}"
-        read_trimmed rollback_confirm "是否恢复编辑前备份？(Y/n，默认 yes): "
+        echo -e "${RED}❌ Проверка конфигурации пройдена, но reload/restart службы не удались.${PLAIN}"
+        read_trimmed rollback_confirm "Восстановить резервную копию до редактирования? (Y/n, по умолчанию yes): "
         if ! is_no "$rollback_confirm"; then
             cp -p "$backup_file" "$target_file" && reload_proxy_config_kind "$target_kind" >/dev/null 2>&1 || true
-            echo -e "${GREEN}✅ 已尝试恢复编辑前配置。${PLAIN}"
+            echo -e "${GREEN}✅ Попытка восстановления конфигурации до редактирования выполнена.${PLAIN}"
         fi
         return 1
     fi
@@ -853,25 +853,25 @@ func_caddy_reverse_proxy_menu() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "反代"
-        echo -e "${BOLD}🌐 反代（Caddy / Nginx）${PLAIN}"
+        print_breadcrumb "Обратный прокси"
+        echo -e "${BOLD}🌐 Обратный прокси (Caddy / Nginx)${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}用途：管理未接入 443 单入口的域名反代。443 单入口请只走主菜单 [19]。${PLAIN}"
+        echo -e "${YELLOW}Назначение: управление прокси для доменов, не подключённых к единому входу 443. Для единого входа 443 используйте главное меню [19].${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}  1. 添加 Caddy 反代${PLAIN}"
-        echo -e "${GREEN}  2. 添加 Nginx HTTPS 反代${PLAIN} ${YELLOW}(复用 acme.sh + CF DNS 证书)${PLAIN}"
-        echo -e "${CYAN}  3. 查看 Caddy/共享证书路径${PLAIN}"
-        echo -e "${CYAN}  4. 后端 HTTPS 跳过证书校验${PLAIN} ${YELLOW}(Caddy/Nginx，后端自签 HTTPS 时使用)${PLAIN}"
-        echo -e "${CYAN}  5. 域名 IP 白名单${PLAIN} ${YELLOW}(Caddy/Nginx)${PLAIN}"
-        echo -e "${CYAN}  6. 查看/编辑已应用配置文件${PLAIN} ${YELLOW}(Caddy/Nginx，校验后 reload)${PLAIN}"
-        echo -e "${RED}  7. 清空反代配置${PLAIN} ${YELLOW}(Caddy/Nginx)${PLAIN}"
-        echo -e "${RED}  8. 删除底层 ACME 证书/域名配置${PLAIN} ${YELLOW}(会同时清理脚本创建的 Nginx 配置)${PLAIN}"
+        echo -e "${GREEN}  1. Добавить Caddy прокси${PLAIN}"
+        echo -e "${GREEN}  2. Добавить Nginx HTTPS прокси${PLAIN} ${YELLOW}(использует acme.sh + CF DNS сертификаты)${PLAIN}"
+        echo -e "${CYAN}  3. Просмотр сертификатов Caddy/общих путей${PLAIN}"
+        echo -e "${CYAN}  4. Пропуск проверки сертификата бэкенда HTTPS${PLAIN} ${YELLOW}(Caddy/Nginx, для самоподписанных бэкендов)${PLAIN}"
+        echo -e "${CYAN}  5. IP-белый список доменов${PLAIN} ${YELLOW}(Caddy/Nginx)${PLAIN}"
+        echo -e "${CYAN}  6. Просмотр/редактирование применённых конфигураций${PLAIN} ${YELLOW}(Caddy/Nginx, проверка и reload)${PLAIN}"
+        echo -e "${RED}  7. Очистка конфигураций прокси${PLAIN} ${YELLOW}(Caddy/Nginx)${PLAIN}"
+        echo -e "${RED}  8. Удалить сертификат/конфигурацию домена ACME${PLAIN} ${YELLOW}(также очищает конфигурации Nginx, созданные скриптом)${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${RED}  0. 返回主菜单 / q 返回${PLAIN}"
+        echo -e "${RED}  0. Вернуться в главное меню / q${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local caddy_choice
-        read_trimmed caddy_choice "👉 请选择操作: "
+        read_trimmed caddy_choice "👉 Выберите действие: "
         case "$caddy_choice" in
             1) func_caddy_add_reverse_proxy ;;
             2) func_nginx_add_reverse_proxy ;;
@@ -882,9 +882,9 @@ func_caddy_reverse_proxy_menu() {
             7) func_proxy_clear_config ;;
             8) func_caddy_delete_cert ;;
             0|q|Q) break ;;
-            *) echo -e "${RED}❌ 无效选择！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1 ;;
         esac
         echo ""
-        pause_return "按任意键继续..."
+        pause_return "Нажмите любую клавишу для продолжения..."
     done
 }
