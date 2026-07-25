@@ -1,10 +1,10 @@
 # shellcheck shell=bash
-# Cloudflare/Caddy certificate health checks and auto-fix workflows.
+# Проверки состояния сертификатов Cloudflare/Caddy и автоматическое исправление.
 
 func_caddy_cf_health_check() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🩺 CF DNS 一键体检${PLAIN}"
+    echo -e "${BOLD}🩺 Быстрая проверка CF DNS${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
 
     local ok_count=0
@@ -12,7 +12,7 @@ func_caddy_cf_health_check() {
     local err_count=0
     local cf_env_file="/root/.config/vps-panel/cloudflare.env"
 
-    echo -e "${YELLOW}▶ [1/5] 检查 Cloudflare Token ...${PLAIN}"
+    echo -e "${YELLOW}▶ [1/5] Проверка Cloudflare Token ...${PLAIN}"
     if [[ -f "$cf_env_file" ]]; then
         # shellcheck disable=SC1090
         source "$cf_env_file"
@@ -21,40 +21,40 @@ func_caddy_cf_health_check() {
                 local verify_resp
                 verify_resp=$(curl -s --max-time 8 -H "Authorization: Bearer ${CF_Token}" -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/user/tokens/verify" 2>/dev/null)
                 if echo "$verify_resp" | grep -q '"success"[[:space:]]*:[[:space:]]*true'; then
-                    echo -e "${GREEN}✅ Cloudflare Token 校验通过${PLAIN}"
+                    echo -e "${GREEN}✅ Проверка Cloudflare Token пройдена${PLAIN}"
                     ((ok_count++))
                 else
-                    echo -e "${YELLOW}⚠️ Token 文件存在，但在线校验失败（可能权限不足/网络异常）${PLAIN}"
+                    echo -e "${YELLOW}⚠️ Файл Token существует, но онлайн-проверка не удалась (возможно, недостаточно прав/сетевые проблемы)${PLAIN}"
                     ((warn_count++))
                 fi
             else
-                echo -e "${YELLOW}⚠️ 未安装 curl，跳过在线校验。${PLAIN}"
+                echo -e "${YELLOW}⚠️ curl не установлен, пропускаем онлайн-проверку.${PLAIN}"
                 ((warn_count++))
             fi
         else
-            echo -e "${RED}❌ Token 文件为空，请在维护菜单 [2] 重新写入。${PLAIN}"
+            echo -e "${RED}❌ Файл Token пуст, перезапишите в меню обслуживания [2].${PLAIN}"
             ((err_count++))
         fi
     else
-        echo -e "${RED}❌ 未找到 Token 文件: ${cf_env_file}${PLAIN}"
+        echo -e "${RED}❌ Файл Token не найден: ${cf_env_file}${PLAIN}"
         ((err_count++))
     fi
 
-    echo -e "${YELLOW}▶ [2/5] 检查 Caddy 服务状态...${PLAIN}"
+    echo -e "${YELLOW}▶ [2/5] Проверка состояния службы Caddy...${PLAIN}"
     if command -v caddy >/dev/null 2>&1; then
         if systemctl is-active --quiet caddy; then
-            echo -e "${GREEN}✅ Caddy 服务运行中${PLAIN}"
+            echo -e "${GREEN}✅ Caddy работает${PLAIN}"
             ((ok_count++))
         else
-            echo -e "${YELLOW}⚠️ Caddy 已安装但未运行${PLAIN}"
+            echo -e "${YELLOW}⚠️ Caddy установлен, но не запущен${PLAIN}"
             ((warn_count++))
         fi
     else
-        echo -e "${RED}❌ 未安装 Caddy${PLAIN}"
+        echo -e "${RED}❌ Caddy не установлен${PLAIN}"
         ((err_count++))
     fi
 
-    echo -e "${YELLOW}▶ [3/5] 检查域名配置、证书与软链接...${PLAIN}"
+    echo -e "${YELLOW}▶ [3/5] Проверка конфигураций доменов, сертификатов и символических ссылок...${PLAIN}"
     local domain_count=0
     if [[ -d /etc/caddy/conf.d ]]; then
         while IFS= read -r conf_file; do
@@ -88,7 +88,7 @@ func_caddy_cf_health_check() {
             backend_addr=$(caddy_reverse_proxy_target_host "$backend")
             backend_port=$(caddy_reverse_proxy_target_port "$backend")
 
-            echo -e "${CYAN}  - 域名: ${domain}${PLAIN}"
+            echo -e "${CYAN}  - Домен: ${domain}${PLAIN}"
 
             if [[ -f "$cert_file" && -f "$key_file" ]]; then
                 cert_end=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2-)
@@ -97,42 +97,42 @@ func_caddy_cf_health_check() {
                 days_left=$(( (cert_ts - now_ts) / 86400 ))
 
                 if [[ -n "$cert_end" && "$days_left" -gt 15 ]]; then
-                    echo -e "    ${GREEN}证书状态: 正常 (剩余约 ${days_left} 天)${PLAIN}"
+                    echo -e "    ${GREEN}Сертификат: норма (осталось ${days_left} дн.)${PLAIN}"
                     ((ok_count++))
                 elif [[ -n "$cert_end" ]]; then
-                    echo -e "    ${YELLOW}证书状态: 即将到期 (剩余约 ${days_left} 天)${PLAIN}"
+                    echo -e "    ${YELLOW}Сертификат: скоро истекает (осталось ${days_left} дн.)${PLAIN}"
                     ((warn_count++))
                 else
-                    echo -e "    ${RED}证书状态: 无法读取有效期${PLAIN}"
+                    echo -e "    ${RED}Сертификат: не удалось прочитать срок действия${PLAIN}"
                     ((err_count++))
                 fi
             else
-                echo -e "    ${RED}证书状态: 缺失 /etc/caddy/certs/${domain}.crt|.key${PLAIN}"
+                echo -e "    ${RED}Сертификат отсутствует: /etc/caddy/certs/${domain}.crt|.key${PLAIN}"
                 ((err_count++))
             fi
 
             if [[ -L "/root/cert/${domain}.crt" && -e "/root/cert/${domain}.crt" && -L "/root/cert/${domain}.key" && -e "/root/cert/${domain}.key" ]]; then
-                echo -e "    ${GREEN}软链接状态: /root/cert 已正确挂载${PLAIN}"
+                echo -e "    ${GREEN}Символические ссылки: /root/cert правильно${PLAIN}"
                 ((ok_count++))
             else
-                echo -e "    ${YELLOW}软链接状态: 缺失或失效，建议执行维护菜单 [10] 重建软链接${PLAIN}"
+                echo -e "    ${YELLOW}Символические ссылки: отсутствуют или повреждены, выполните обслуживание [10] для восстановления${PLAIN}"
                 ((warn_count++))
             fi
 
-            [[ -z "$listen_target" ]] && listen_target="未知"
+            [[ -z "$listen_target" ]] && listen_target="неизвестно"
             if [[ -n "$listen_port" ]] && caddy_listen_addr_port_is_visible "$listen_addr" "$listen_port"; then
-                echo -e "    ${GREEN}监听状态: Caddy 本地端口 ${listen_target} 可见${PLAIN}"
+                echo -e "    ${GREEN}Прослушивание: локальный порт ${listen_target} виден${PLAIN}"
                 ((ok_count++))
             else
-                echo -e "    ${YELLOW}监听状态: 未检测到 ${listen_target} 在监听${PLAIN}"
+                echo -e "    ${YELLOW}Прослушивание: не обнаружено ${listen_target}${PLAIN}"
                 ((warn_count++))
             fi
 
-            [[ -z "$backend" ]] && backend="未知"
+            [[ -z "$backend" ]] && backend="неизвестно"
             if [[ -z "$backend_addr" || -z "$backend_port" ]]; then
-                echo -e "    ${YELLOW}⚠️ 后端状态：无法从配置读取后端地址${PLAIN}"
+                echo -e "    ${YELLOW}⚠️ Бэкенд: не удалось прочитать адрес бэкенда из конфигурации${PLAIN}"
                 ((warn_count++))
-            elif probe_backend_target "    后端状态" "$backend_addr" "$backend_port"; then
+            elif probe_backend_target "    Бэкенд" "$backend_addr" "$backend_port"; then
                 ((ok_count++))
             else
                 ((warn_count++))
@@ -141,35 +141,35 @@ func_caddy_cf_health_check() {
     fi
 
     if [[ "$domain_count" -eq 0 ]]; then
-        echo -e "${YELLOW}⚠️ 未检测到本功能托管的域名配置（https://域名:端口）。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Не обнаружено конфигураций доменов, управляемых этой функцией (https://домен:порт).${PLAIN}"
         ((warn_count++))
     fi
 
-    echo -e "${YELLOW}▶ [4/5] 检查清单文件...${PLAIN}"
+    echo -e "${YELLOW}▶ [4/5] Проверка файла манифеста...${PLAIN}"
     if [[ -f /root/cert/caddy_cf_manifest.txt ]]; then
-        echo -e "${GREEN}✅ 清单文件存在: /root/cert/caddy_cf_manifest.txt${PLAIN}"
+        echo -e "${GREEN}✅ Файл манифеста существует: /root/cert/caddy_cf_manifest.txt${PLAIN}"
         ((ok_count++))
     else
-        echo -e "${YELLOW}⚠️ 清单文件不存在，建议执行维护菜单 [11] 重建。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Файл манифеста отсутствует, выполните обслуживание [11] для восстановления.${PLAIN}"
         ((warn_count++))
     fi
 
-    echo -e "${YELLOW}▶ [5/5] 总结...${PLAIN}"
+    echo -e "${YELLOW}▶ [5/5] Итог...${PLAIN}"
     echo -e "------------------------------------------------"
-    echo -e "${CYAN}体检结果: ${GREEN}${ok_count} 正常${PLAIN} / ${YELLOW}${warn_count} 警告${PLAIN} / ${RED}${err_count} 异常${PLAIN}"
+    echo -e "${CYAN}Результат проверки: ${GREEN}${ok_count} OK${PLAIN} / ${YELLOW}${warn_count} предупреждений${PLAIN} / ${RED}${err_count} ошибок${PLAIN}"
     if [[ "$err_count" -gt 0 ]]; then
-        echo -e "${RED}建议优先修复异常项，再继续业务切流。${PLAIN}"
+        echo -e "${RED}Рекомендуется сначала исправить ошибки перед переключением трафика.${PLAIN}"
     elif [[ "$warn_count" -gt 0 ]]; then
-        echo -e "${YELLOW}当前可继续运行，但建议处理警告项提高稳定性。${PLAIN}"
+        echo -e "${YELLOW}Можно продолжать, но рекомендуется обработать предупреждения для повышения стабильности.${PLAIN}"
     else
-        echo -e "${GREEN}检查未发现异常。${PLAIN}"
+        echo -e "${GREEN}Проверка не выявила проблем.${PLAIN}"
     fi
 }
 
 func_caddy_cf_auto_fix() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧰 CF DNS 一键自动修复${PLAIN}"
+    echo -e "${BOLD}🧰 Автоматическое исправление CF DNS${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
 
     local fixed_count=0
@@ -178,7 +178,7 @@ func_caddy_cf_auto_fix() {
     local cf_env_file="/root/.config/vps-panel/cloudflare.env"
     local acme_bin="/root/.acme.sh/acme.sh"
 
-    echo -e "${YELLOW}▶ [1/7] 修复基础目录与主配置...${PLAIN}"
+    echo -e "${YELLOW}▶ [1/7] Восстановление базовых каталогов и основной конфигурации...${PLAIN}"
     mkdir -p /root/cert /etc/caddy/certs /etc/caddy/conf.d /root/.config/vps-panel
     chmod 700 /root/.config/vps-panel >/dev/null 2>&1
 
@@ -193,10 +193,10 @@ EOF
         ((fixed_count++))
     fi
 
-    echo -e "${YELLOW}▶ [1.5/7] 隔离旧式站点配置（避免抢占 443）...${PLAIN}"
+    echo -e "${YELLOW}▶ [1.5/7] Изоляция старых конфигураций сайтов (во избежание захвата 443)...${PLAIN}"
     quarantine_legacy_caddy_443_configs
 
-    echo -e "${YELLOW}▶ [2/7] 修复证书权限...${PLAIN}"
+    echo -e "${YELLOW}▶ [2/7] Восстановление прав на сертификаты...${PLAIN}"
     if [[ -d /etc/caddy/certs ]]; then
         if id caddy >/dev/null 2>&1; then
             chown root:caddy /etc/caddy/certs/* 2>/dev/null
@@ -209,7 +209,7 @@ EOF
         ((warn_count++))
     fi
 
-    echo -e "${YELLOW}▶ [3/7] 全量重建 /root/cert 软链接...${PLAIN}"
+    echo -e "${YELLOW}▶ [3/7] Полное восстановление символических ссылок /root/cert...${PLAIN}"
     local relink_count=0
     if [[ -d /etc/caddy/certs ]]; then
         while IFS= read -r cert_path; do
@@ -222,10 +222,10 @@ EOF
             fi
         done < <(find /etc/caddy/certs -maxdepth 1 -type f -name "*.crt" 2>/dev/null | sort)
     fi
-    echo -e "${GREEN}✅ 已重建 ${relink_count} 组软链接。${PLAIN}"
+    echo -e "${GREEN}✅ Восстановлено ${relink_count} групп символических ссылок.${PLAIN}"
     ((fixed_count++))
 
-    echo -e "${YELLOW}▶ [4/7] 近效期证书自动续签...${PLAIN}"
+    echo -e "${YELLOW}▶ [4/7] Автоматическое продление сертификатов с истекающим сроком...${PLAIN}"
     local renew_count=0
     local renew_fail=0
     if [[ -x "$acme_bin" && -f "$cf_env_file" ]]; then
@@ -271,61 +271,61 @@ EOF
             if [[ "$renew_fail" -gt 0 ]]; then
                 ((warn_count+=renew_fail))
             fi
-            echo -e "${GREEN}✅ 自动续签完成，成功 ${renew_count} 个，失败 ${renew_fail} 个。${PLAIN}"
+            echo -e "${GREEN}✅ Автоматическое продление выполнено: успешно ${renew_count}, ошибок ${renew_fail}.${PLAIN}"
             ((fixed_count++))
         else
-            echo -e "${YELLOW}⚠️ Token 为空，跳过自动续签。${PLAIN}"
+            echo -e "${YELLOW}⚠️ Token пуст, пропускаем автоматическое продление.${PLAIN}"
             ((warn_count++))
         fi
     else
-        echo -e "${YELLOW}⚠️ 未检测到 acme.sh 或 Token 文件，跳过自动续签。${PLAIN}"
+        echo -e "${YELLOW}⚠️ acme.sh или файл Token не обнаружены, пропускаем автоматическое продление.${PLAIN}"
         ((warn_count++))
     fi
 
-    echo -e "${YELLOW}▶ [5/7] 校验并重载 Caddy...${PLAIN}"
+    echo -e "${YELLOW}▶ [5/7] Проверка и перезагрузка Caddy...${PLAIN}"
     if command -v caddy >/dev/null 2>&1; then
         if caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
             systemctl enable caddy >/dev/null 2>&1
             if systemctl restart caddy >/dev/null 2>&1; then
-                echo -e "${GREEN}✅ Caddy 配置校验通过并重启成功。${PLAIN}"
+                echo -e "${GREEN}✅ Проверка конфигурации Caddy пройдена, перезапуск успешен.${PLAIN}"
                 ((fixed_count++))
             else
-                echo -e "${RED}❌ Caddy 重启失败，请手动检查日志。${PLAIN}"
+                echo -e "${RED}❌ Перезапуск Caddy не удался, проверьте логи вручную.${PLAIN}"
                 ((fail_count++))
             fi
         else
-            echo -e "${RED}❌ Caddy 配置校验失败，未执行重启。${PLAIN}"
+            echo -e "${RED}❌ Проверка конфигурации Caddy не удалась, перезапуск не выполнен.${PLAIN}"
             ((fail_count++))
         fi
     else
-        echo -e "${RED}❌ 未安装 Caddy，无法执行重载。${PLAIN}"
+        echo -e "${RED}❌ Caddy не установлен, невозможно выполнить перезагрузку.${PLAIN}"
         ((fail_count++))
     fi
 
-    echo -e "${YELLOW}▶ [6/7] 重建清单文件...${PLAIN}"
+    echo -e "${YELLOW}▶ [6/7] Восстановление файла манифеста...${PLAIN}"
     generate_caddy_cf_manifest
     ((fixed_count++))
-    echo -e "${GREEN}✅ 清单已重建: /root/cert/caddy_cf_manifest.txt${PLAIN}"
+    echo -e "${GREEN}✅ Манифест восстановлен: /root/cert/caddy_cf_manifest.txt${PLAIN}"
 
-    echo -e "${YELLOW}▶ [7/7] 补全 acme 自动续签任务...${PLAIN}"
+    echo -e "${YELLOW}▶ [7/7] Дополнение задачи автоматического продления acme...${PLAIN}"
     if [[ -x "$acme_bin" ]]; then
         if "$acme_bin" --install-cronjob >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ acme.sh 自动续签任务已确认。${PLAIN}"
+            echo -e "${GREEN}✅ Задача автоматического продления acme.sh подтверждена.${PLAIN}"
             ((fixed_count++))
         else
-            echo -e "${YELLOW}⚠️ 无法确认 acme.sh 续签任务，请手动检查 crontab。${PLAIN}"
+            echo -e "${YELLOW}⚠️ Не удалось подтвердить задачу продления acme.sh, проверьте crontab вручную.${PLAIN}"
             ((warn_count++))
         fi
     else
-        echo -e "${YELLOW}⚠️ 未安装 acme.sh，跳过续签任务补全。${PLAIN}"
+        echo -e "${YELLOW}⚠️ acme.sh не установлен, пропускаем дополнение задачи.${PLAIN}"
         ((warn_count++))
     fi
 
     echo -e "------------------------------------------------"
-    echo -e "${CYAN}自动修复结果: ${GREEN}${fixed_count} 已修复${PLAIN} / ${YELLOW}${warn_count} 警告${PLAIN} / ${RED}${fail_count} 失败${PLAIN}"
+    echo -e "${CYAN}Результат автоматического исправления: ${GREEN}${fixed_count} исправлено${PLAIN} / ${YELLOW}${warn_count} предупреждений${PLAIN} / ${RED}${fail_count} ошибок${PLAIN}"
     if [[ "$fail_count" -gt 0 ]]; then
-        echo -e "${RED}存在失败项，建议先执行维护菜单 [13] 体检复查并查看 caddy 日志。${PLAIN}"
+        echo -e "${RED}Есть ошибки, рекомендуется выполнить проверку [13] в меню обслуживания и просмотреть логи caddy.${PLAIN}"
     else
-        echo -e "${GREEN}自动修复流程完成，可执行维护菜单 [13] 复检确认。${PLAIN}"
+        echo -e "${GREEN}Автоматическое исправление завершено, выполните проверку [13] для подтверждения.${PLAIN}"
     fi
 }
