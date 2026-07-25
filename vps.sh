@@ -5,7 +5,7 @@
 # Compatibility marker for legacy updater: VPS 全能控制面板
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RELEASE_URL="https://raw.githubusercontent.com/Chunlion/VPS-Optimize/main/dist/vps.sh"
+RELEASE_URL="https://raw.githubusercontent.com/sacredx72/VPS-Optimize/main/dist/vps.sh"
 MODULE_LIST="$SCRIPT_DIR/scripts/modules.list"
 MODULES=()
 
