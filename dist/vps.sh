@@ -5183,7 +5183,7 @@ nginx_proxy_ensure_certificate() {
     local domain="$1"
     local cert_file="/etc/caddy/certs/${domain}.crt"
     local key_file="/etc/caddy/certs/${domain}.key"
-    local reuse_cert CF_TOKEN verify_rc
+ ####  local reuse_cert CF_TOKEN verify_rc
 
     if [[ -s "$cert_file" && -s "$key_file" ]]; then
         read_trimmed reuse_cert "Обнаружен существующий сертификат ${cert_file}, использовать повторно? (Y/n, по умолчанию yes): "
@@ -5195,23 +5195,23 @@ nginx_proxy_ensure_certificate() {
 
     echo -e "${YELLOW}Сертификат для Nginx прокси будет получен через acme.sh + Cloudflare DNS API.${PLAIN}"
     echo -e "${YELLOW}Сертификат будет установлен в /etc/caddy/certs/${domain}.crt|key и символическая ссылка в /root/cert/.${PLAIN}"
-    read_secret_trimmed CF_TOKEN "Введите Cloudflare API Token (нужны права на DNS-правки для этого домена): "
-    if [[ -z "$CF_TOKEN" || ${#CF_TOKEN} -lt 20 ]]; then
-        echo -e "${RED}❌ Неверная длина Cloudflare Token.${PLAIN}"
-        return 1
-    fi
-    verify_cf_token_online "$CF_TOKEN"
-    verify_rc=$?
-    if [[ "$verify_rc" -eq 0 ]]; then
-        echo -e "${GREEN}✅ Проверка Cloudflare Token пройдена.${PLAIN}"
-    elif [[ "$verify_rc" -eq 2 ]]; then
-        echo -e "${YELLOW}⚠️ curl не установлен, пропускаем онлайн-проверку.${PLAIN}"
-    else
-        echo -e "${RED}❌ Ошибка онлайн-проверки Cloudflare Token.${PLAIN}"
-        return 1
-    fi
-    issue_and_install_cert_for_domain "$domain" "$CF_TOKEN" || return 1
-    [[ -s "$cert_file" && -s "$key_file" ]] || { echo -e "${RED}❌ Сертификат отсутствует: ${cert_file}|${key_file}${PLAIN}"; return 1; }
+   #### read_secret_trimmed CF_TOKEN "Введите Cloudflare API Token (нужны права на DNS-правки для этого домена): "
+   ### if [[ -z "$CF_TOKEN" || ${#CF_TOKEN} -lt 20 ]]; then
+   ####     echo -e "${RED}❌ Неверная длина Cloudflare Token.${PLAIN}"
+   ####     return 1
+   #### fi
+   #### verify_cf_token_online "$CF_TOKEN"
+   #### verify_rc=$?
+   #### if [[ "$verify_rc" -eq 0 ]]; then
+   ####    echo -e "${GREEN}✅ Проверка Cloudflare Token пройдена.${PLAIN}"
+   #### elif [[ "$verify_rc" -eq 2 ]]; then
+   ####     echo -e "${YELLOW}⚠️ curl не установлен, пропускаем онлайн-проверку.${PLAIN}"
+   #### else
+   ####     echo -e "${RED}❌ Ошибка онлайн-проверки Cloudflare Token.${PLAIN}"
+   ####     return 1
+   #### fi
+   #### issue_and_install_cert_for_domain "$domain" "$CF_TOKEN" || return 1
+   #### [[ -s "$cert_file" && -s "$key_file" ]] || { echo -e "${RED}❌ Сертификат отсутствует: ${cert_file}|${key_file}${PLAIN}"; return 1; }
 }
 
 write_nginx_reverse_proxy_conf() {
