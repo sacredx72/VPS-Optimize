@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Common constants, platform detection, package helpers, and remote script helpers.
+# Общие константы, определение платформы, помощники пакетов и удалённых скриптов.
 
 RED='\033[1;31m'
 GREEN='\033[1;32m'
@@ -10,7 +10,7 @@ PLAIN='\033[0m'
 BOLD='\033[1m'
 
 SCRIPT_VERSION="v2.5"
-UPDATE_URL="https://raw.githubusercontent.com/Chunlion/VPS-Optimize/main/dist/vps.sh"
+UPDATE_URL="https://raw.githubusercontent.com/sacredx72/VPS-Optimize/main/dist/vps.sh"
 UPDATE_SHA256_URL="${UPDATE_URL}.sha256"
 SCRIPT_UPDATE_CACHE="/etc/vps-optimize/update-check.cache"
 TRAFFIC_GUARD_CONFIG="/etc/vps-optimize/traffic-guard.conf"
@@ -68,9 +68,9 @@ format_bytes() {
     }'
 }
 
-# Lightweight path-based rotation for logs that shell helpers append by name.
-# It intentionally does not create a fresh file after mv; daemons that keep an
-# open fd need journald, a reload/restart, or log code that can reopen files.
+# Лёгкая ротация логов по размеру файла.
+# Не создаёт новый файл после mv; демоны с открытым fd нуждаются в journald,
+# reload/restart или коде, который умеет переоткрывать файлы.
 rotate_log_file() {
     local log_file="$1"
     local max_bytes="${2:-$VPSO_DEFAULT_LOG_MAX_BYTES}"
@@ -109,13 +109,13 @@ print_pkg_failure_log() {
     local action="$1"
     local log_file="$2"
     shift 2
-    echo -e "${RED}❌ 软件包${action}失败: $*${PLAIN}"
-    echo -e "${YELLOW}日志: ${log_file}${PLAIN}"
+    echo -e "${RED}❌ Ошибка ${action} пакета(ов): $*${PLAIN}"
+    echo -e "${YELLOW}Лог: ${log_file}${PLAIN}"
     if [[ -s "$log_file" ]]; then
-        echo -e "${YELLOW}最近 20 行:${PLAIN}"
+        echo -e "${YELLOW}Последние 20 строк:${PLAIN}"
         tail -n 20 "$log_file" 2>/dev/null || true
     else
-        echo -e "${YELLOW}日志为空，可能是包管理器未能启动或当前系统不支持该操作。${PLAIN}"
+        echo -e "${YELLOW}Лог пуст. Возможно, пакетный менеджер не запустился или система не поддерживает эту операцию.${PLAIN}"
     fi
 }
 
@@ -125,7 +125,7 @@ install_pkg() {
     [[ ${#pkgs[@]} -gt 0 ]] || return 0
     log_file=$(pkg_log_file install) || return 1
     if is_debian; then
-        # 使用 apt-get 代替 apt，消除 "stable CLI interface" 警告 
+        # Используем apt-get вместо apt, чтобы убрать предупреждение "stable CLI interface"
         export DEBIAN_FRONTEND=noninteractive
         apt_update_once >>"$log_file" 2>&1 || true
         apt-get install -y -qq "${pkgs[@]}" >>"$log_file" 2>&1
@@ -139,14 +139,14 @@ install_pkg() {
         fi
         rc=$?
     else
-        echo -e "${RED}❌ 当前系统暂不支持自动安装软件包：OS=${OS:-unknown} ID_LIKE=${OS_LIKE:-unknown}${PLAIN}"
+        echo -e "${RED}❌ Текущая система не поддерживает автоматическую установку пакетов: OS=${OS:-unknown} ID_LIKE=${OS_LIKE:-unknown}${PLAIN}"
         rm -f "$log_file"
         return 1
     fi
     if [[ "$rc" -eq 0 ]]; then
         rm -f "$log_file"
     else
-        print_pkg_failure_log "安装" "$log_file" "${pkgs[@]}"
+        print_pkg_failure_log "установки" "$log_file" "${pkgs[@]}"
     fi
     return "$rc"
 }
@@ -169,14 +169,14 @@ remove_pkg() {
         fi
         rc=$?
     else
-        echo -e "${RED}❌ 当前系统暂不支持自动卸载软件包：OS=${OS:-unknown} ID_LIKE=${OS_LIKE:-unknown}${PLAIN}"
+        echo -e "${RED}❌ Текущая система не поддерживает автоматическое удаление пакетов: OS=${OS:-unknown} ID_LIKE=${OS_LIKE:-unknown}${PLAIN}"
         rm -f "$log_file"
         return 1
     fi
     if [[ "$rc" -eq 0 ]]; then
         rm -f "$log_file"
     else
-        print_pkg_failure_log "移除" "$log_file" "${pkgs[@]}"
+        print_pkg_failure_log "удаления" "$log_file" "${pkgs[@]}"
     fi
     return "$rc"
 }
@@ -204,14 +204,14 @@ ensure_minimal_system_compat() {
     done < <(minimal_compat_packages)
 
     if [[ ${#pkgs[@]} -gt 0 ]]; then
-        echo -e "${CYAN}▶ 正在补齐精简系统兼容组件...${PLAIN}"
+        echo -e "${CYAN}▶ Дополняю минимальные компоненты совместимости системы...${PLAIN}"
         if install_pkg "${pkgs[@]}"; then
-            echo -e "${GREEN}✅ 精简系统兼容组件已检查/补齐。${PLAIN}"
+            echo -e "${GREEN}✅ Минимальные компоненты совместимости проверены/установлены.${PLAIN}"
         else
-            echo -e "${YELLOW}⚠️ 部分兼容组件安装失败，请检查软件源或网络。${PLAIN}"
-            echo -e "${CYAN}▶ 正在降级为逐个组件补齐，尽量提高兼容性...${PLAIN}"
+            echo -e "${YELLOW}⚠️ Часть компонентов не установилась. Проверьте репозитории или сеть.${PLAIN}"
+            echo -e "${CYAN}▶ Перехожу к установке по одному, чтобы повысить совместимость...${PLAIN}"
             for pkg in "${pkgs[@]}"; do
-                install_pkg "$pkg" || echo -e "${YELLOW}  - 跳过不可安装组件: ${pkg}${PLAIN}"
+                install_pkg "$pkg" || echo -e "${YELLOW}  - Пропущен недоступный компонент: ${pkg}${PLAIN}"
             done
         fi
     fi
@@ -240,7 +240,7 @@ copy_shortcut_candidate() {
     local target_dir tmp_file
 
     if ! is_vps_optimize_generated_script "$source_file" || ! bash -n "$source_file" >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️ ${label} 未通过 VPS-Optimize 脚本标识校验，已拒绝注册快捷指令。${PLAIN}"
+        echo -e "${YELLOW}⚠️ ${label} не прошёл проверку идентификатора VPS-Optimize. Регистрация ярлыка отклонена.${PLAIN}"
         return 1
     fi
     target_dir=$(dirname "$target_file")
@@ -293,7 +293,7 @@ sync_shortcut_from_newer_current_script() {
     [[ -n "$current_version" && -n "$shortcut_version" ]] || return 1
     declare -F version_is_newer >/dev/null 2>&1 || return 1
     version_is_newer "$current_version" "$shortcut_version" || return 1
-    copy_shortcut_candidate "$current_file" "$shortcut_file" "当前脚本"
+    copy_shortcut_candidate "$current_file" "$shortcut_file" "текущий скрипт"
 }
 
 create_shortcut() {
@@ -305,7 +305,7 @@ create_shortcut() {
         && is_vps_optimize_generated_script "$script_path" \
         && bash -n "$script_path" >/dev/null 2>&1; then
         if sync_shortcut_from_newer_current_script "$current_file" "$script_path"; then
-            echo -e "${GREEN}✅ 快捷指令 'cy' 已同步到当前较新版本。${PLAIN}"
+            echo -e "${GREEN}✅ Ярлык 'cy' синхронизирован с более новой версией.${PLAIN}"
             sleep 1
         fi
         return 0
@@ -313,7 +313,7 @@ create_shortcut() {
 
     if [[ -f "$script_path" ]]; then
         quarantine_path "$script_path" "/tmp/vps-optimize-quarantine" >/dev/null 2>&1 || return 1
-        echo -e "${YELLOW}⚠️ 已隔离无效的旧快捷指令，正在重新注册。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Недействительный старый ярлык изолирован. Выполняется повторная регистрация.${PLAIN}"
     fi
 
     candidate_file=$(mktemp /tmp/cy_shortcut.XXXXXX.sh) || return 1
@@ -333,30 +333,30 @@ create_shortcut() {
             :
         else
             rm -f "$candidate_file"
-            echo -e "${YELLOW}⚠️ 快捷指令注册挂起，请稍后在主菜单 [17] 更新脚本完成注册。${PLAIN}"
+            echo -e "${YELLOW}⚠️ Регистрация ярлыка отложена. Позже выполните обновление скрипта в главном меню [17].${PLAIN}"
             return 1
         fi
     fi
 
-    if ! copy_shortcut_candidate "$candidate_file" "$script_path" "快捷指令候选脚本"; then
+    if ! copy_shortcut_candidate "$candidate_file" "$script_path" "кандидат ярлыка"; then
         rm -f "$candidate_file"
-        echo -e "${YELLOW}⚠️ 快捷指令注册失败，请检查 /usr/local/bin 权限。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Не удалось зарегистрировать ярлык. Проверьте права на /usr/local/bin.${PLAIN}"
         return 1
     fi
     rm -f "$candidate_file"
-    echo -e "${GREEN}✅ 快捷指令 'cy' 已全局注册！下次可直接输入 cy 唤出面板。${PLAIN}"
+    echo -e "${GREEN}✅ Ярлык 'cy' зарегистрирован глобально! Теперь можно вызывать панель командой cy.${PLAIN}"
     sleep 1
 }
 
 run_safe() {
     local desc="$1"
     shift
-    echo -e "${CYAN}▶ 正在执行: ${desc}...${PLAIN}"
-    # 丢弃正常输出保留错误输出，若执行失败则阻断并告警
+    echo -e "${CYAN}▶ Выполняется: ${desc}...${PLAIN}"
+    # Отбрасываем обычный вывод, оставляем ошибки. При неудаче — останавливаемся и предупреждаем.
     if "$@" >/dev/null; then
-        echo -e "${GREEN}✅ ${desc} - 成功！${PLAIN}"
+        echo -e "${GREEN}✅ ${desc} — успешно!${PLAIN}"
     else
-        echo -e "${RED}❌ ${desc} - 失败！请检查系统网络或依赖源。${PLAIN}"
+        echo -e "${RED}❌ ${desc} — ошибка! Проверьте сеть или источники зависимостей.${PLAIN}"
         return 1
     fi
 }
@@ -382,12 +382,12 @@ download_remote_script() {
         if [[ -f "$local_file" ]] && cp "$local_file" "$output_file" 2>/dev/null; then
             return 0
         fi
-        echo -e "${RED}❌ 本地脚本文件不可读：${local_file}${PLAIN}"
+        echo -e "${RED}❌ Локальный файл скрипта недоступен для чтения: ${local_file}${PLAIN}"
         return 1
     fi
 
     if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️ 缺少 curl/wget，正在尝试自动补齐下载工具...${PLAIN}"
+        echo -e "${YELLOW}⚠️ Отсутствуют curl/wget. Пытаюсь автоматически установить инструменты загрузки...${PLAIN}"
         install_pkg curl wget >/dev/null 2>&1 || true
     fi
 
@@ -403,7 +403,7 @@ download_remote_script() {
     fi
 
     if [[ "$downloaded" -ne 0 ]]; then
-        echo -e "${RED}❌ 下载远程脚本失败，请检查网络、DNS 或 GitHub 连通性。${PLAIN}"
+        echo -e "${RED}❌ Не удалось скачать удалённый скрипт. Проверьте сеть, DNS или доступность GitHub.${PLAIN}"
         return 1
     fi
     [[ -s "$output_file" ]]
@@ -416,12 +416,12 @@ verify_file_sha256() {
 
     expected=$(awk 'NR == 1 {print $1}' "$checksum_file" 2>/dev/null | tr 'A-F' 'a-f')
     if [[ ! "$expected" =~ ^[0-9a-f]{64}$ ]]; then
-        echo -e "${RED}❌ sha256 校验文件格式无效：${checksum_file}${PLAIN}"
+        echo -e "${RED}❌ Неверный формат файла sha256: ${checksum_file}${PLAIN}"
         return 1
     fi
 
     if ! command -v sha256sum >/dev/null 2>&1; then
-        echo -e "${RED}❌ 当前系统缺少 sha256sum，无法校验更新包。${PLAIN}"
+        echo -e "${RED}❌ В системе отсутствует sha256sum, проверка обновления невозможна.${PLAIN}"
         return 1
     fi
 
@@ -429,46 +429,46 @@ verify_file_sha256() {
     printf '%s  %s\n' "$expected" "$file" > "$check_file"
     if ! sha256sum -c "$check_file" >/dev/null 2>&1; then
         rm -f "$check_file"
-        echo -e "${RED}❌ sha256 校验失败，已拒绝覆盖 /usr/local/bin/cy。${PLAIN}"
+        echo -e "${RED}❌ Проверка sha256 не пройдена. Перезапись /usr/local/bin/cy отклонена.${PLAIN}"
         return 1
     fi
     rm -f "$check_file"
 
-    echo -e "${GREEN}✅ sha256 校验通过。${PLAIN}"
+    echo -e "${GREEN}✅ Проверка sha256 пройдена.${PLAIN}"
 }
 
 is_trusted_remote_script_url() {
     local url="$1"
     case "$url" in
-        "https://raw.githubusercontent.com/Chunlion/VPS-Optimize/main/dog.sh"|\
-        "https://raw.githubusercontent.com/Chunlion/VPS-Optimize/main/xui-custom-manager.sh")
-            echo "VPS-Optimize 项目维护脚本"
+        "https://raw.githubusercontent.com/sacredx72/VPS-Optimize/main/dog.sh"|\
+        "https://raw.githubusercontent.com/sacredx72/VPS-Optimize/main/xui-custom-manager.sh")
+            echo "Скрипт обслуживания проекта VPS-Optimize"
             return 0
             ;;
         "https://get.docker.com")
-            echo "Docker 官方安装脚本"
+            echo "Официальный скрипт установки Docker"
             return 0
             ;;
         "https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh"|\
         "https://raw.githubusercontent.com/mhsanaei/3x-ui/v2.9.4/install.sh")
-            echo "3x-ui 官方安装脚本"
+            echo "Официальный скрипт установки 3x-ui"
             return 0
             ;;
         "https://raw.githubusercontent.com/alireza0/s-ui/master/install.sh")
-            echo "S-UI 官方安装脚本"
+            echo "Официальный скрипт установки S-UI"
             return 0
             ;;
         "https://raw.githubusercontent.com/EasyTier/EasyTier/main/script/install.sh")
-            echo "EasyTier 官方安装脚本"
+            echo "Официальный скрипт установки EasyTier"
             return 0
             ;;
         "https://tailscale.com/install.sh")
-            echo "Tailscale 官方安装脚本"
+            echo "Официальный скрипт установки Tailscale"
             return 0
             ;;
         "https://github.com/233boy/sing-box/raw/main/install.sh"|\
         "https://github.com/233boy/Xray/raw/main/install.sh")
-            echo "233boy 官方安装脚本"
+            echo "Официальный скрипт 233boy"
             return 0
             ;;
         "https://yabs.sh"|\
@@ -494,7 +494,7 @@ is_trusted_remote_script_url() {
         "https://github.com/ylx2016/Linux-NetSpeed/raw/master/tcpx.sh"|\
         "https://raw.githubusercontent.com/Jimmyzxk/DNS-Alice-Unlock/refs/heads/main/dns-unlock.sh"|\
         "https://raw.githubusercontent.com/hotyue/IP-Sentinel/main/core/install.sh")
-            echo "项目内置硬编码外部脚本源"
+            echo "Встроенный жёстко заданный внешний источник скрипта"
             return 0
             ;;
     esac
@@ -505,9 +505,9 @@ confirm_remote_script_execution() {
     local confirm
 
     if declare -F read_trimmed >/dev/null 2>&1; then
-        read_trimmed confirm "是否继续下载并执行该远程脚本？(y/N): "
+        read_trimmed confirm "Продолжить загрузку и выполнение удалённого скрипта? (y/N): "
     else
-        read -r -p "是否继续下载并执行该远程脚本？(y/N): " confirm
+        read -r -p "Продолжить загрузку и выполнение удалённого скрипта? (y/N): " confirm
     fi
     confirm="${confirm:-no}"
     if declare -F is_yes >/dev/null 2>&1; then
@@ -523,15 +523,15 @@ run_remote_script() {
     shift 2
     local tmp_file rc trusted_source
     echo -e "${CYAN}▶ ${desc}${PLAIN}"
-    echo -e "${YELLOW}脚本来源：${url}${PLAIN}"
+    echo -e "${YELLOW}Источник скрипта: ${url}${PLAIN}"
     if trusted_source=$(is_trusted_remote_script_url "$url"); then
-        echo -e "${GREEN}内置已知来源：${trusted_source}${PLAIN}"
+        echo -e "${GREEN}Известный встроенный источник: ${trusted_source}${PLAIN}"
     else
         trusted_source=""
-        echo -e "${RED}⚠️ 非内置已知来源：该 URL 不在 VPS-Optimize 内置远程脚本白名单内。${PLAIN}"
+        echo -e "${RED}⚠️ Неизвестный источник: этот URL отсутствует в белом списке удалённых скриптов VPS-Optimize.${PLAIN}"
     fi
     if [[ "$url" != https://* && "$url" != file://* ]]; then
-        echo -e "${RED}❌ 该来源不是 HTTPS，已拒绝下载和执行。${PLAIN}"
+        echo -e "${RED}❌ Источник не HTTPS. Загрузка и выполнение отклонены.${PLAIN}"
         return 1
     fi
 
@@ -540,17 +540,17 @@ run_remote_script() {
     fi
 
     tmp_file=$(mktemp /tmp/vps-remote.XXXXXX.sh) || {
-        echo -e "${RED}❌ 临时文件创建失败，已取消执行。${PLAIN}"
+        echo -e "${RED}❌ Не удалось создать временный файл. Выполнение отменено.${PLAIN}"
         return 1
     }
     if ! download_remote_script "$url" "$tmp_file"; then
         rm -f "$tmp_file"
-        echo -e "${RED}❌ 下载失败，请检查网络或脚本来源。${PLAIN}"
+        echo -e "${RED}❌ Ошибка загрузки. Проверьте сеть или источник скрипта.${PLAIN}"
         return 1
     fi
     if ! bash -n "$tmp_file" >/dev/null 2>&1; then
-        echo -e "${RED}❌ 远程脚本未通过 Bash 语法检查，已中止执行。${PLAIN}"
-        echo -e "${YELLOW}已保留下载文件用于排查：${tmp_file}${PLAIN}"
+        echo -e "${RED}❌ Удалённый скрипт не прошёл проверку синтаксиса Bash. Выполнение прервано.${PLAIN}"
+        echo -e "${YELLOW}Файл сохранён для разбора: ${tmp_file}${PLAIN}"
         return 1
     fi
 
@@ -562,7 +562,7 @@ run_remote_script() {
 }
 
 pause_after_external_script() {
-    local prompt="${1:-按回车键继续...}"
+    local prompt="${1:-Нажмите Enter для продолжения...}"
     local junk
 
     if [[ -r /dev/tty ]]; then
@@ -577,15 +577,15 @@ install_acme_sh() {
     local acme_email="$1"
     local tmp_file rc
     tmp_file=$(mktemp /tmp/vps-acme.XXXXXX.sh)
-    echo -e "${CYAN}▶ 正在安装 acme.sh...${PLAIN}"
+    echo -e "${CYAN}▶ Устанавливаю acme.sh...${PLAIN}"
     if ! download_remote_script "https://get.acme.sh" "$tmp_file"; then
         rm -f "$tmp_file"
-        echo -e "${RED}❌ acme.sh 安装脚本下载失败。${PLAIN}"
+        echo -e "${RED}❌ Не удалось скачать скрипт установки acme.sh.${PLAIN}"
         return 1
     fi
     if ! sh -n "$tmp_file" >/dev/null 2>&1; then
-        echo -e "${RED}❌ acme.sh 安装脚本未通过 sh 语法检查，已中止。${PLAIN}"
-        echo -e "${YELLOW}已保留下载文件用于排查：${tmp_file}${PLAIN}"
+        echo -e "${RED}❌ Скрипт установки acme.sh не прошёл проверку синтаксиса sh. Выполнение прервано.${PLAIN}"
+        echo -e "${YELLOW}Файл сохранён для разбора: ${tmp_file}${PLAIN}"
         return 1
     fi
     sh "$tmp_file" "email=${acme_email}" >/dev/null 2>&1
