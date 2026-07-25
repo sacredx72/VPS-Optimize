@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Docker exposure audit, managed project status, and Docker safety workflows.
+# Аудит публичных портов Docker, статус управляемых проектов и безопасность Docker.
 
 docker_port_line_is_public() {
     local line="$1"
@@ -23,25 +23,25 @@ print_managed_container_status() {
         state=$(docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null || echo "unknown")
         health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container" 2>/dev/null || true)
         ports=$(docker port "$container" 2>/dev/null | tr '\n' '; ')
-        [[ -z "$ports" ]] && ports="未暴露 Docker 端口或使用 host 网络"
-        [[ -z "$health" ]] && health="无 healthcheck"
+        [[ -z "$ports" ]] && ports="Не опубликованы порты Docker или используется host-сеть"
+        [[ -z "$health" ]] && health="healthcheck отсутствует"
         echo -e "${GREEN}${title}${PLAIN}: ${state} / ${health}"
-        echo -e "  端口: ${ports}"
+        echo -e "  Порты: ${ports}"
     else
-        echo -e "${YELLOW}${title}${PLAIN}: 未检测到容器 ${container}"
+        echo -e "${YELLOW}${title}${PLAIN}: контейнер ${container} не обнаружен"
     fi
 
     compose_file=$(find_compose_file "$dir" 2>/dev/null || true)
     if [[ -n "$compose_file" ]]; then
         echo -e "  Compose: ${CYAN}${compose_file}${PLAIN}"
     else
-        echo -e "  Compose: ${BLUE}未检测到 ${dir} 部署目录${PLAIN}"
+        echo -e "  Compose: ${BLUE}каталог ${dir} не обнаружен${PLAIN}"
     fi
 }
 
 print_subscription_compose_status() {
     if ! command -v docker >/dev/null 2>&1; then
-        echo -e "${YELLOW}未安装 Docker，跳过订阅工具容器状态。${PLAIN}"
+        echo -e "${YELLOW}Docker не установлен, пропускаем состояние контейнеров подписок.${PLAIN}"
         return 0
     fi
     print_managed_container_status "SublinkPro" "sublinkpro" "/opt/sublinkpro"
@@ -54,24 +54,24 @@ print_subscription_compose_status() {
 func_docker_project_status() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    print_breadcrumb "Docker 安全管理 > 项目容器状态"
-    echo -e "${BOLD}🐳 443 / 订阅工具相关容器状态${PLAIN}"
+    print_breadcrumb "Безопасность Docker > Статус контейнеров проектов"
+    echo -e "${BOLD}🐳 Статус контейнеров, связанных с 443 / подписками${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}这里只看本项目场景相关容器：SublinkPro、妙妙屋、Sub-Store、Dockge、Komari。${PLAIN}"
-    echo -e "${YELLOW}3x-ui、Caddy、Nginx 通常是 systemd 服务，状态请看 [15] 或 [19] 体检。${PLAIN}"
+    echo -e "${YELLOW}Здесь проверяются только контейнеры, относящиеся к этому проекту: SublinkPro, 妙妙屋, Sub-Store, Dockge, Komari.${PLAIN}"
+    echo -e "${YELLOW}3x-ui, Caddy, Nginx обычно управляются как systemd-службы, смотрите [15] или проверку [19].${PLAIN}"
     echo -e "------------------------------------------------"
     print_subscription_compose_status
     echo -e "------------------------------------------------"
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 func_docker_443_exposure_audit() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    print_breadcrumb "Docker 安全管理 > 443 暴露审计"
-    echo -e "${BOLD}🔎 Docker 端口暴露审计${PLAIN}"
+    print_breadcrumb "Безопасность Docker > Аудит публичного доступа 443"
+    echo -e "${BOLD}🔎 Аудит публичных портов Docker${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}目标：启用 443 单入口后，订阅工具和管理面板应尽量只绑定 127.0.0.1，再由 Caddy/Nginx 对外。${PLAIN}"
+    echo -e "${YELLOW}Цель: после включения единого входа 443 инструменты подписки и панели управления должны по возможности слушать только 127.0.0.1, а наружу их выставлять через Caddy/Nginx.${PLAIN}"
     echo -e "------------------------------------------------"
 
     local found_public=false
@@ -91,29 +91,29 @@ func_docker_443_exposure_audit() {
 
     if $found_public; then
         echo -e "------------------------------------------------"
-        echo -e "${YELLOW}建议：订阅工具、Dockge、Komari 用 127.0.0.1 绑定，公网访问走 [19] -> [8] 添加 443 反代域名。${PLAIN}"
-        echo -e "${YELLOW}如确实需要公网直连，请确认云安全组、系统防火墙和访问密码都已收紧。${PLAIN}"
+        echo -e "${YELLOW}Рекомендация: подписки, Dockge, Komari следует привязывать к 127.0.0.1, а публичный доступ организовывать через [19] -> [8] добавление прокси-домена 443.${PLAIN}"
+        echo -e "${YELLOW}Если действительно нужен прямой доступ, убедитесь, что безопасная группа облака, брандмауэр и доступ защищены.${PLAIN}"
     else
-        echo -e "${GREEN}✅ 未发现 Docker 容器通过 0.0.0.0 / :: 直接暴露端口。${PLAIN}"
+        echo -e "${GREEN}✅ Не обнаружено публичных портов Docker через 0.0.0.0 / ::.${PLAIN}"
     fi
 
     echo -e "------------------------------------------------"
     print_subscription_compose_status
     echo -e "------------------------------------------------"
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 func_docker_manage() {
     if declare -F ensure_docker_engine_ready >/dev/null 2>&1; then
-        ensure_docker_engine_ready || { read -n 1 -s -r -p "按任意键返回..."; return; }
+        ensure_docker_engine_ready || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
     elif ! command -v docker >/dev/null 2>&1; then
         clear
-        echo -e "${RED}❌ 未检测到 Docker 引擎，且当前运行环境缺少自动安装组件。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ Docker не обнаружен, и среда выполнения не поддерживает автоматическую установку.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
     
-    # 确保依赖工具存在 (使用我们抽象的 install_pkg)
+    # Установка зависимостей (используем install_pkg)
     if ! command -v jq >/dev/null 2>&1; then install_pkg jq; fi
 
     while true; do
@@ -122,55 +122,54 @@ func_docker_manage() {
         docker_ver=$(docker -v | awk '{print $3}' | tr -d ',')
         
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "Docker 安全管理"
-        echo -e "${BOLD}🐳 Docker 安全管理 (版本: ${GREEN}${docker_ver}${PLAIN}${BOLD})${PLAIN}"
+        print_breadcrumb "Безопасность Docker"
+        echo -e "${BOLD}🐳 Безопасность Docker (версия: ${GREEN}${docker_ver}${PLAIN}${BOLD})${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${GREEN}  1. 查看 443 / 订阅工具容器状态${PLAIN}"
-        echo -e "${GREEN}  2. Docker 端口暴露审计${PLAIN} ${YELLOW}(检查是否绕过 443 单入口)${PLAIN}"
-        echo -e "${GREEN}  3. 开启 Docker 本地防穿透${PLAIN} ${YELLOW}(限制映射端口仅 127.0.0.1 访问)${PLAIN}"
-        echo -e "${GREEN}  4. 解除 Docker 本地防穿透${PLAIN} ${YELLOW}(恢复全网可访，不破坏原配置)${PLAIN}"
-        echo -e "${BOLD}${YELLOW}  5. UPD 更新订阅工具容器${PLAIN} ${CYAN}(SublinkPro / 妙妙屋 / Sub-Store)${PLAIN}"
+        echo -e "${GREEN}  1. Статус контейнеров 443 / подписок${PLAIN}"
+        echo -e "${GREEN}  2. Аудит публичных портов Docker${PLAIN} ${YELLOW}(проверка обхода единого входа 443)${PLAIN}"
+        echo -e "${GREEN}  3. Включить локальную защиту Docker${PLAIN} ${YELLOW}(ограничить опубликованные порты только 127.0.0.1)${PLAIN}"
+        echo -e "${GREEN}  4. Отключить локальную защиту Docker${PLAIN} ${YELLOW}(восстановить доступ извне)${PLAIN}"
+        echo -e "${BOLD}${YELLOW}  5. Обновить контейнеры подписок${PLAIN} ${CYAN}(SublinkPro / 妙妙屋 / Sub-Store)${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${RED}  0. 返回主菜单 / q 返回${PLAIN}"
+        echo -e "${RED}  0. Вернуться в главное меню / q${PLAIN}"
         
         local c
-        read_trimmed c "👉 请选择操作: "
+        read_trimmed c "👉 Выберите действие: "
         case $c in
             1) func_docker_project_status ;;
             2) func_docker_443_exposure_audit ;;
             3)
-                confirm_risk_action "开启 Docker 本地防穿透" \
-                    "Docker daemon.json 和 Docker 服务重启" \
-                    "使用自动备份的 daemon.json 恢复并重启 Docker" \
-                    "确认现有容器不依赖公网直连映射端口。" || { echo -e "${BLUE}已取消操作。${PLAIN}"; sleep 1; continue; }
-                echo -e "${CYAN}▶ 正在配置 Docker 安全策略...${PLAIN}"
+                confirm_risk_action "Включить локальную защиту Docker" \
+                    "Docker daemon.json и перезапуск службы Docker" \
+                    "Восстановите из автоматически созданной резервной копии daemon.json и перезапустите Docker" \
+                    "Убедитесь, что существующие контейнеры не зависят от прямого публичного доступа." || { echo -e "${BLUE}Операция отменена.${PLAIN}"; sleep 1; continue; }
+                echo -e "${CYAN}▶ Настройка политики безопасности Docker...${PLAIN}"
                 mkdir -p /etc/docker
                 local conf_file="/etc/docker/daemon.json"
                 local backup_file="${conf_file}.bak_$(date +%s)"
                 local tmp_json
-                tmp_json=$(mktemp /tmp/docker-daemon.XXXXXX) || { echo -e "${RED}❌ 临时文件创建失败，已取消操作。${PLAIN}"; sleep 1; continue; }
+                tmp_json=$(mktemp /tmp/docker-daemon.XXXXXX) || { echo -e "${RED}❌ Не удалось создать временный файл, отмена.${PLAIN}"; sleep 1; continue; }
                 
-                # 检查并备份
                 if [[ -f "$conf_file" ]]; then
                     if ! cp -p "$conf_file" "$backup_file"; then
-                        echo -e "${RED}❌ Docker 配置备份失败，已取消操作。${PLAIN}"
+                        echo -e "${RED}❌ Не удалось создать резервную копию конфигурации Docker, отмена.${PLAIN}"
                         rm -f "$tmp_json"
                         sleep 1
                         continue
                     fi
-                    echo -e "${YELLOW}⚠️ 已备份原有配置至 $backup_file${PLAIN}"
+                    echo -e "${YELLOW}⚠️ Создана резервная копия исходной конфигурации: $backup_file${PLAIN}"
                     
-                    # 使用 jq 进行非破坏性合并，保留用户原有配置
+                    # Неразрушающее слияние с jq, сохранение всех существующих настроек
                     if ! jq '. + {"ip": "127.0.0.1", "log-driver": "json-file", "log-opts": {"max-size": "50m", "max-file": "3"}}' "$conf_file" > "$tmp_json" 2>/dev/null; then
-                        echo -e "${RED}❌ 原 daemon.json 格式损坏，合并失败！操作中止。${PLAIN}"
+                        echo -e "${RED}❌ Исходный daemon.json повреждён, слияние не удалось! Операция прервана.${PLAIN}"
                         rm -f "$tmp_json"
-                        echo -e "${YELLOW}备份已保留：$backup_file${PLAIN}"
-                        read -n 1 -s -r -p "按任意键继续..."
+                        echo -e "${YELLOW}Резервная копия сохранена: $backup_file${PLAIN}"
+                        read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
                         continue
                     fi
                     mv "$tmp_json" "$conf_file"
                 else
-                    # 文件不存在时初始生成
+                    # Файл отсутствует — создаём новый
                     cat <<EOF > "$conf_file"
 {
   "ip": "127.0.0.1",
@@ -183,12 +182,12 @@ func_docker_manage() {
 EOF
                 fi
                 
-                # 防宕机重启机制：如果新配置导致引擎崩溃，立刻回滚！
+                # Безопасный перезапуск с откатом при сбое
                 if systemctl restart docker >/dev/null 2>&1; then
-                    echo -e "${GREEN}✅ 已开启安全保护，Docker 容器端口仅限本地反代访问！${PLAIN}"
-                    [[ -f "$backup_file" ]] && echo -e "${CYAN}Docker 配置备份已保留：$backup_file${PLAIN}"
+                    echo -e "${GREEN}✅ Включена локальная защита, порты контейнеров доступны только для локального прокси!${PLAIN}"
+                    [[ -f "$backup_file" ]] && echo -e "${CYAN}Резервная копия конфигурации Docker сохранена: $backup_file${PLAIN}"
                 else
-                    echo -e "${RED}❌ 致命错误：新配置导致 Docker 引擎无法启动！正在自动回滚...${PLAIN}"
+                    echo -e "${RED}❌ Критическая ошибка: новая конфигурация не позволяет запустить Docker! Автоматический откат...${PLAIN}"
                     if [[ -f "$backup_file" ]]; then
                         mv "$backup_file" "$conf_file"
                     else
@@ -201,50 +200,50 @@ EOF
             4)
                 local conf_file="/etc/docker/daemon.json"
                 if [[ -f "$conf_file" ]]; then
-                    confirm_risk_action "解除 Docker 本地防穿透" \
-                        "Docker daemon.json 和 Docker 服务重启" \
-                        "使用自动备份的 daemon.json 恢复并重启 Docker" \
-                        "解除后容器映射端口可能重新公网可达，请确认防火墙和云安全组。" || { echo -e "${BLUE}已取消操作。${PLAIN}"; sleep 1; continue; }
-                    echo -e "${CYAN}▶ 正在安全移除 Docker 端口限制...${PLAIN}"
+                    confirm_risk_action "Отключить локальную защиту Docker" \
+                        "Docker daemon.json и перезапуск Docker" \
+                        "Восстановите из автоматически созданной резервной копии daemon.json" \
+                        "После отключения опубликованные порты контейнеров могут снова стать публично доступными, проверьте брандмауэр и безопасную группу." || { echo -e "${BLUE}Операция отменена.${PLAIN}"; sleep 1; continue; }
+                    echo -e "${CYAN}▶ Безопасное удаление ограничений Docker...${PLAIN}"
                     local backup_file="${conf_file}.bak_$(date +%s)"
                     local tmp_json
-                    tmp_json=$(mktemp /tmp/docker-daemon.XXXXXX) || { echo -e "${RED}❌ 临时文件创建失败，已取消操作。${PLAIN}"; sleep 1; continue; }
+                    tmp_json=$(mktemp /tmp/docker-daemon.XXXXXX) || { echo -e "${RED}❌ Не удалось создать временный файл, отмена.${PLAIN}"; sleep 1; continue; }
                     if ! cp -p "$conf_file" "$backup_file"; then
-                        echo -e "${RED}❌ Docker 配置备份失败，已取消操作。${PLAIN}"
+                        echo -e "${RED}❌ Не удалось создать резервную копию конфигурации Docker, отмена.${PLAIN}"
                         rm -f "$tmp_json"
                         sleep 1
                         continue
                     fi
 
-                    # 核心修复：只精准删除 ip 限制，绝不误删国内镜像源等其他配置！
+                    # Удаляем только поле ip
                     if ! jq 'del(.ip)' "$conf_file" > "$tmp_json" 2>/dev/null; then
-                        echo -e "${RED}❌ JSON 解析失败，操作中止。${PLAIN}"
+                        echo -e "${RED}❌ Ошибка разбора JSON, операция прервана.${PLAIN}"
                         rm -f "$tmp_json"
-                        echo -e "${YELLOW}备份已保留：$backup_file${PLAIN}"
-                        read -n 1 -s -r -p "按任意键继续..."
+                        echo -e "${YELLOW}Резервная копия сохранена: $backup_file${PLAIN}"
+                        read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
                         continue
                     fi
                     mv "$tmp_json" "$conf_file"
 
                     if systemctl restart docker >/dev/null 2>&1; then
-                        echo -e "${GREEN}✅ 已解除限制，容器端口恢复公网可访状态！${PLAIN}"
-                        echo -e "${CYAN}Docker 配置备份已保留：$backup_file${PLAIN}"
+                        echo -e "${GREEN}✅ Локальная защита отключена, контейнеры снова доступны извне!${PLAIN}"
+                        echo -e "${CYAN}Резервная копия сохранена: $backup_file${PLAIN}"
                     else
-                        echo -e "${RED}❌ 卸载异常：导致引擎无法启动！正在回滚...${PLAIN}"
+                        echo -e "${RED}❌ Ошибка: не удалось запустить Docker! Откат...${PLAIN}"
                         mv "$backup_file" "$conf_file"
                         systemctl restart docker >/dev/null 2>&1
                     fi
                 else
-                    echo -e "${BLUE}未检测到限制配置文件，当前已是全网开放状态。${PLAIN}"
+                    echo -e "${BLUE}Файл ограничений не обнаружен, система уже открыта.${PLAIN}"
                 fi
                 sleep 2
                 ;;
             5) func_update_subscription_tools ;;
             0|q|Q) break ;;
-            *) echo -e "${RED}❌ 无效的输入！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный ввод!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
 # ---------------------------------------------------------
-# 6. BBR 增强管理
+# 6. Управление BBR
 # ---------------------------------------------------------
