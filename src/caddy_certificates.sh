@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# acme.sh account preparation, Cloudflare DNS certificate issuance, and certificate manifests.
+# Подготовка аккаунта acme.sh, выдача сертификатов через Cloudflare DNS и манифесты сертификатов.
 
 get_acme_account_email() {
     local account_conf="/root/.acme.sh/account.conf"
@@ -51,7 +51,7 @@ prepare_acme_account() {
         return 0
     fi
 
-    # 若历史账户状态异常（例如旧邮箱残留），先隔离 LE 账户缓存后重试。
+    # Если состояние аккаунта повреждено (например, старый email), изолируем кеш LE и повторяем.
     quarantine_path "$le_ca_dir" "/root/.acme.sh/_quarantine" >/dev/null 2>&1 || true
     quarantine_path "/root/.acme.sh/ca/acme-staging-v02.api.letsencrypt.org" "/root/.acme.sh/_quarantine" >/dev/null 2>&1 || true
     if "$acme_bin" --register-account --server letsencrypt --accountemail "$acme_email" >>"$account_log" 2>&1 || \
@@ -79,7 +79,7 @@ quarantine_legacy_caddy_443_configs() {
 
         [[ -z "$first_site_line" ]] && continue
 
-        # Reality+CF 向导的新规范：https://domain:port { + bind 127.0.0.1
+        # Новый стандарт Reality+CF: https://domain:port { + bind 127.0.0.1
         if [[ "$first_site_line" =~ ^https://[^[:space:]]+:[0-9]+[[:space:]]*\{ ]]; then
             continue
         fi
@@ -90,7 +90,7 @@ quarantine_legacy_caddy_443_configs() {
     done < <(find "$conf_dir" -maxdepth 1 -type f -name "*.caddy" 2>/dev/null | sort)
 
     if [[ "$moved_count" -gt 0 ]]; then
-        echo -e "${YELLOW}⚠️ 已自动隔离 ${moved_count} 个旧站点配置（可能抢占 443）到：${quarantine_dir}${PLAIN}"
+        echo -e "${YELLOW}⚠️ Автоматически изолированы ${moved_count} старых конфигураций сайтов (могут занимать 443) в: ${quarantine_dir}${PLAIN}"
     fi
 }
 
@@ -110,16 +110,16 @@ issue_cf_dns_cert_with_retry() {
     acme_log="/tmp/vps_acme_${domain}_$(date +%s).log"
     acme_email=$(get_acme_account_email)
 
-    # 强制使用 Let's Encrypt，避免 ZeroSSL 触发 EAB 依赖导致签发失败。
+    # Принудительно используем Let's Encrypt, чтобы избежать требований EAB от ZeroSSL.
     if ! prepare_acme_account "$acme_bin" "$acme_email" "$acme_log"; then
         mkdir -p /root/cert
         cp -f "$acme_log" /root/cert/acme_last_error.log >/dev/null 2>&1 || true
-        echo -e "${RED}❌ acme 账户初始化失败：${domain}${PLAIN}"
-        echo -e "${YELLOW}   最近错误日志: /root/cert/acme_last_error.log${PLAIN}"
+        echo -e "${RED}❌ Не удалось инициализировать аккаунт acme: ${domain}${PLAIN}"
+        echo -e "${YELLOW}   Последний лог ошибок: /root/cert/acme_last_error.log${PLAIN}"
         local account_hint
         account_hint=$(grep -Ei 'error|invalid|unauthorized|forbidden|failed|contact|account' "$acme_log" | tail -n 12)
         if [[ -n "$account_hint" ]]; then
-            echo -e "${YELLOW}   关键报错如下：${PLAIN}"
+            echo -e "${YELLOW}   Ключевые ошибки:${PLAIN}"
             echo "$account_hint"
         fi
         return 1
@@ -129,7 +129,7 @@ issue_cf_dns_cert_with_retry() {
         return 0
     fi
 
-    # 旧残留常导致“删除后重签失败”，先隔离历史状态再强制签发。
+    # Если старые остатки мешают, изолируем историю и принудительно перевыпускаем.
     "$acme_bin" --remove -d "$domain" --ecc >/dev/null 2>&1 || true
     quarantine_path "/root/.acme.sh/${domain}_ecc" "/root/.acme.sh/_quarantine" >/dev/null 2>&1 || true
     quarantine_path "/root/.acme.sh/${domain}" "/root/.acme.sh/_quarantine" >/dev/null 2>&1 || true
@@ -144,16 +144,16 @@ issue_cf_dns_cert_with_retry() {
 
     mkdir -p /root/cert
     cp -f "$acme_log" /root/cert/acme_last_error.log >/dev/null 2>&1 || true
-    echo -e "${RED}❌ acme.sh 最终失败：${domain}${PLAIN}"
-    echo -e "${YELLOW}   最近错误日志: /root/cert/acme_last_error.log${PLAIN}"
+    echo -e "${RED}❌ Окончательная ошибка acme.sh: ${domain}${PLAIN}"
+    echo -e "${YELLOW}   Лог ошибок: /root/cert/acme_last_error.log${PLAIN}"
 
     local acme_hint
     acme_hint=$(grep -Ei 'error|invalid|unauthorized|forbidden|failed|timeout|SERVFAIL|NXDOMAIN|permission' "$acme_log" | tail -n 12)
     if [[ -n "$acme_hint" ]]; then
-        echo -e "${YELLOW}   关键报错如下：${PLAIN}"
+        echo -e "${YELLOW}   Ключевые ошибки:${PLAIN}"
         echo "$acme_hint"
     else
-        echo -e "${YELLOW}   未提取到关键错误，展示日志尾部：${PLAIN}"
+        echo -e "${YELLOW}   Не удалось извлечь ключевые ошибки, вывод хвоста лога:${PLAIN}"
         tail -n 12 "$acme_log"
     fi
 
@@ -289,7 +289,7 @@ generate_caddy_cf_manifest() {
     local summary_file="/root/cert/caddy_cf_manifest.txt"
     mkdir -p /root/cert
     : > "$summary_file"
-    echo "Caddy CF DNS 自动化清单 - $(date '+%F %T')" >> "$summary_file"
+    echo "Манифест автоматизации Caddy CF DNS - $(date '+%F %T')" >> "$summary_file"
     echo "------------------------------------------------" >> "$summary_file"
 
     local found=false
@@ -307,26 +307,26 @@ generate_caddy_cf_manifest() {
             listen_target=$(caddy_conf_site_listen_target "$conf_file")
             backend=$(caddy_conf_first_reverse_proxy_target "$conf_file")
 
-            [[ -z "$listen_target" ]] && listen_target="未知"
-            [[ -z "$backend" ]] && backend="未知"
+            [[ -z "$listen_target" ]] && listen_target="неизвестно"
+            [[ -z "$backend" ]] && backend="неизвестно"
 
-            echo "域名: ${domain}" >> "$summary_file"
-            echo "  后端: ${backend}" >> "$summary_file"
-            echo "  Caddy监听: ${listen_target}" >> "$summary_file"
-            echo "  证书CRT: /root/cert/${domain}.crt" >> "$summary_file"
-            echo "  证书KEY: /root/cert/${domain}.key" >> "$summary_file"
-            echo "  配置文件: ${conf_file}" >> "$summary_file"
+            echo "Домен: ${domain}" >> "$summary_file"
+            echo "  Бэкенд: ${backend}" >> "$summary_file"
+            echo "  Caddy слушает: ${listen_target}" >> "$summary_file"
+            echo "  Сертификат CRT: /root/cert/${domain}.crt" >> "$summary_file"
+            echo "  Сертификат KEY: /root/cert/${domain}.key" >> "$summary_file"
+            echo "  Файл конфигурации: ${conf_file}" >> "$summary_file"
             echo "------------------------------------------------" >> "$summary_file"
             found=true
         done < <(find /etc/caddy/conf.d -maxdepth 1 -type f -name "*.caddy" 2>/dev/null | sort)
     fi
 
     if ! $found; then
-        echo "当前未检测到可管理的 CF DNS 站点配置。" >> "$summary_file"
+        echo "В данный момент нет управляемых конфигураций сайтов CF DNS." >> "$summary_file"
         echo "------------------------------------------------" >> "$summary_file"
     fi
 }
 
 # ---------------------------------------------------------
-# 3. 常用环境及软件 (重构版：防覆盖、严格容错、剔除静默失败)
+# 3. Установка окружения и ПО (рефакторинг: защита от перезаписи, строгая обработка ошибок)
 # ---------------------------------------------------------
