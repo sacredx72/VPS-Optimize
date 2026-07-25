@@ -15108,7 +15108,7 @@ func_xpanel() {
     case "$(echo "${version_choice:-1}" | tr '[:upper:]' '[:lower:]')" in
         1|latest|последняя)
             install_desc="Установка 3x-ui / x-ui панели (последняя)"
-            install_url="https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh"
+            install_url="https://raw.githubusercontent.com/AlexeyLCP/lucx-ui/main/install.sh"
             ssl_hint="Для новых установок 3.x, если установщик спрашивает о методе настройки SSL, выберите Skip SSL / не запрашивать SSL. Единый вход 443 будет обслуживать публичные сертификаты через Caddy + acme.sh."
             ;;
         2|2.9.4|v2.9.4)
