@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Caddy/Web domain whitelist config block manipulation and menu flow.
+# Манипуляции с блоком конфигурации белого списка IP для доменов Caddy/Web и поток меню.
 
 strip_caddy_ip_whitelist_block() {
     local conf_file="$1"
@@ -36,56 +36,56 @@ insert_caddy_ip_whitelist_block() {
 func_caddy_manage_ip_whitelist() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🔐 Caddy 域名 IP 白名单${PLAIN}"
+    echo -e "${BOLD}🔐 IP-белый список Caddy для доменов${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}适用于未启用 443 单入口、由 Caddy 直接对外服务的域名。${PLAIN}"
-    echo -e "${YELLOW}如果该域名已接入 443 单入口，请用主菜单 [19 443 单入口管理中心] -> [8 管理 Web 域名/反代] -> [5 管理域名 IP 白名单]，不要在 Caddy 层限制。${PLAIN}"
+    echo -e "${YELLOW}Применяется для доменов, где не включён единый вход 443 и Caddy обслуживает напрямую.${PLAIN}"
+    echo -e "${YELLOW}Если домен уже использует единый вход 443, используйте главное меню [19 Центр управления единым входом 443] -> [8 Управление веб-доменами/прокси] -> [5 Управление IP-белым списком домена], не ограничивайте на уровне Caddy.${PLAIN}"
     echo -e "------------------------------------------------"
 
     if ! command -v caddy >/dev/null 2>&1 || [[ ! -f /etc/caddy/Caddyfile ]]; then
-        echo -e "${RED}❌ 未检测到 Caddy 或 /etc/caddy/Caddyfile，请先配置 Caddy 反代。${PLAIN}"
-        read -n 1 -s -r -p "按任意键继续..."
+        echo -e "${RED}❌ Caddy или /etc/caddy/Caddyfile не обнаружены, сначала настройте Caddy прокси.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
         return
     fi
 
     local domain conf_file first_site_line action backup_file
-    read_trimmed domain "请输入要管理的域名 (如 panel.example.com): "
+    read_trimmed domain "Введите домен для управления (например panel.example.com): "
     domain=$(normalize_domain_input "$domain")
     if ! is_valid_domain "$domain"; then
-        echo -e "${RED}❌ 域名格式无效。${PLAIN}"
-        read -n 1 -s -r -p "按任意键继续..."
+        echo -e "${RED}❌ Неверный формат домена.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
         return
     fi
 
     conf_file="/etc/caddy/conf.d/${domain}.caddy"
     if [[ ! -f "$conf_file" ]]; then
-        echo -e "${RED}❌ 未找到 ${conf_file}。该入口只管理脚本创建的模块化 Caddy 域名配置。${PLAIN}"
-        read -n 1 -s -r -p "按任意键继续..."
+        echo -e "${RED}❌ ${conf_file} не найден. Этот пункт управляет только модульными конфигурациями Caddy, созданными скриптом.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
         return
     fi
 
     first_site_line=$(grep -m1 -E '^[[:space:]]*[^#[:space:]].*\{' "$conf_file" 2>/dev/null | sed 's/^[[:space:]]*//')
     if [[ "$first_site_line" != "$domain "* && "$first_site_line" != "$domain{"* && "$first_site_line" != "https://${domain}"* ]]; then
-        echo -e "${RED}❌ ${conf_file} 的首个站点块不是 ${domain}，为避免误改已取消。${PLAIN}"
-        read -n 1 -s -r -p "按任意键继续..."
+        echo -e "${RED}❌ Первый блок сайта в ${conf_file} не относится к ${domain}, изменение отменено во избежание ошибок.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
         return
     fi
     if [[ "$first_site_line" =~ ^https://[^[:space:]]+:[0-9]+[[:space:]]*\{ ]]; then
-        echo -e "${RED}❌ 这个配置看起来属于 443 单入口本地 Caddy TLS 站点。请改用主菜单 [19 443 单入口管理中心] -> [8 管理 Web 域名/反代] -> [5 管理域名 IP 白名单]。${PLAIN}"
-        read -n 1 -s -r -p "按任意键继续..."
+        echo -e "${RED}❌ Эта конфигурация похожа на локальный TLS-сайт единого входа 443. Используйте главное меню [19 Центр управления единым входом 443] -> [8 Управление веб-доменами/прокси] -> [5 Управление IP-белым списком домена].${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
         return
     fi
 
-    echo -e "当前配置文件：${conf_file}"
+    echo -e "Текущий файл конфигурации: ${conf_file}"
     if grep -q '# vps-optimize-ip-whitelist-start' "$conf_file" 2>/dev/null; then
-        echo -e "${YELLOW}当前状态：已启用脚本管理的 IP 白名单。${PLAIN}"
+        echo -e "${YELLOW}Текущее состояние: включён управляемый скриптом IP-белый список.${PLAIN}"
     else
-        echo -e "${BLUE}当前状态：未启用脚本管理的 IP 白名单。${PLAIN}"
+        echo -e "${BLUE}Текущее состояние: управляемый скриптом IP-белый список не включён.${PLAIN}"
     fi
-    echo -e "1. 设置/覆盖白名单"
-    echo -e "2. 清除白名单"
-    echo -e "0. 取消"
-    read_trimmed action "请选择操作: "
+    echo -e "1. Установить/перезаписать белый список"
+    echo -e "2. Очистить белый список"
+    echo -e "0. Отмена"
+    read_trimmed action "Выберите действие: "
 
     backup_file="${conf_file}.bak_$(date +%s)"
     case "$action" in
@@ -93,56 +93,56 @@ func_caddy_manage_ip_whitelist() {
             local ip_whitelist_input ip_whitelist_ranges current_client_ip
             local -a ip_whitelist_array=()
             current_client_ip=$(detect_ssh_client_ip)
-            [[ -n "$current_client_ip" ]] && echo -e "${YELLOW}当前 SSH 来源 IP 可能是：${current_client_ip}，请确认已加入白名单。${PLAIN}"
-            read_trimmed ip_whitelist_input "请输入允许访问 ${domain} 的 IP/CIDR（多个用空格或英文逗号分隔）: "
+            [[ -n "$current_client_ip" ]] && echo -e "${YELLOW}Текущий IP-источник SSH возможно: ${current_client_ip}, убедитесь, что он добавлен в белый список.${PLAIN}"
+            read_trimmed ip_whitelist_input "Введите IP/CIDR, разрешённые для ${domain} (несколько через пробел или запятую): "
             if ! normalize_ip_whitelist_input "$ip_whitelist_input" ip_whitelist_array; then
-                echo -e "${RED}❌ 白名单为空或格式错误，已取消操作。${PLAIN}"
-                read -n 1 -s -r -p "按任意键继续..."
+                echo -e "${RED}❌ Белый список пуст или неверный формат, отмена.${PLAIN}"
+                read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
                 return
             fi
             append_vps_public_ips_to_whitelist ip_whitelist_array
             ip_whitelist_ranges=$(join_array_by_space "${ip_whitelist_array[@]}")
-            cp -p "$conf_file" "$backup_file" || { echo -e "${RED}❌ 备份失败，已取消。${PLAIN}"; read -n 1 -s -r -p "按任意键继续..."; return; }
+            cp -p "$conf_file" "$backup_file" || { echo -e "${RED}❌ Резервное копирование не удалось, отмена.${PLAIN}"; read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."; return; }
             if insert_caddy_ip_whitelist_block "$conf_file" "$ip_whitelist_ranges" && caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
                 if systemctl reload caddy >/dev/null 2>&1 || systemctl restart caddy >/dev/null 2>&1; then
-                    echo -e "${GREEN}✅ 已为 ${domain} 启用 IP 白名单：${ip_whitelist_ranges}${PLAIN}"
-                    echo -e "${CYAN}配置备份已保留：${backup_file}${PLAIN}"
+                    echo -e "${GREEN}✅ Для ${domain} включён IP-белый список: ${ip_whitelist_ranges}${PLAIN}"
+                    echo -e "${CYAN}Резервная копия конфигурации сохранена: ${backup_file}${PLAIN}"
                 else
-                    echo -e "${RED}❌ Caddy 重载失败，正在回滚...${PLAIN}"
+                    echo -e "${RED}❌ Перезагрузка Caddy не удалась, откат...${PLAIN}"
                     mv "$backup_file" "$conf_file"
                     systemctl reload caddy >/dev/null 2>&1 || systemctl restart caddy >/dev/null 2>&1 || true
                 fi
             else
-                echo -e "${RED}❌ 写入后 Caddy 校验失败，正在回滚...${PLAIN}"
+                echo -e "${RED}❌ Проверка Caddy после записи не удалась, откат...${PLAIN}"
                 mv "$backup_file" "$conf_file"
             fi
             ;;
         2)
             if ! grep -q '# vps-optimize-ip-whitelist-start' "$conf_file" 2>/dev/null; then
-                echo -e "${BLUE}该域名没有脚本管理的白名单块，无需清除。${PLAIN}"
-                read -n 1 -s -r -p "按任意键继续..."
+                echo -e "${BLUE}Для этого домена нет блока белого списка, созданного скриптом.${PLAIN}"
+                read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
                 return
             fi
-            cp -p "$conf_file" "$backup_file" || { echo -e "${RED}❌ 备份失败，已取消。${PLAIN}"; read -n 1 -s -r -p "按任意键继续..."; return; }
+            cp -p "$conf_file" "$backup_file" || { echo -e "${RED}❌ Резервное копирование не удалось, отмена.${PLAIN}"; read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."; return; }
             if strip_caddy_ip_whitelist_block "$conf_file" && caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
                 systemctl reload caddy >/dev/null 2>&1 || systemctl restart caddy >/dev/null 2>&1 || true
-                echo -e "${GREEN}✅ 已清除 ${domain} 的 IP 白名单。${PLAIN}"
-                echo -e "${CYAN}配置备份已保留：${backup_file}${PLAIN}"
+                echo -e "${GREEN}✅ IP-белый список Caddy для ${domain} очищен.${PLAIN}"
+                echo -e "${CYAN}Резервная копия конфигурации сохранена: ${backup_file}${PLAIN}"
             else
-                echo -e "${RED}❌ 清除后 Caddy 校验失败，正在回滚...${PLAIN}"
+                echo -e "${RED}❌ Проверка Caddy после очистки не удалась, откат...${PLAIN}"
                 mv "$backup_file" "$conf_file"
             fi
             ;;
         0|"")
-            echo -e "${BLUE}已取消。${PLAIN}"
+            echo -e "${BLUE}Отмена.${PLAIN}"
             ;;
         *)
-            echo -e "${RED}❌ 无效操作。${PLAIN}"
+            echo -e "${RED}❌ Неверное действие.${PLAIN}"
             ;;
     esac
 
-    read -n 1 -s -r -p "按任意键继续..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
 }
 # ---------------------------------------------------------
-# 优化重构：核弹级域名证书清理与解除端口占用 (模块化安全版)
+# Оптимизация и рефакторинг: атомарная очистка сертификатов домена и освобождение портов (модульная безопасная версия)
 # ---------------------------------------------------------
