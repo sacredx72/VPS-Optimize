@@ -13727,7 +13727,7 @@ func_add_ssh_key() {
     user=$(ssh_choose_user) || { read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."; return; }
     if ssh_add_public_key_for_user "$user"; then
         echo -e "${GREEN}✅ Публичный ключ добавлен. Немедленно откройте новое SSH-окно для проверки входа по ключу.${PLAIN}"
-        read_trimmed enable_mode "Включить режим "ключи + пароль (восстановление пароля)"? (y/N): "
+        read_trimmed enable_mode "Включить режим "ключи + пароль /восстановление пароля/ "? (y/N): "
         if is_yes "$enable_mode"; then
             ssh_apply_auth_mode key_preferred || true
         fi
