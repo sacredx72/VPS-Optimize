@@ -1,11 +1,11 @@
 # shellcheck shell=bash
-# BBR, TCP tuning, ZRAM, optimized kernel installation, and old-kernel cleanup.
+# Настройка BBR, TCP, ZRAM, установка оптимизированных ядер и очистка старых ядер.
 
 func_bbr_manage() {
     clear
-    echo -e "${CYAN}👉 正在调用 ylx2016 网络极速脚本...${PLAIN}"
-    run_remote_script "运行 ylx2016 网络极速脚本" "https://github.com/ylx2016/Linux-NetSpeed/raw/master/tcpx.sh"
-    pause_after_external_script "操作结束，按回车键返回菜单..."
+    echo -e "${CYAN}👉 Вызов скрипта сетевой оптимизации ylx2016...${PLAIN}"
+    run_remote_script "Запуск скрипта сетевой оптимизации ylx2016" "https://github.com/ylx2016/Linux-NetSpeed/raw/master/tcpx.sh"
+    pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню..."
 }
 
 sysctl_tune_split_line() {
@@ -62,12 +62,12 @@ sysctl_tune_check_supported_file() {
         if [[ "$line" =~ ^([A-Za-z0-9_.-]+)[[:space:]]*= ]]; then
             key="${BASH_REMATCH[1]}"
         else
-            echo -e "${RED}❌ 第 ${item_no} 项语法错误: $line${PLAIN}"
+            echo -e "${RED}❌ Синтаксическая ошибка в строке ${item_no}: $line${PLAIN}"
             return 1
         fi
         if ! output=$(sysctl -n "$key" 2>&1); then
-            echo -e "${RED}❌ 第 ${item_no} 项当前内核不支持: $key${PLAIN}"
-            [[ -n "$output" ]] && echo -e "${YELLOW}sysctl 输出：${output}${PLAIN}"
+            echo -e "${RED}❌ Строка ${item_no} не поддерживается текущим ядром: $key${PLAIN}"
+            [[ -n "$output" ]] && echo -e "${YELLOW}Вывод sysctl: ${output}${PLAIN}"
             return 1
         fi
     done < "$conf_file"
@@ -85,17 +85,17 @@ sysctl_tune_apply_file() {
             key="${BASH_REMATCH[1]}"
             value="$(trim_input "${BASH_REMATCH[2]}")"
         else
-            echo -e "${RED}❌ 第 ${item_no} 项语法错误: $line${PLAIN}"
+            echo -e "${RED}❌ Синтаксическая ошибка в строке ${item_no}: $line${PLAIN}"
             return 1
         fi
         if ! output=$(sysctl -w "$key=$value" 2>&1); then
-            echo -e "${RED}❌ 第 ${item_no} 项应用失败: ${key} = ${value}${PLAIN}"
+            echo -e "${RED}❌ Строка ${item_no} не применилась: ${key} = ${value}${PLAIN}"
             if [[ "$output" == *"cannot stat"* || "$output" == *"No such file"* ]]; then
-                echo -e "${YELLOW}原因：当前内核不支持该参数。${PLAIN}"
+                echo -e "${YELLOW}Причина: ядро не поддерживает этот параметр.${PLAIN}"
             else
-                echo -e "${YELLOW}原因：当前内核拒绝该值或参数值语法错误。${PLAIN}"
+                echo -e "${YELLOW}Причина: ядро отклонило значение или синтаксическая ошибка.${PLAIN}"
             fi
-            [[ -n "$output" ]] && echo -e "${YELLOW}sysctl 输出：${output}${PLAIN}"
+            [[ -n "$output" ]] && echo -e "${YELLOW}Вывод sysctl: ${output}${PLAIN}"
             return 1
         fi
     done < "$conf_file"
@@ -114,38 +114,38 @@ sysctl_tune_restore_previous_config() {
 }
 
 # ---------------------------------------------------------
-# 7. 动态 TCP 调优 (修复版：放宽正则以兼容多值与特殊符号)
+# 7. Динамическая настройка TCP (исправленная версия: поддержка множества значений)
 # ---------------------------------------------------------
 func_tcp_tune() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🚀 动态 TCP 极致调优 (Omnitt)${PLAIN}"
+    echo -e "${BOLD}🚀 Динамическая оптимизация TCP (Omnitt)${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "👉 推荐浏览器访问: ${BLUE}https://omnitt.com/${PLAIN} 获取针对您网络的定制参数"
+    echo -e "👉 Рекомендуется открыть в браузере: ${BLUE}https://omnitt.com/${PLAIN} для получения параметров под вашу сеть"
     echo -e "------------------------------------------------"
     
-    read_trimmed yn "❓ 准备好粘贴参数了吗？(y 继续 / n 取消): "
+    read_trimmed yn "❓ Готовы вставить параметры? (y продолжение / n отмена): "
     if ! is_yes "$yn"; then return; fi
     
     local temp_f="/etc/sysctl.d/99-omnitt-tune.conf"
     local backup_f="${temp_f}.bak_$(date +%s)"
     
-    # 事务起点：备份原配置
+    # Начало транзакции: резервная копия
     if [[ -f "$temp_f" ]]; then
         cp "$temp_f" "$backup_f"
     fi
     
     > "$temp_f"
-    echo -e "\n${YELLOW}👇 请在下方直接【右键粘贴】代码。${PLAIN}"
-    echo -e "${YELLOW}💡 粘贴完成后，请按下【回车键】，然后输入 ${RED}EOF${YELLOW} 并再次回车保存：${PLAIN}"
+    echo -e "\n${YELLOW}👇 Вставьте код прямо ниже (правой кнопкой).${PLAIN}"
+    echo -e "${YELLOW}💡 После вставки нажмите Enter, затем введите ${RED}EOF${YELLOW} и снова Enter для сохранения:${PLAIN}"
     
     local has_content=false
     local parse_failed=false
     while IFS= read -r line; do
-        # 极简清洗：去除回车符和前后多余空格
+        # Простая очистка: удаляем символы возврата каретки и лишние пробелы
         line="$(trim_input "$line")"
         
-        # 结束符匹配（忽略大小写）
+        # Проверка на завершающий маркер (регистронезависимо)
         if [[ "${line,,}" == "eof" ]]; then
             break
         fi
@@ -167,8 +167,8 @@ func_tcp_tune() {
                 1)
                     ;;
                 *)
-                    echo -e "${RED}❌ 参数语法错误，已停止应用: $candidate${PLAIN}"
-                    echo -e "${YELLOW}格式应为: net.ipv4.tcp_xxx = value${PLAIN}"
+                    echo -e "${RED}❌ Синтаксическая ошибка в параметре: $candidate${PLAIN}"
+                    echo -e "${YELLOW}Формат: net.ipv4.tcp_xxx = value${PLAIN}"
                     parse_failed=true
                     ;;
             esac
@@ -176,66 +176,66 @@ func_tcp_tune() {
     done
     
     if $parse_failed; then
-        echo -e "${YELLOW}正在触发安全回滚...${PLAIN}"
+        echo -e "${YELLOW}Выполняется откат...${PLAIN}"
         sysctl_tune_restore_previous_config "$backup_f" "$temp_f"
-        echo -e "${BLUE}✅ 已恢复系统原 TCP 配置文件。${PLAIN}"
+        echo -e "${BLUE}✅ Восстановлена исходная конфигурация TCP.${PLAIN}"
     elif $has_content; then
-        echo -e "${CYAN}▶ 正在校验并应用新 TCP 参数...${PLAIN}"
-        # 验证新配置是否被内核完全接受
+        echo -e "${CYAN}▶ Проверка и применение новых параметров TCP...${PLAIN}"
+        # Проверяем, принимает ли ядро все новые параметры
         if sysctl_tune_check_supported_file "$temp_f" && sysctl_tune_apply_file "$temp_f"; then
-            echo -e "${GREEN}✅ 动态 TCP 调优参数应用成功！网络吞吐量已提升。${PLAIN}"
-            rm -f "$backup_f" # 成功则删除备份
+            echo -e "${GREEN}✅ Динамическая оптимизация TCP применена успешно! Пропускная способность улучшена.${PLAIN}"
+            rm -f "$backup_f" # Удаляем резервную копию при успехе
         else
-            echo -e "${RED}❌ 致命错误：您粘贴的部分参数当前内核不支持或语法错误！${PLAIN}"
-            echo -e "${YELLOW}正在触发安全回滚...${PLAIN}"
+            echo -e "${RED}❌ Ошибка: некоторые параметры не поддерживаются ядром или неверны!${PLAIN}"
+            echo -e "${YELLOW}Выполняется откат...${PLAIN}"
             sysctl_tune_restore_previous_config "$backup_f" "$temp_f"
-            echo -e "${BLUE}✅ 已恢复系统原 TCP 状态，未造成任何破坏。${PLAIN}"
+            echo -e "${BLUE}✅ Восстановлена исходная конфигурация TCP.${PLAIN}"
         fi
     else
-        echo -e "${YELLOW}⚠️ 未检测到有效的 TCP 调优参数，操作已取消。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Действительные параметры TCP не обнаружены, операция отменена.${PLAIN}"
         sysctl_tune_restore_previous_config "$backup_f" "$temp_f"
     fi
     
-    read -n 1 -s -r -p "按任意键继续..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
 }
 
 # ---------------------------------------------------------
-# 8. 智能内存调优 (重构版：安全接管与 DRY 化)
+# 8. Умная настройка памяти (рефакторинг: безопасное управление и DRY)
 # ---------------------------------------------------------
 func_zram_swap() {
     clear
     local mem
     mem=$(free -m | awk '/^Mem:/{print $2}')
-    echo -e "${CYAN}💡 硬件自适应调优 (检测到本机 ${mem}MB 物理内存)${PLAIN}"
+    echo -e "${CYAN}💡 Автоматическая адаптивная настройка (обнаружено ${mem} МБ физической памяти)${PLAIN}"
     echo -e "------------------------------------------------"
-    echo -e " ${GREEN}1. 激进档 (适合 1G 以下小鸡)${PLAIN}"
-    echo -e "    - ZRAM 100% 压缩, Swappiness=100。全力防止宕机。"
-    echo -e " ${GREEN}2. 积极档 (适合 2-4G 主流机型)${PLAIN}"
-    echo -e "    - ZRAM 70% 压缩, Swappiness=60。平衡性能与空间。"
-    echo -e " ${GREEN}3. 保守档 (适合 8G 以上性能怪兽)${PLAIN}"
-    echo -e "    - ZRAM 25% 压缩, Swappiness=10。追求极致响应速度。"
+    echo -e " ${GREEN}1. Агрессивный профиль (для малых VPS <1 ГБ)${PLAIN}"
+    echo -e "    - ZRAM 100%, Swappiness=100. Максимальная защита от зависаний."
+    echo -e " ${GREEN}2. Активный профиль (для 2-4 ГБ)${PLAIN}"
+    echo -e "    - ZRAM 70%, Swappiness=60. Баланс производительности и пространства."
+    echo -e " ${GREEN}3. Консервативный профиль (для >8 ГБ)${PLAIN}"
+    echo -e "    - ZRAM 25%, Swappiness=10. Максимальная отзывчивость."
     echo -e "------------------------------------------------"
     
     local choice
-    read_trimmed choice "👉 请选择您的调优挡位 [1/2/3] (直接回车按内存自动匹配): "
+    read_trimmed choice "👉 Выберите профиль [1/2/3] (Enter для автоматического выбора по памяти): "
     
     if [[ -z "$choice" ]]; then
         if [[ "$mem" -lt 1024 ]]; then choice=1
         elif [[ "$mem" -le 4096 ]]; then choice=2
         else choice=3
         fi
-        echo -e "${YELLOW}💡 系统已根据本机内存 (${mem}MB) 自动选择：[ 挡位 $choice ]${PLAIN}"
+        echo -e "${YELLOW}💡 Система автоматически выбрала профиль $choice на основе памяти (${mem} МБ).${PLAIN}"
         sleep 1.5
     fi
     
-    # 提早阻断，避免非 Debian 机器运行破坏性 Swap 卸载指令
+    # Защита от не-Debian систем
     if ! is_debian; then
-        echo -e "${RED}❌ 抱歉，当前系统并非 Debian/Ubuntu 衍生系，暂不支持自动化 ZRAM 调优。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ К сожалению, автоматическая настройка ZRAM поддерживается только на Debian/Ubuntu.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
-    echo -e "${CYAN}▶ 正在进行第一阶段：整理底层磁盘 Swap (保留 512M 保底防假死)...${PLAIN}"
+    echo -e "${CYAN}▶ Этап 1: Настройка дискового Swap (резерв 512 МБ)...${PLAIN}"
     
     swapoff -a >/dev/null 2>&1
     local old_swap
@@ -251,11 +251,10 @@ func_zram_swap() {
     sed -i -E 's/^([^#].*[[:space:]]swap[[:space:]].*)/#\1/' /etc/fstab
     sed -i '\@^/swapfile@d' /etc/fstab
     echo "/swapfile none swap sw 0 0" >> /etc/fstab
-    echo -e "${GREEN}✅ 已建立 512M 极小磁盘 Swap 作为系统崩溃的最后防线！${PLAIN}"
+    echo -e "${GREEN}✅ Создан минимальный Swap 512 МБ как последняя защита от зависаний!${PLAIN}"
     
-    echo -e "${CYAN}▶ 正在进行第二阶段：配置 ZRAM 内存压缩引擎...${PLAIN}"
+    echo -e "${CYAN}▶ Этап 2: Настройка ZRAM...${PLAIN}"
     
-    # 核心修改：使用全局包安装器
     install_pkg zram-tools
     modprobe zram >/dev/null 2>&1
     
@@ -292,12 +291,12 @@ EOF
     sysctl -p /etc/sysctl.d/99-zram-swappiness.conf >/dev/null 2>&1
     
 if grep -q zram /proc/swaps; then
-        echo -e "${GREEN}✅ ZRAM 调优落地完成！(已设置: ${percent}% 压缩比, ${swap_val} 交换倾向)${PLAIN}"
+        echo -e "${GREEN}✅ Настройка ZRAM завершена! (коэффициент сжатия: ${percent}%, swappiness: ${swap_val})${PLAIN}"
     else
-        echo -e "${RED}❌ 警告：内核拒绝挂载 ZRAM (常见于 LXC/OpenVZ 架构)。${PLAIN}"
-        echo -e "${CYAN}▶ 正在启动降级优化方案：传统 Swap 扩容与内核防假死调优...${PLAIN}"
+        echo -e "${RED}❌ Внимание: ядро отказалось монтировать ZRAM (часто на LXC/OpenVZ).${PLAIN}"
+        echo -e "${CYAN}▶ Запуск запасного варианта: расширение Swap и настройка ядра...${PLAIN}"
         
-        # 1. 扩容保底 Swap：从 512M 升级至 1024M (1GB)
+        # 1. Расширение Swap до 1 ГБ
         swapoff /swapfile >/dev/null 2>&1
         quarantine_path /swapfile "/root/vps-optimize-quarantine/swap" >/dev/null 2>&1 || true
         dd if=/dev/zero of=/swapfile bs=1M count=1024 status=none
@@ -305,10 +304,7 @@ if grep -q zram /proc/swaps; then
         mkswap /swapfile >/dev/null 2>&1
         swapon /swapfile >/dev/null 2>&1
         
-        # 2. 注入降级专属的内核内存管理参数
-        # swappiness=30 : 只有内存比较吃紧时才使用较慢的磁盘 Swap
-        # vfs_cache_pressure=50 : 降低系统回收目录/文件系统缓存的频率，提高小鸡流畅度
-        # overcommit_memory=1 : 允许内核分配超过物理内存的空间，防止 Redis/数据库 等服务在启动时被直接 Kill
+        # 2. Параметры ядра для запасного варианта
         cat <<EOF > /etc/sysctl.d/99-fallback-mem.conf
 vm.swappiness = 30
 vm.vfs_cache_pressure = 50
@@ -316,13 +312,13 @@ vm.overcommit_memory = 1
 EOF
         sysctl -p /etc/sysctl.d/99-fallback-mem.conf >/dev/null 2>&1
         
-        echo -e "${GREEN}✅ 降级优化落地：已动态扩充 1GB 磁盘 Swap，并激活保守内存回收策略！${PLAIN}"
+        echo -e "${GREEN}✅ Запасной вариант применён: создан Swap 1 ГБ и активирована консервативная политика памяти!${PLAIN}"
     fi
     
-    read -n 1 -s -r -p "按任意键继续..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
 }
 # ---------------------------------------------------------
-# 9. 安装/切换优化内核 (Cloud/KVM 稳定优先 + XanMod 高级可选)
+# 9. Установка/переключение оптимизированных ядер (Cloud/KVM — стабильно, XanMod — продвинутый)
 # ---------------------------------------------------------
 normalize_kernel_arch() {
     case "$(uname -m)" in
@@ -342,17 +338,17 @@ set_grub_default_kernel_by_keyword() {
     local target_v menu_1 menu_2
 
     if ! command -v dpkg >/dev/null 2>&1 || [[ ! -f /etc/default/grub ]]; then
-        echo -e "${YELLOW}⚠️ 未检测到 dpkg/GRUB 配置，已跳过自动接管引导。${PLAIN}"
+        echo -e "${YELLOW}⚠️ dpkg или конфигурация GRUB не обнаружены, автоматическое управление загрузкой пропущено.${PLAIN}"
         return 0
     fi
 
     target_v=$(dpkg -l | awk '/^ii[[:space:]]+linux-image-[0-9]/ && /'"$kernel_keyword"'/ {print $2}' | sed 's/linux-image-//' | sort -V | tail -n 1)
     if [[ -z "$target_v" ]]; then
-        echo -e "${RED}❌ 错误：未找到已安装的 ${kernel_keyword} 内核包，请检查安装日志。${PLAIN}"
+        echo -e "${RED}❌ Ошибка: не найдено установленное ядро ${kernel_keyword}, проверьте логи установки.${PLAIN}"
         return 1
     fi
 
-    echo -e "${CYAN}▶ 正在接管 GRUB 底层引导，锁定启动内核为: $target_v ...${PLAIN}"
+    echo -e "${CYAN}▶ Настройка GRUB для загрузки ядра: $target_v ...${PLAIN}"
     if grep -q '^GRUB_DEFAULT=' /etc/default/grub; then
         sed -i 's/^GRUB_DEFAULT=.*/GRUB_DEFAULT=saved/' /etc/default/grub
     else
@@ -368,7 +364,7 @@ set_grub_default_kernel_by_keyword() {
     local grub_cfg="/boot/grub/grub.cfg"
     [[ -f "$grub_cfg" ]] || grub_cfg="/boot/grub2/grub.cfg"
     if [[ ! -f "$grub_cfg" ]]; then
-        echo -e "${YELLOW}⚠️ 未找到 grub.cfg，新内核已安装，但请重启后手动确认默认启动项。${PLAIN}"
+        echo -e "${YELLOW}⚠️ grub.cfg не найден, новое ядро установлено, но проверьте вручную загрузочный пункт после перезагрузки.${PLAIN}"
         return 0
     fi
 
@@ -377,11 +373,11 @@ set_grub_default_kernel_by_keyword() {
 
     if [[ -n "$menu_1" && -n "$menu_2" ]]; then
         grub-set-default "$menu_1>$menu_2" 2>/dev/null || grub2-set-default "$menu_1>$menu_2" 2>/dev/null || true
-        echo -e "${GREEN}✅ GRUB 引导接管成功！重启后将优先进入：$target_v${PLAIN}"
+        echo -e "${GREEN}✅ Настройка GRUB выполнена! После перезагрузки загрузится $target_v${PLAIN}"
         return 0
     fi
 
-    echo -e "${YELLOW}⚠️ 警告：GRUB 菜单寻址失败。系统可能仍以最高版本号内核启动。${PLAIN}"
+    echo -e "${YELLOW}⚠️ Предупреждение: не удалось определить пункт меню GRUB. Система может загружать ядро с наибольшим номером версии.${PLAIN}"
     return 1
 }
 
@@ -390,17 +386,17 @@ install_cloud_kvm_kernel() {
     local candidates=()
 
     if uname -r | grep -qE "kvm|cloud|virtual"; then
-        echo -e "${GREEN}✅ 系统当前已运行 KVM/Cloud/Virtual 优化内核 ($(uname -r))，无需重复安装！${PLAIN}"
+        echo -e "${GREEN}✅ Система уже использует оптимизированное ядро KVM/Cloud/Virtual ($(uname -r)), установка не требуется!${PLAIN}"
         return 0
     fi
 
     arch=$(normalize_kernel_arch)
     if [[ "$arch" == "unknown" ]]; then
-        echo -e "${RED}❌ 当前架构 $(uname -m) 暂不支持自动切换精简内核。${PLAIN}"
+        echo -e "${RED}❌ Текущая архитектура $(uname -m) не поддерживает автоматическую установку лёгкого ядра.${PLAIN}"
         return 1
     fi
 
-    echo -e "${CYAN}▶ 正在安装发行版官方 Cloud/KVM/Virtual 精简内核...${PLAIN}"
+    echo -e "${CYAN}▶ Установка официального лёгкого ядра Cloud/KVM/Virtual...${PLAIN}"
     ensure_minimal_system_compat
 
     if [[ "$OS" == "debian" ]]; then
@@ -418,7 +414,7 @@ install_cloud_kvm_kernel() {
         fi
         kernel_keyword="kvm|virtual|generic"
     else
-        echo -e "${RED}❌ Cloud/KVM/Virtual 内核功能目前仅支持 Debian 和 Ubuntu。${PLAIN}"
+        echo -e "${RED}❌ Установка Cloud/KVM/Virtual ядра поддерживается только на Debian и Ubuntu.${PLAIN}"
         return 1
     fi
 
@@ -430,19 +426,19 @@ install_cloud_kvm_kernel() {
 
     for pkg in "${candidates[@]}"; do
         if ! apt_pkg_available "$pkg"; then
-            echo -e "${YELLOW}  - 当前源未提供 ${pkg}，尝试下一个候选...${PLAIN}"
+            echo -e "${YELLOW}  - Пакет ${pkg} недоступен в репозитории, пробую следующий...${PLAIN}"
             continue
         fi
-        echo -e "${CYAN}▶ 尝试安装内核包: ${pkg}${PLAIN}"
+        echo -e "${CYAN}▶ Попытка установки пакета ядра: ${pkg}${PLAIN}"
         if install_pkg "$pkg"; then
-            echo -e "${GREEN}✅ 已安装内核包: ${pkg}${PLAIN}"
+            echo -e "${GREEN}✅ Установлен пакет ядра: ${pkg}${PLAIN}"
             set_grub_default_kernel_by_keyword "$kernel_keyword"
             return $?
         fi
-        echo -e "${YELLOW}  - ${pkg} 安装失败，尝试下一个候选...${PLAIN}"
+        echo -e "${YELLOW}  - ${pkg} не установился, пробую следующий...${PLAIN}"
     done
 
-    echo -e "${RED}❌ 未能安装可用的官方精简内核，请检查系统版本、架构和软件源。${PLAIN}"
+    echo -e "${RED}❌ Не удалось установить доступное лёгкое ядро, проверьте версию системы, архитектуру и источники.${PLAIN}"
     return 1
 }
 
@@ -486,12 +482,12 @@ add_xanmod_repo() {
     key_tmp=$(mktemp /tmp/xanmod-key.XXXXXX) || return 1
     if ! curl -fsSL --connect-timeout 10 --max-time 60 --retry 2 --retry-delay 1 https://dl.xanmod.org/archive.key -o "$key_tmp"; then
         rm -f "$key_tmp"
-        echo -e "${RED}❌ XanMod GPG key 下载失败。${PLAIN}"
+        echo -e "${RED}❌ Не удалось загрузить GPG key XanMod.${PLAIN}"
         return 1
     fi
     if ! gpg --batch --yes --dearmor -o /etc/apt/keyrings/xanmod-archive-keyring.gpg "$key_tmp"; then
         rm -f "$key_tmp"
-        echo -e "${RED}❌ XanMod GPG key 下载或写入失败。${PLAIN}"
+        echo -e "${RED}❌ Не удалось записать GPG key XanMod.${PLAIN}"
         return 1
     fi
     rm -f "$key_tmp"
@@ -504,12 +500,12 @@ install_xanmod_kernel_package() {
     local pkg
     while IFS= read -r pkg; do
         apt_pkg_available "$pkg" || continue
-        echo -e "${CYAN}▶ 尝试安装 XanMod 包: ${pkg}${PLAIN}"
+        echo -e "${CYAN}▶ Попытка установки пакета XanMod: ${pkg}${PLAIN}"
         if install_pkg "$pkg"; then
-            echo -e "${GREEN}✅ 已安装 XanMod 内核包: ${pkg}${PLAIN}"
+            echo -e "${GREEN}✅ Установлен пакет XanMod: ${pkg}${PLAIN}"
             return 0
         fi
-        echo -e "${YELLOW}  - ${pkg} 安装失败，尝试更保守候选...${PLAIN}"
+        echo -e "${YELLOW}  - ${pkg} не установился, пробую более консервативный...${PLAIN}"
     done < <(xanmod_candidate_packages "$preferred_level")
 
     return 1
@@ -519,19 +515,19 @@ install_xanmod_kernel() {
     local codename confirm arch cpu_level
 
     if uname -r | grep -qi "xanmod"; then
-        echo -e "${GREEN}✅ 系统当前已运行 XanMod 内核 ($(uname -r))，无需重复安装！${PLAIN}"
+        echo -e "${GREEN}✅ Система уже использует ядро XanMod ($(uname -r)), установка не требуется!${PLAIN}"
         return 0
     fi
 
     if ! is_debian; then
-        echo -e "${RED}❌ XanMod 自动安装目前仅支持 Debian/Ubuntu 衍生系统。${PLAIN}"
+        echo -e "${RED}❌ Автоматическая установка XanMod поддерживается только на Debian/Ubuntu.${PLAIN}"
         return 1
     fi
 
     arch=$(normalize_kernel_arch)
     if [[ "$arch" != "amd64" ]]; then
-        echo -e "${RED}❌ XanMod 官方 x64v 内核仅支持 x86_64/amd64，本机为 $(uname -m)。${PLAIN}"
-        echo -e "${YELLOW}建议改用官方 Cloud/Virtual 内核。${PLAIN}"
+        echo -e "${RED}❌ Официальные ядра XanMod x64v поддерживают только x86_64/amd64, текущая архитектура $(uname -m).${PLAIN}"
+        echo -e "${YELLOW}Рекомендуется использовать официальное Cloud/Virtual ядро.${PLAIN}"
         return 1
     fi
 
@@ -540,31 +536,31 @@ install_xanmod_kernel() {
         codename=$(lsb_release -sc 2>/dev/null)
     fi
     if [[ -z "$codename" ]]; then
-        echo -e "${RED}❌ 无法识别系统代号，无法安全添加 XanMod 源。${PLAIN}"
+        echo -e "${RED}❌ Не удалось определить кодовое имя системы, невозможно безопасно добавить репозиторий XanMod.${PLAIN}"
         return 1
     fi
     if ! xanmod_supported_codename "$codename"; then
-        echo -e "${YELLOW}⚠️ 当前系统代号 ${codename} 可能不在脚本内置 XanMod 兼容列表中。${PLAIN}"
-        echo -e "${YELLOW}脚本仍会尝试添加源；若 apt update 失败，请改用官方 Cloud/Virtual 内核。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Кодовое имя ${codename} может быть не в списке поддерживаемых XanMod.${PLAIN}"
+        echo -e "${YELLOW}Скрипт попытается добавить репозиторий; если apt update не удастся, используйте официальное Cloud/Virtual ядро.${PLAIN}"
     fi
 
     cpu_level=$(xanmod_cpu_level)
 
-    echo -e "${RED}⚠️  XanMod 是第三方性能内核，可能影响 DKMS/驱动/部分云厂商兼容性。${PLAIN}"
-    echo -e "${YELLOW}检测到 CPU 兼容级别：${cpu_level}，将从对应 XanMod LTS 包开始尝试，并自动向下兜底。${PLAIN}"
-    echo -e "${YELLOW}建议先确认有快照、救援控制台，且知道如何从 GRUB 切回旧内核。${PLAIN}"
-    confirm_risk_action "安装 XanMod 内核" \
-        "内核包、引导配置和 GRUB 菜单" \
-        "使用当前可启动内核或云厂商救援模式恢复" \
-        "建议先创建 VPS 快照，并确认不是 OpenVZ 老系统。" || { echo -e "${BLUE}已取消 XanMod 安装。${PLAIN}"; return 1; }
+    echo -e "${RED}⚠️ XanMod — стороннее производительное ядро, может повлиять на совместимость с драйверами/DKMS/облачными провайдерами.${PLAIN}"
+    echo -e "${YELLOW}Обнаружен уровень CPU: ${cpu_level}, будет попытка установки соответствующего XanMod LTS с автоматическим понижением.${PLAIN}"
+    echo -e "${YELLOW}Рекомендуется иметь снимок, консоль восстановления и знать, как вернуться к старому ядру через GRUB.${PLAIN}"
+    confirm_risk_action "Установка ядра XanMod" \
+        "Пакеты ядра, конфигурация загрузчика и меню GRUB" \
+        "Восстановите из текущего загрузочного ядра или режима восстановления" \
+        "Рекомендуется создать снимок VPS и убедиться, что это не OpenVZ." || { echo -e "${BLUE}Установка XanMod отменена.${PLAIN}"; return 1; }
 
-    echo -e "${CYAN}▶ 正在添加 XanMod 官方 APT 源并安装兼容内核...${PLAIN}"
+    echo -e "${CYAN}▶ Добавление официального APT-репозитория XanMod и установка совместимого ядра...${PLAIN}"
     ensure_minimal_system_compat
     install_pkg ca-certificates curl gpg gnupg || return 1
     add_xanmod_repo "$codename" || return 1
 
     if ! install_xanmod_kernel_package "$cpu_level"; then
-        echo -e "${RED}❌ XanMod 内核安装失败，可能是当前系统代号/软件源/CPU 级别暂不兼容。${PLAIN}"
+        echo -e "${RED}❌ Не удалось установить ядро XanMod, возможно, кодовое имя/репозиторий/уровень CPU несовместимы.${PLAIN}"
         return 1
     fi
 
@@ -574,40 +570,40 @@ install_xanmod_kernel() {
 func_install_kernel() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}☁️  安装/切换优化内核${PLAIN}"
+    echo -e "${BOLD}☁️ Установка/переключение оптимизированных ядер${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${GREEN}  1. Cloud/KVM/Virtual 官方云内核${PLAIN} ${YELLOW}(推荐：稳定、轻量、云厂商兼容更好)${PLAIN}"
-    echo -e "     Debian/Ubuntu 会按架构自动尝试 cloud/kvm/virtual/generic 候选。"
-    echo -e "${GREEN}  2. XanMod 性能内核${PLAIN} ${YELLOW}(高级：自动匹配 x64v1-v4 并向下兜底)${PLAIN}"
-    echo -e "     适合：愿意折腾、追求低延迟/新特性；仅 amd64，建议有快照或救援控制台。"
+    echo -e "${GREEN}  1. Официальное Cloud/KVM/Virtual ядро${PLAIN} ${YELLOW}(рекомендуется: стабильное, лёгкое, лучше совместимость)${PLAIN}"
+    echo -e "     На Debian/Ubuntu будет автоматически подобрано cloud/kvm/virtual/generic."
+    echo -e "${GREEN}  2. XanMod производительное ядро${PLAIN} ${YELLOW}(продвинутый: автоматическое определение x64v1-v4)${PLAIN}"
+    echo -e "     Подходит: для тех, кто готов экспериментировать, нужна низкая задержка/новые функции; только amd64, требуется снимок."
     echo -e "------------------------------------------------"
-    echo -e "${RED}  0. 返回 / q 返回${PLAIN}"
+    echo -e "${RED}  0. Вернуться / q вернуться${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
 
     local kernel_choice virt
-    read_trimmed kernel_choice "👉 请选择要安装的内核类型 [推荐 1]: "
+    read_trimmed kernel_choice "👉 Выберите тип ядра [рекомендуется 1]: "
     kernel_choice="${kernel_choice:-1}"
     [[ "$kernel_choice" == "0" ]] && return
 
     virt=$(systemd-detect-virt 2>/dev/null || echo "unknown")
     if [[ "$virt" =~ lxc|openvz ]]; then
-        echo -e "${RED}❌ 致命错误：检测到当前 VPS 为 $virt 容器架构！${PLAIN}"
-        echo -e "${YELLOW}💡 容器与母机共享内核，无法更改内核。操作已安全中止。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ Критическая ошибка: обнаружена контейнерная виртуализация $virt!${PLAIN}"
+        echo -e "${YELLOW}💡 Контейнеры используют ядро хоста, смена ядра невозможна. Операция безопасно остановлена.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
     local arch
     arch=$(normalize_kernel_arch)
     if [[ "$arch" == "unknown" ]]; then
-        echo -e "${RED}❌ 致命错误：当前架构暂不支持自动切换内核，本机为 $(uname -m)！${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ Критическая ошибка: текущая архитектура $(uname -m) не поддерживает автоматическую смену ядра!${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
     if [[ "$kernel_choice" == "2" && "$arch" != "amd64" ]]; then
-        echo -e "${RED}❌ XanMod x64v 内核仅支持 x86_64/amd64，本机为 $(uname -m)。${PLAIN}"
-        echo -e "${YELLOW}建议选择 [1] 官方 Cloud/KVM/Virtual 内核。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ XanMod x64v поддерживает только x86_64/amd64, текущая $(uname -m).${PLAIN}"
+        echo -e "${YELLOW}Рекомендуется выбрать [1] официальное Cloud/KVM/Virtual ядро.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
@@ -615,88 +611,88 @@ func_install_kernel() {
     case "$kernel_choice" in
         1) install_cloud_kvm_kernel ;;
         2) install_xanmod_kernel ;;
-        *) echo -e "${RED}❌ 无效选择。${PLAIN}"; read -n 1 -s -r -p "按任意键返回..."; return ;;
+        *) echo -e "${RED}❌ Неверный выбор.${PLAIN}"; read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return ;;
     esac
     install_rc=$?
     if [[ "$install_rc" -ne 0 ]]; then
         echo -e "------------------------------------------------"
-        echo -e "${YELLOW}⚠️ 内核安装/切换未完成，未继续提示重启。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${YELLOW}⚠️ Установка/переключение ядра не завершены, перезагрузка не предлагается.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
     echo -e "------------------------------------------------"
-    echo -e "${YELLOW}⚠️ 核心生效指引：${PLAIN}"
-    echo -e "1. 新内核引导已配置完毕，请先选择主菜单的 ${RED}[17] 重启服务器${PLAIN}。"
-    echo -e "2. 重启后请运行 ${GREEN}uname -r${PLAIN} 确认实际进入的新内核。"
-    echo -e "3. 确认稳定后，再进入本菜单选择 ${GREEN}[5] 清理旧内核${PLAIN}。"
+    echo -e "${YELLOW}⚠️ Инструкция по применению:${PLAIN}"
+    echo -e "1. Настройка загрузки завершена, сначала выберите ${RED}[17] Перезагрузить сервер${PLAIN}."
+    echo -e "2. После перезагрузки выполните ${GREEN}uname -r${PLAIN} для проверки фактического ядра."
+    echo -e "3. После подтверждения стабильности войдите в это меню и выберите ${GREEN}[5] Очистка старых ядер${PLAIN}."
 
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 # ---------------------------------------------------------
-# 10. 清理冗余旧内核 (数组菜单驱动 + 核心防砖拦截版)
+# 10. Очистка старых ядер (управляемая массивом + защита от "кирпича")
 # ---------------------------------------------------------
 func_clean_kernel() {
     clear
     if [[ ! "$OS" =~ debian|ubuntu ]]; then
-        echo -e "${RED}❌ 此功能目前仅支持 Debian/Ubuntu 衍生系统！${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ Эта функция поддерживается только на Debian/Ubuntu!${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
     local current_k
     current_k=$(uname -r)
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧹 清理冗余旧内核${PLAIN}"
+    echo -e "${BOLD}🧹 Очистка старых ядер${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "当前正在运行的内核为: ${GREEN}${current_k}${PLAIN}"
-    echo -e "${RED}⚠️ 系统已自动为您屏蔽正在运行的内核以及常用云/虚拟化/性能内核。${PLAIN}"
+    echo -e "Текущее работающее ядро: ${GREEN}${current_k}${PLAIN}"
+    echo -e "${RED}⚠️ Система автоматически исключила работающее ядро, а также популярные облачные/виртуальные/оптимизированные ядра.${PLAIN}"
     echo -e "------------------------------------------------"
     
-    # 自动提取所有非当前的内核包存入数组 (排除元包，采用高可用字段匹配)
+    # Автоматически извлекаем все не текущие пакеты ядра в массив (исключая мета-пакеты, используя высокодоступное сопоставление полей)
     mapfile -t old_kernels < <(dpkg -l | awk '$1 == "ii" && $2 ~ /^linux-image-[0-9]/ {print $2}' | grep -v "$current_k" | grep -Ev "cloud|kvm|virtual|generic|xanmod")
 
     if [[ ${#old_kernels[@]} -eq 0 ]]; then
-        echo -e "${GREEN}✅ 系统非常干净，没有发现需要清理的冗余旧内核。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${GREEN}✅ Система очень чистая, не найдено старых ядер для очистки.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
-    echo -e "${YELLOW}扫描到以下冗余内核可供清理：${PLAIN}"
+    echo -e "${YELLOW}Обнаружены следующие старые ядра для очистки:${PLAIN}"
     for i in "${!old_kernels[@]}"; do
         echo -e " [${CYAN}$((i+1))${PLAIN}] ${old_kernels[$i]}"
     done
-    echo -e " [${RED}0${PLAIN}] 取消并返回"
+    echo -e " [${RED}0${PLAIN}] Отмена и возврат"
     echo -e "------------------------------------------------"
 
     local k_choice
-    read_trimmed k_choice "👉 请输入要卸载的序号: "
+    read_trimmed k_choice "👉 Введите номер для удаления: "
 
     if [[ "$k_choice" == "0" ]]; then
-        echo -e "${BLUE}已取消卸载操作。${PLAIN}"
+        echo -e "${BLUE}Удаление отменено.${PLAIN}"
     elif [[ "$k_choice" =~ ^[1-9][0-9]*$ ]] && [[ "$k_choice" -le "${#old_kernels[@]}" ]]; then
         local target_k="${old_kernels[$((k_choice-1))]}"
-        confirm_danger "卸载旧内核 ${target_k}" "会删除内核包并刷新 GRUB，引导异常时可能影响下次启动。" "建议先创建 VPS 快照；当前运行内核已自动排除，如失败请从快照或救援模式恢复。" || {
-            echo -e "${BLUE}已取消卸载操作。${PLAIN}"
-            read -n 1 -s -r -p "按任意键返回..."
+        confirm_danger "Удалить старое ядро ${target_k}" "Будет удалён пакет ядра и обновлён GRUB; проблемы с загрузкой могут повлиять на следующий запуск." "Рекомендуется создать снимок VPS; работающее ядро автоматически исключено, в случае ошибки восстановитесь из снимка или режима восстановления." || {
+            echo -e "${BLUE}Удаление отменено.${PLAIN}"
+            read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
             return
         }
-        echo -e "${CYAN}正在静默卸载 $target_k 并刷新引导...${PLAIN}"
+        echo -e "${CYAN}Выполняется тихое удаление $target_k и обновление загрузчика...${PLAIN}"
         export DEBIAN_FRONTEND=noninteractive
         if apt-get purge -yq "$target_k" && update-grub >/dev/null 2>&1 && apt-get autoremove --purge -yq >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ 旧内核 [$target_k] 清理完成！磁盘空间已释放。${PLAIN}"
+            echo -e "${GREEN}✅ Старое ядро [$target_k] удалено! Освобождено место на диске.${PLAIN}"
         else
-            echo -e "${RED}❌ 清理失败！存在依赖问题或执行被中断。${PLAIN}"
+            echo -e "${RED}❌ Ошибка очистки! Проблемы с зависимостями или прерывание выполнения.${PLAIN}"
         fi
         unset DEBIAN_FRONTEND
     else
-        echo -e "${RED}❌ 无效的选择！${PLAIN}"
+        echo -e "${RED}❌ Неверный выбор!${PLAIN}"
     fi
 
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 # ---------------------------------------------------------
-# 11. 极速硬件探针
+# 11. Быстрый аппаратный зонд
 # ---------------------------------------------------------
