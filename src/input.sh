@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Input normalization and prompt helpers.
+# Нормализация ввода и помощники приглашений.
 
 trim_input() {
     local value="$*"
@@ -38,7 +38,7 @@ normalize_menu_choice_input() {
     esac
     lower=$(echo "$value" | tr '[:upper:]' '[:lower:]')
     case "$lower" in
-        q|quit|exit|back|return|返回|退出) printf '0' ;;
+        q|quit|exit|back|return|назад|выход) printf '0' ;;
         *) printf '%s' "$value" ;;
     esac
 }
@@ -89,17 +89,17 @@ ask_with_default() {
     local default_value="$2"
     local input
     local value
-    read_trimmed input "${prompt} (默认: ${default_value}): "
+    read_trimmed input "${prompt} (по умолчанию: ${default_value}): "
     value="${input:-$default_value}"
     case "$prompt" in
-        *路径*)
+        *путь*|*Путь*|*path*|*Path*)
             ;;
-        *端口*|*[Pp][Oo][Rr][Tt]*)
+        *порт*|*Порт*|*[Pp][Oo][Rr][Tt]*)
             if declare -F normalize_port_input >/dev/null 2>&1; then
                 value="$(normalize_port_input "$value")"
             fi
             ;;
-        *监听地址*)
+        *адрес*|*Адрес*|*listen*)
             if declare -F normalize_ip_input >/dev/null 2>&1; then
                 value="$(normalize_ip_input "$value")"
             fi
