@@ -1,132 +1,132 @@
 # shellcheck shell=bash
-# Help text plus top-level and second-level menu wiring.
+# Текст помощи и соединение главного и второго уровней меню.
 
 show_main_help() {
-    echo -e "${CYAN}VPS-Optimize > 主菜单 > 帮助${PLAIN}"
-    echo "1/2 适合新机器先体检和初始化。"
-    echo "3   基础组件与常用服务；安装 Docker、Python、WARP 和常用工具。"
-    echo "4   反代（Caddy/Nginx）；适合未接入 443 单入口的网站/面板反代。"
-    echo "5   管理 3x-ui、S-UI、Sing-box、Xray 和订阅工具。"
-    echo "6   SSH 安全中心；管理端口、公钥和用户密钥登录模式。"
-    echo "8   管理系统防火墙；支持端口放行、删除和每来源 IP 连接数限制。"
-    echo "10  网络/内核优化；涉及 BBR、TCP、ZRAM 和内核清理。"
-    echo "15  健康总览和反馈诊断信息，用于排错或提交 Issue。"
-    echo "16  备份与回滚，高风险操作前建议先跑。"
-    echo "19  443 单入口管理中心，面板/订阅/REALITY 共用公网 443。"
-    echo "10 -> 5  流量达量保护，按账单周期防刷流量和超额账单。"
-    echo "xcm 直达 x-ui 增强套件；也可走 5 -> 2。"
-    echo "? 查看帮助，0/q 退出。"
+    echo -e "${CYAN}VPS-Optimize > Главное меню > Справка${PLAIN}"
+    echo "1/2 Подходит для первичной проверки и инициализации нового сервера."
+    echo "3   Базовые компоненты и часто используемые службы; установка Docker, Python, WARP и полезных утилит."
+    echo "4   Обратный прокси (Caddy/Nginx); подходит для сайтов/панелей, не подключенных к единому входу 443."
+    echo "5   Управление 3x-ui, S-UI, Sing-box, Xray и инструментами подписки."
+    echo "6   Центр безопасности SSH; управление портами, открытыми ключами и режимом входа по ключам пользователей."
+    echo "8   Управление системным брандмауэром; поддержка открытия портов, удаления и ограничения числа соединений с каждого IP-адреса."
+    echo "10  Оптимизация сети/ядра; включает BBR, TCP, ZRAM и очистку ядер."
+    echo "15  Общий обзор состояния и диагностическая информация для отладки или отправки Issue."
+    echo "16  Резервное копирование и откат, рекомендуется выполнять перед операциями с высоким риском."
+    echo "19  Центр управления единым входом 443, общий публичный порт 443 для панелей/подписок/REALITY."
+    echo "10 -> 5  Защита от превышения трафика, предотвращение накрутки трафика и превышения счетов по биллинговому периоду."
+    echo "xcm прямой доступ к расширенному набору x-ui; также можно через 5 -> 2."
+    echo "? Показать справку, 0/q выход."
 }
 
 show_beginner_help() {
-    echo -e "${CYAN}VPS-Optimize > 新手向导 > 帮助${PLAIN}"
-    echo "1 新机器初始化：按安全顺序引导预检、初始化、SSH、公钥、Fail2ban、防火墙、备份。"
-    echo "2 安装面板/节点：进入面板、节点与订阅工具菜单。"
-    echo "3 配置 443 单入口：进入 443 管理中心，适合面板、订阅和 REALITY 共用 443。"
-    echo "4 健康检查：查看服务、端口、证书，并可生成反馈诊断信息。"
-    echo "5 备份/回滚：创建备份或从已有备份恢复。"
-    echo "? 查看帮助，0/q 返回主菜单。"
+    echo -e "${CYAN}VPS-Optimize > Новичок-гид > Справка${PLAIN}"
+    echo "1 Инициализация нового сервера: пошаговое выполнение в безопасном порядке: предпроверка, инициализация, SSH, открытые ключи, Fail2ban, брандмауэр, резервное копирование."
+    echo "2 Установка панели/узла: переход в меню панелей, узлов и инструментов подписки."
+    echo "3 Настройка единого входа 443: переход в центр управления 443, подходит для совместного использования 443 панелями, подписками и REALITY."
+    echo "4 Проверка состояния: просмотр служб, портов, сертификатов, а также генерация диагностической информации для обратной связи."
+    echo "5 Резервное копирование/откат: создание резервной копии или восстановление из существующей."
+    echo "? Показать справку, 0/q вернуться в главное меню."
 }
 
 show_panel_help() {
-    echo -e "${CYAN}VPS-Optimize > 面板、节点与订阅工具 > 帮助${PLAIN}"
-    echo "1 3x-ui 面板脚本：安装、官方菜单、修复面板。"
-    echo "2 x-ui 增强套件：重置日期、流量校准、备份恢复和日志。"
-    echo "3 面板 SSL 修复，适合 443 接入前清空面板证书路径。"
-    echo "4 S-UI 面板脚本：安装、官方菜单、卸载。"
-    echo "5/6 Sing-box 脚本和 Xray 脚本。"
-    echo "7/8/9 订阅栈，11 Dockge Compose，12 Compose 迁移；公网 HTTPS：未启用 443 单入口走主菜单 [4 反代]，已启用走主菜单 [19 443 单入口管理中心] -> [8 管理 Web 域名/反代]。"
-    echo "16 dog 流量计，只看已监控端口实际跑过的流量。"
-    echo "? 查看帮助，0/q 返回主菜单。"
+    echo -e "${CYAN}VPS-Optimize > Панели, узлы и инструменты подписок > Справка${PLAIN}"
+    echo "1 Сценарий панели 3x-ui: установка, официальное меню, восстановление панели."
+    echo "2 Расширенный набор x-ui: сброс даты, калибровка трафика, восстановление из резервной копии и логи."
+    echo "3 Восстановление SSL панели, подходит для очистки пути сертификата панели перед подключением 443."
+    echo "4 Сценарий панели S-UI: установка, официальное меню, удаление."
+    echo "5/6 Сценарии Sing-box и Xray."
+    echo "7/8/9 Стек подписок, 11 Dockge Compose, 12 Миграция Compose; публичный HTTPS: если единый вход 443 не включен, используйте главное меню [4 Обратный прокси], если включен - главное меню [19 Центр управления единым входом 443] -> [8 Управление веб-доменами/прокси]."
+    echo "16 dog - измеритель трафика, показывает только фактический трафик на отслеживаемых портах."
+    echo "? Показать справку, 0/q вернуться в главное меню."
 }
 
 show_sni_help() {
-    echo -e "${CYAN}VPS-Optimize > 443 单入口管理中心 > 帮助${PLAIN}"
-    echo "1 查看当前入口状态 / 监听详情：显示公网 443、Web 反代引擎、Xray 和服务状态。"
-    echo "2 首次配置 / 安装：建立共享 Web 域名、Web 反代引擎、证书和默认 Nginx Stream 入口。"
-    echo "3/4/5 入口模式切换：在 Nginx Stream 模式、Xray Fallback 模式、TCP Peek + Splice 模式之间切换。"
-    echo "6 重新应用：按当前 ENTRY_MODE 重新生成并启动入口配置。"
-    echo "7 回滚：恢复上一次入口模式切换前的备份。"
-    echo "8 管理 Web 域名/反代：后续新增或删除网站，不需要重跑首次配置。"
-    echo "9 Web 域名 IP 白名单：只限制 Web 域名，不影响 Xray 节点。"
-    echo "10 修改 443 共享参数：调整面板、订阅、REALITY、入口端口与路径。"
-    echo "11 订阅链接 / External Proxy 提示：检查节点链接是否输出公网 443。"
-    echo "12 CF DNS / Caddy 证书维护：重签证书、修复软链接、清理和回滚。"
-    echo "13 链路体检：排查 ENTRY_MODE、监听、证书、Web 和 Xray 分流。"
-    echo "14 网络访问测试：检查 DNS、TCP、TLS SNI、面板和订阅路径响应。"
-    echo "15 Xray 入站管理：记录 SNI -> 本地地址:端口，不编辑 3x-ui/Xray 入站。"
-    echo "16 查看 TCP Peek + Splice 状态 / 8444 预检：展示 status.json 统计；预检只监听 8444，不改公网 443。"
-    echo "17 TCP Peek 分流规则校验：只检查配置，不重启入口。"
-    echo "18 查看 TCP Peek + Splice 日志：查看 vpso-mux 分流器日志。"
-    echo "修改面板域名请走主菜单 [19 443 单入口管理中心] -> [8 管理 Web 域名/反代] -> [9 修改面板域名]。"
-    echo "未接入 443 单入口时，用主菜单 [4 反代] -> [5] 管理 Caddy/Nginx 域名 IP 白名单。"
-    echo "? 查看帮助，0/q 返回主菜单。"
+    echo -e "${CYAN}VPS-Optimize > Центр управления единым входом 443 > Справка${PLAIN}"
+    echo "1 Просмотр текущего состояния входа / деталей прослушивания: отображает публичный 443, веб-прокси-движок, Xray и состояние служб."
+    echo "2 Первоначальная настройка / установка: создание общего веб-домена, веб-прокси-движка, сертификата и стандартного входа Nginx Stream."
+    echo "3/4/5 Переключение режимов входа: между Nginx Stream, Xray Fallback и TCP Peek + Splice."
+    echo "6 Повторное применение: перегенерировать и запустить конфигурацию входа согласно текущему ENTRY_MODE."
+    echo "7 Откат: восстановить резервную копию перед последним переключением режима входа."
+    echo "8 Управление веб-доменами/прокси: добавление или удаление сайтов в дальнейшем, не требуется повторная первоначальная настройка."
+    echo "9 Белый список IP для веб-доменов: ограничивает только веб-домены, не влияет на узлы Xray."
+    echo "10 Изменение общих параметров 443: настройка панелей, подписок, REALITY, портов входа и путей."
+    echo "11 Ссылки подписок / External Proxy: проверка, выводят ли ссылки узлов публичный порт 443."
+    echo "12 Обслуживание сертификатов CF DNS / Caddy: переподпись сертификатов, восстановление символических ссылок, очистка и откат."
+    echo "13 Проверка цепочки: диагностика ENTRY_MODE, прослушивания, сертификатов, веб- и Xray-маршрутизации."
+    echo "14 Тест сетевого доступа: проверка DNS, TCP, TLS SNI, ответов панели и путей подписки."
+    echo "15 Управление входящими Xray: запись SNI -> локальный адрес:порт, без редактирования входящих 3x-ui/Xray."
+    echo "16 Просмотр статуса TCP Peek + Splice / предпроверка 8444: отображает статистику status.json; предпроверка слушает только 8444, не меняет публичный 443."
+    echo "17 Проверка правил маршрутизации TCP Peek: только проверка конфигурации, без перезапуска входа."
+    echo "18 Просмотр логов TCP Peek + Splice: просмотр логов分流ера (маршрутизатора) vpso-mux."
+    echo "Для изменения домена панели используйте главное меню [19 Центр управления единым входом 443] -> [8 Управление веб-доменами/прокси] -> [9 Изменить домен панели]."
+    echo "Если единый вход 443 не подключен, используйте главное меню [4 Обратный прокси] -> [5] для управления белым списком IP для доменов Caddy/Nginx."
+    echo "? Показать справку, 0/q вернуться в главное меню."
 }
 
 show_backup_help() {
-    echo -e "${CYAN}VPS-Optimize > 备份与回滚 > 帮助${PLAIN}"
-    echo "1 创建备份：高风险操作前先用。"
-    echo "2 查看备份：确认可用备份和时间。"
-    echo "3 回滚：会覆盖当前配置，必须输入 yes 确认，大小写均可。"
-    echo "4 隔离旧备份：只移动到隔离目录，不直接删除。"
-    echo "5 查看/编辑脚本已应用配置：先备份，再按配置类型校验，可选择 reload/restart。"
-    echo "? 查看帮助，0/q 返回主菜单。"
+    echo -e "${CYAN}VPS-Optimize > Резервное копирование и откат > Справка${PLAIN}"
+    echo "1 Создать резервную копию: использовать перед операциями с высоким риском."
+    echo "2 Просмотр резервных копий: подтвердить доступные копии и время."
+    echo "3 Откат: перезаписывает текущую конфигурацию, необходимо ввести yes для подтверждения (регистр не важен)."
+    echo "4 Изолировать старые резервные копии: только переместить в карантинный каталог, без непосредственного удаления."
+    echo "5 Просмотр/редактирование применённой конфигурации скрипта: сначала резервное копирование, затем проверка по типу конфигурации, возможен выбор reload/restart."
+    echo "? Показать справку, 0/q вернуться в главное меню."
 }
 
 show_net_kernel_help() {
-    echo -e "${CYAN}VPS-Optimize > 网络/内核优化 > 帮助${PLAIN}"
-    echo "1 BBR / 拥塞控制：调用外部调优脚本，执行前建议备份。"
-    echo "2 TCP 参数：修改 sysctl，适合有明确参数需求的用户。"
-    echo "3 DNS 更改优化：国内/国外默认 DNS，也支持自定义 IPv4 和 IPv6。"
-    echo "4 网卡管理工具：查看网卡、路由、DNS，临时调整 MTU 或刷新 DHCP。"
-    echo "5 流量达量保护：按网卡流量和账单周期自动关机或仅保留 SSH，防止超额账单。"
-    echo "6 ZRAM / Swap：适合小内存 VPS。"
-    echo "7 安装/切换内核：高风险，必须确认快照和救援控制台可用。"
-    echo "8 清理旧内核：不要删除当前内核和云厂商定制内核。"
-    echo "? 查看帮助，0/q 返回主菜单。"
+    echo -e "${CYAN}VPS-Optimize > Сеть/Оптимизация ядра > Справка${PLAIN}"
+    echo "1 BBR / Управление перегрузками: вызов внешнего скрипта настройки, перед выполнением рекомендуется резервное копирование."
+    echo "2 Параметры TCP: изменение sysctl, подходит для пользователей с конкретными требованиями к параметрам."
+    echo "3 Оптимизация DNS: выбор DNS по умолчанию для Китая/мира, также поддерживается пользовательский IPv4 и IPv6."
+    echo "4 Инструменты управления сетевыми интерфейсами: просмотр интерфейсов, маршрутов, DNS, временная настройка MTU или обновление DHCP."
+    echo "5 Защита от превышения трафика: автоматическое выключение или сохранение только SSH в зависимости от трафика интерфейса и биллингового периода, предотвращение превышения счетов."
+    echo "6 ZRAM / Swap: подходит для VPS с малым объёмом памяти."
+    echo "7 Установка/переключение ядра: высокий риск, необходимо подтвердить наличие снимков и консоли восстановления."
+    echo "8 Очистка старых ядер: не удалять текущее ядро и кастомные ядра от провайдера."
+    echo "? Показать справку, 0/q вернуться в главное меню."
 }
 
 show_health_help() {
-    echo -e "${CYAN}VPS-Optimize > 诊断/健康检查 > 帮助${PLAIN}"
-    echo "健康总览会检查关键服务、监听端口和证书摘要。"
-    echo "如果存在脚本添加的 connlimit 规则，也会显示持久化后端、运行时/保存文件一致性和重启风险提示。"
-    echo "健康总览会显示日志容量摘要；输入 p 可做配置、状态和日志文件权限体检，输入 P 可确认后修复。"
-    echo "输入 s 可进入服务恢复，支持重启常用/失败服务、清除失败状态和设置失败自动重启。"
-    echo "系统硬件探针会附带 443、Caddy、3x-ui、订阅工具和 Docker 场景概览。"
-    echo "生成反馈诊断信息用于提交 GitHub Issue，会尽量避免输出 Token、私钥和敏感密钥。"
+    echo -e "${CYAN}VPS-Optimize > Диагностика/Проверка состояния > Справка${PLAIN}"
+    echo "Общий обзор состояния проверяет ключевые службы, прослушиваемые порты и сводку по сертификатам."
+    echo "Если существуют правила connlimit, добавленные скриптом, также отображается информация о постоянном бэкенде, соответствии времени выполнения/сохранённых файлов и предупреждения о рисках перезапуска."
+    echo "Общий обзор состояния показывает сводку по объёму логов; введите p для проверки прав на конфигурации, состояние и файлы логов, введите P для подтверждения и исправления."
+    echo "Введите s для входа в восстановление служб, поддерживается перезапуск часто используемых/сбойных служб, сброс состояния сбоя и настройка автоматического перезапуска при сбое."
+    echo "Аппаратный зонд системы включает обзор сценариев 443, Caddy, 3x-ui, инструментов подписки и Docker."
+    echo "Генерация диагностической информации для отправки в GitHub Issue, старается избегать вывода токенов, закрытых ключей и конфиденциальных ключей."
 }
 
 NET_KERNEL_MENU_ITEMS=(
-    "1|BBR / 拥塞控制管理|调用 ylx2016 多内核调优脚本|func_bbr_manage|net_bbr"
-    "2|动态 TCP 参数调优|粘贴 Omnitt 参数并自动校验|func_tcp_tune|net_tcp_tune"
-    "3|DNS 更改优化|国内/国外/自定义，IPv4+IPv6|func_dns_optimize|"
-    "4|网卡管理工具|网卡/路由/DNS/MTU/DHCP|func_network_interface_manage|"
-    "5|流量达量保护|防刷流量 / 防超额账单|func_traffic_guard_menu|"
-    "6|ZRAM / Swap 内存调优|按内存分档优化小鸡|func_zram_swap|"
-    "7|安装/切换优化内核|Cloud/KVM 稳定推荐 / XanMod 高级可选|func_install_kernel|net_kernel_install"
-    "8|清理旧内核|释放磁盘空间，谨慎操作|func_clean_kernel|"
+    "1|BBR / Управление перегрузками|Вызов скрипта настройки ядра ylx2016|func_bbr_manage|net_bbr"
+    "2|Динамическая настройка TCP параметров|Вставить параметры Omnitt и автоматически проверить|func_tcp_tune|net_tcp_tune"
+    "3|Оптимизация DNS|Китай/мир/пользовательский, IPv4+IPv6|func_dns_optimize|"
+    "4|Инструменты управления сетевыми интерфейсами|Интерфейсы/маршруты/DNS/MTU/DHCP|func_network_interface_manage|"
+    "5|Защита от превышения трафика|Предотвращение накрутки / превышения счетов|func_traffic_guard_menu|"
+    "6|Оптимизация памяти ZRAM / Swap|Оптимизация VPS по объёму памяти|func_zram_swap|"
+    "7|Установка/переключение оптимизированного ядра|Cloud/KVM стабильная рекомендация / XanMod продвинутый вариант|func_install_kernel|net_kernel_install"
+    "8|Очистка старых ядер|Освободить место на диске, действовать осторожно|func_clean_kernel|"
 )
 
 confirm_menu_risk() {
     local risk="$1"
     case "$risk" in
         net_bbr)
-            confirm_risk_action "BBR / 拥塞控制管理" \
-                "内核网络模块、拥塞控制和 TCP 参数" \
-                "从快照恢复，或重新进入本菜单切换回原配置" \
-                "外部调优脚本可能安装/切换内核，请确认救援控制台可用。"
+            confirm_risk_action "BBR / Управление перегрузками" \
+                "Модули ядра сети, управление перегрузками и параметры TCP" \
+                "Восстановить из снимка или вернуться в это меню и переключиться обратно на исходную конфигурацию" \
+                "Внешний скрипт настройки может установить/переключить ядро, убедитесь, что консоль восстановления доступна."
             ;;
         net_tcp_tune)
-            confirm_risk_action "动态 TCP 参数调优" \
-                "sysctl TCP 参数和网络栈配置" \
-                "恢复 /etc/sysctl.d 中的备份配置，或手动回退参数" \
-                "确认参数来源可信，错误参数可能影响网络连接。"
+            confirm_risk_action "Динамическая настройка TCP параметров" \
+                "Параметры sysctl TCP и конфигурация сетевого стека" \
+                "Восстановить резервную конфигурацию из /etc/sysctl.d или вручную откатить параметры" \
+                "Убедитесь, что источник параметров надежен, неверные параметры могут повлиять на сетевое соединение."
             ;;
         net_kernel_install)
-            confirm_risk_action "安装/切换优化内核" \
-                "内核包、引导配置和 GRUB 菜单" \
-                "从云厂商控制台选择旧内核启动，或使用救援模式恢复" \
-                "确认已创建快照，且当前 VPS 不是 OpenVZ 老系统。"
+            confirm_risk_action "Установка/переключение оптимизированного ядра" \
+                "Пакеты ядра, конфигурация загрузчика и меню GRUB" \
+                "Выбрать загрузку старого ядра из консоли облачного провайдера или использовать режим восстановления" \
+                "Убедитесь, что создан снимок, и текущий VPS не является старой системой OpenVZ."
             ;;
         *) return 0 ;;
     esac
@@ -137,56 +137,56 @@ func_net_kernel_menu() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "网络/内核优化"
-        echo -e "${BOLD}🚀 网络性能与内核管理${PLAIN}"
+        print_breadcrumb "Сеть/Оптимизация ядра"
+        echo -e "${BOLD}🚀 Управление производительностью сети и ядра${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}用途：调整网络栈、内存压缩和内核；涉及内核安装/清理前建议先做快照。${PLAIN}"
+        echo -e "${YELLOW}Назначение: настройка сетевого стека, сжатия памяти и ядра; перед установкой/очисткой ядра рекомендуется сделать снимок.${PLAIN}"
         echo -e "------------------------------------------------"
         render_menu NET_KERNEL_MENU_ITEMS
         echo -e "------------------------------------------------"
-        echo -e "${BLUE}  ?. 查看帮助${PLAIN}"
-        echo -e "${RED}  0. 返回主菜单 / q 返回上一级${PLAIN}"
+        echo -e "${BLUE}  ?. Показать справку${PLAIN}"
+        echo -e "${RED}  0. Вернуться в главное меню / q вернуться на уровень выше${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local nk_choice
-        read_trimmed nk_choice "👉 请选择操作: "
+        read_trimmed nk_choice "👉 Выберите действие: "
         case $nk_choice in
             "?"|help) show_net_kernel_help; pause_return ;;
             0|q|Q) break ;;
-            *) dispatch_menu_choice "$nk_choice" NET_KERNEL_MENU_ITEMS || { echo -e "${RED}❌ 无效选择！${PLAIN}"; sleep 1; } ;;
+            *) dispatch_menu_choice "$nk_choice" NET_KERNEL_MENU_ITEMS || { echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1; } ;;
         esac
     done
 }
 
 # ---------------------------------------------------------
-# 24. 面板与节点部署菜单 (二级直达)
+# 24. Меню развертывания панелей и узлов (второй уровень)
 # ---------------------------------------------------------
 func_panel_deploy_menu() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "面板、节点与订阅工具"
-        echo -e "${BOLD}🛰️ 面板、节点与订阅工具部署${PLAIN}"
+        print_breadcrumb "Панели, узлы и инструменты подписки"
+        echo -e "${BOLD}🛰️ Развертывание панелей, узлов и инструментов подписки${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BOLD}${BLUE}▶ 面板 / 核心${PLAIN}"
-        echo -e "  ${BOLD}${GREEN}1.${PLAIN} ${BOLD}3x-ui 面板脚本${PLAIN}     ${BOLD}${GREEN}2.${PLAIN} ${BOLD}x-ui 增强套件${PLAIN}      ${BOLD}${GREEN}3.${PLAIN} ${BOLD}面板 SSL 修复${PLAIN}"
-        echo -e "  ${BOLD}${GREEN}4.${PLAIN} ${BOLD}S-UI 面板脚本${PLAIN}      ${BOLD}${GREEN}5.${PLAIN} ${BOLD}Sing-box 脚本${PLAIN}      ${BOLD}${GREEN}6.${PLAIN} ${BOLD}Xray 脚本${PLAIN}"
+        echo -e "${BOLD}${BLUE}▶ Панели / Ядро${PLAIN}"
+        echo -e "  ${BOLD}${GREEN}1.${PLAIN} ${BOLD}Сценарий панели 3x-ui${PLAIN}     ${BOLD}${GREEN}2.${PLAIN} ${BOLD}Расширенный набор x-ui${PLAIN}      ${BOLD}${GREEN}3.${PLAIN} ${BOLD}Восстановление SSL панели${PLAIN}"
+        echo -e "  ${BOLD}${GREEN}4.${PLAIN} ${BOLD}Сценарий панели S-UI${PLAIN}      ${BOLD}${GREEN}5.${PLAIN} ${BOLD}Сценарий Sing-box${PLAIN}      ${BOLD}${GREEN}6.${PLAIN} ${BOLD}Сценарий Xray${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BOLD}${BLUE}▶ 订阅 / Compose${PLAIN}"
-        echo -e "  ${BOLD}${GREEN}7.${PLAIN} ${BOLD}SublinkPro 订阅栈${PLAIN}  ${BOLD}${GREEN}8.${PLAIN} ${BOLD}妙妙屋订阅栈${PLAIN}       ${BOLD}${GREEN}9.${PLAIN} ${BOLD}Sub-Store 订阅栈${PLAIN}"
-        echo -e " ${BOLD}${YELLOW}10.${PLAIN} ${BOLD}订阅栈更新${PLAIN}        ${BOLD}${GREEN}11.${PLAIN} ${BOLD}Dockge Compose${PLAIN}    ${BOLD}${GREEN}12.${PLAIN} ${BOLD}Compose 迁移${PLAIN}"
-        echo -e " ${BOLD}${GREEN}13.${PLAIN} ${BOLD}Komari 探针面板${PLAIN}"
+        echo -e "${BOLD}${BLUE}▶ Подписки / Compose${PLAIN}"
+        echo -e "  ${BOLD}${GREEN}7.${PLAIN} ${BOLD}Стек подписок SublinkPro${PLAIN}  ${BOLD}${GREEN}8.${PLAIN} ${BOLD}Стек подписок Miaomiaowu${PLAIN}       ${BOLD}${GREEN}9.${PLAIN} ${BOLD}Стек подписок Sub-Store${PLAIN}"
+        echo -e " ${BOLD}${YELLOW}10.${PLAIN} ${BOLD}Обновление стеков подписок${PLAIN}        ${BOLD}${GREEN}11.${PLAIN} ${BOLD}Dockge Compose${PLAIN}    ${BOLD}${GREEN}12.${PLAIN} ${BOLD}Миграция Compose${PLAIN}"
+        echo -e " ${BOLD}${GREEN}13.${PLAIN} ${BOLD}Панель зонда Komari${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BOLD}${BLUE}▶ 工具 / 辅助${PLAIN}"
-        echo -e " ${BOLD}${GREEN}14.${PLAIN} ${BOLD}DNS 解锁脚本${PLAIN}      ${BOLD}${GREEN}15.${PLAIN} ${BOLD}IP-Sentinel 脚本${PLAIN}  ${BOLD}${GREEN}16.${PLAIN} ${BOLD}dog 流量计${PLAIN}"
+        echo -e "${BOLD}${BLUE}▶ Инструменты / Вспомогательное${PLAIN}"
+        echo -e " ${BOLD}${GREEN}14.${PLAIN} ${BOLD}Сценарий разблокировки DNS${PLAIN}      ${BOLD}${GREEN}15.${PLAIN} ${BOLD}Сценарий IP-Sentinel${PLAIN}  ${BOLD}${GREEN}16.${PLAIN} ${BOLD}dog - измеритель трафика${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BLUE}  ?. 查看帮助${PLAIN}"
-        echo -e "${RED}  0. 返回主菜单 / q 返回上一级${PLAIN}"
+        echo -e "${BLUE}  ?. Показать справку${PLAIN}"
+        echo -e "${RED}  0. Вернуться в главное меню / q вернуться на уровень выше${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local pd_choice
-        read_trimmed pd_choice "👉 请选择操作: "
+        read_trimmed pd_choice "👉 Выберите действие: "
         case $pd_choice in
             1) func_xpanel_menu ;;
             2) func_xui_custom_manager ;;
@@ -207,7 +207,7 @@ func_panel_deploy_menu() {
             xcm|XCM|xui-custom|外置|外置增强|外置管理) func_xui_custom_manager ;;
             "?"|help) show_panel_help; pause_return ;;
             0|q|Q) break ;;
-            *) echo -e "${RED}❌ 无效选择！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
@@ -218,42 +218,42 @@ func_sni_stack_quick_menu() {
         show_current_entry_summary
         echo -e "------------------------------------------------"
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "443 单入口管理中心"
-        echo -e "${BOLD}🧩 443 单入口管理中心${PLAIN}"
+        print_breadcrumb "Центр управления единым входом 443"
+        echo -e "${BOLD}🧩 Центр управления единым входом 443${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}用途：统一管理公网 443 的入口模式、Web 域名、Xray 入站分流和链路体检。${PLAIN}"
-        echo -e "${YELLOW}首次部署先选 [2]；已有配置后用 [3]/[4]/[5] 在三种入口模式间切换。${PLAIN}"
+        echo -e "${YELLOW}Назначение: централизованное управление режимом входа на публичном порту 443, веб-доменами, маршрутизацией входящих Xray и проверкой цепочки.${PLAIN}"
+        echo -e "${YELLOW}При первом развертывании выберите [2]; после наличия конфигурации используйте [3]/[4]/[5] для переключения между тремя режимами входа.${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BOLD}${BLUE}▶ 当前状态与入口模式${PLAIN}"
-        echo -e "${GREEN}  1. 查看当前入口状态 / 监听详情${PLAIN} ${YELLOW}(公网 443、Web 反代、Xray、服务状态)${PLAIN}"
-        echo -e "${GREEN}  2. 首次配置 / 安装 443 单入口${PLAIN} ${YELLOW}(默认 Nginx Stream 模式，第一次部署用)${PLAIN}"
-        echo -e "${GREEN}  3. 切换到 Nginx Stream 模式${PLAIN}  ${YELLOW}(默认稳定模式)${PLAIN}"
-        echo -e "${GREEN}  4. 切换到 Xray Fallback 模式${PLAIN} ${YELLOW}(需已有 Xray/3x-ui 主入站)${PLAIN}"
-        echo -e "${GREEN}  5. 切换到 TCP Peek + Splice 模式${PLAIN} ${YELLOW}(需先完成 8444 预检，切换时不自动编译)${PLAIN}"
-        echo -e "${CYAN}  6. 重新应用当前入口模式${PLAIN}"
-        echo -e "${YELLOW}  7. 回滚上一次入口模式切换${PLAIN}"
+        echo -e "${BOLD}${BLUE}▶ Текущее состояние и режим входа${PLAIN}"
+        echo -e "${GREEN}  1. Просмотр текущего состояния входа / деталей прослушивания${PLAIN} ${YELLOW}(публичный 443, веб-прокси, Xray, состояние служб)${PLAIN}"
+        echo -e "${GREEN}  2. Первоначальная настройка / установка единого входа 443${PLAIN} ${YELLOW}(по умолчанию режим Nginx Stream, для первого развертывания)${PLAIN}"
+        echo -e "${GREEN}  3. Переключиться на режим Nginx Stream${PLAIN}  ${YELLOW}(стабильный режим по умолчанию)${PLAIN}"
+        echo -e "${GREEN}  4. Переключиться на режим Xray Fallback${PLAIN} ${YELLOW}(требуется уже существующий основной входящий Xray/3x-ui)${PLAIN}"
+        echo -e "${GREEN}  5. Переключиться на режим TCP Peek + Splice${PLAIN} ${YELLOW}(требуется предварительная проверка 8444, при переключении автоматическая компиляция не выполняется)${PLAIN}"
+        echo -e "${CYAN}  6. Повторно применить текущий режим входа${PLAIN}"
+        echo -e "${YELLOW}  7. Откатить последнее переключение режима входа${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BOLD}${BLUE}▶ 共享配置与体检${PLAIN}"
-        echo -e "${GREEN}  8. 管理 Web 域名/反代${PLAIN}        ${YELLOW}(新增/删除/查看网站，最常用)${PLAIN}"
-        echo -e "${CYAN}  9. 管理 Web 域名 IP 白名单${PLAIN}   ${YELLOW}(只限制 Web 域名)${PLAIN}"
-        echo -e "${CYAN} 10. 修改 443 共享参数${PLAIN}         ${YELLOW}(面板/订阅/REALITY/入口端口与路径)${PLAIN}"
-        echo -e "${CYAN} 11. 订阅链接 / External Proxy 提示${PLAIN} ${YELLOW}(检查节点链接是否输出公网 443)${PLAIN}"
-        echo -e "${CYAN} 12. CF DNS / Caddy 证书维护${PLAIN}   ${YELLOW}(重签/软链/清理/修复/回滚)${PLAIN}"
-        echo -e "${GREEN} 13. 443 链路体检${PLAIN}              ${YELLOW}(ENTRY_MODE/监听/证书/Web/Xray 分流)${PLAIN}"
-        echo -e "${CYAN} 14. 443 网络访问测试${PLAIN}          ${YELLOW}(DNS/TCP/TLS/面板/订阅路径)${PLAIN}"
-        echo -e "${CYAN} 15. Xray 入站管理${PLAIN}             ${YELLOW}(SNI -> 本地地址:端口 分流记录)${PLAIN}"
-        echo -e "${CYAN} 16. 查看 TCP Peek + Splice 状态 / 8444 预检${PLAIN} ${YELLOW}(不改公网 443)${PLAIN}"
-        echo -e "${CYAN} 17. TCP Peek 分流规则校验${PLAIN} ${YELLOW}(只检查配置，不重启入口)${PLAIN}"
-        echo -e "${CYAN} 18. 查看 TCP Peek + Splice 日志${PLAIN} ${YELLOW}(vpso-mux 分流器日志)${PLAIN}"
+        echo -e "${BOLD}${BLUE}▶ Общие конфигурации и проверка${PLAIN}"
+        echo -e "${GREEN}  8. Управление веб-доменами/прокси${PLAIN}        ${YELLOW}(добавление/удаление/просмотр сайтов, наиболее часто)${PLAIN}"
+        echo -e "${CYAN}  9. Управление белым списком IP для веб-доменов${PLAIN}   ${YELLOW}(ограничивает только веб-домены)${PLAIN}"
+        echo -e "${CYAN} 10. Изменение общих параметров 443${PLAIN}         ${YELLOW}(панели/подписки/REALITY/порты и пути входа)${PLAIN}"
+        echo -e "${CYAN} 11. Ссылки подписок / External Proxy${PLAIN} ${YELLOW}(проверка, выводят ли ссылки узлов публичный 443)${PLAIN}"
+        echo -e "${CYAN} 12. Обслуживание сертификатов CF DNS / Caddy${PLAIN}   ${YELLOW}(переподпись/символические ссылки/очистка/восстановление/откат)${PLAIN}"
+        echo -e "${GREEN} 13. Проверка цепочки 443${PLAIN}              ${YELLOW}(ENTRY_MODE/прослушивание/сертификаты/веб-маршрутизация/Xray)${PLAIN}"
+        echo -e "${CYAN} 14. Тест сетевого доступа 443${PLAIN}          ${YELLOW}(DNS/TCP/TLS/панели/пути подписок)${PLAIN}"
+        echo -e "${CYAN} 15. Управление входящими Xray${PLAIN}             ${YELLOW}(SNI -> локальный адрес:порт, запись маршрутизации)${PLAIN}"
+        echo -e "${CYAN} 16. Просмотр статуса TCP Peek + Splice / предпроверка 8444${PLAIN} ${YELLOW}(не меняет публичный 443)${PLAIN}"
+        echo -e "${CYAN} 17. Проверка правил маршрутизации TCP Peek${PLAIN} ${YELLOW}(только проверка конфигурации, без перезапуска входа)${PLAIN}"
+        echo -e "${CYAN} 18. Просмотр логов TCP Peek + Splice${PLAIN} ${YELLOW}(логи分流ера vpso-mux)${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${YELLOW}说明：三种 443 入口不是三套独立安装器；[2] 建立共享配置，[3]/[4]/[5] 负责检查依赖、生成目标配置并切换入口。${PLAIN}"
+        echo -e "${YELLOW}Примечание: три режима входа 443 не являются тремя отдельными установщиками; [2] создает общую конфигурацию, [3]/[4]/[5] отвечают за проверку зависимостей, генерацию целевой конфигурации и переключение входа.${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BLUE}  ?. 查看帮助${PLAIN}"
-        echo -e "${RED}  0. 返回主菜单 / q/back/返回${PLAIN}"
+        echo -e "${BLUE}  ?. Показать справку${PLAIN}"
+        echo -e "${RED}  0. Вернуться в главное меню / q/back/назад${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local sni_choice
-        read_trimmed sni_choice "👉 请输入菜单编号或 ?: "
+        read_trimmed sni_choice "👉 Введите номер меню или ?: "
         case "$sni_choice" in
             1) show_current_entry_status ;;
             2) func_caddy_cf_reality_wizard ;;
@@ -275,10 +275,10 @@ func_sni_stack_quick_menu() {
             18) view_vpso_mux_logs ;;
             "?"|help) show_sni_help; pause_return; continue ;;
             0) break ;;
-            *) echo -e "${RED}❌ 无效选择，请输入菜单编号或 ?。${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор, введите номер меню или ?.${PLAIN}"; sleep 1 ;;
         esac
         echo ""
-        read -n 1 -s -r -p "按任意键继续..."
+        read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
     done
 }
 
@@ -322,9 +322,9 @@ beginner_run_optional_step() {
     local choice
 
     echo -e "${CYAN}[${step}/${total}] ${label}${PLAIN}"
-    read_trimmed choice "是否进入此步骤？(Y/n): "
+    read_trimmed choice "Перейти к этому шагу? (Y/n): "
     if [[ "${choice:-yes}" =~ ^[Nn]([Oo])?$ ]]; then
-        echo -e "${BLUE}已跳过：${label}${PLAIN}"
+        echo -e "${BLUE}Пропущено: ${label}${PLAIN}"
         return 2
     fi
     "$function_name"
@@ -334,30 +334,30 @@ func_beginner_machine_init() {
     local total=7
     local step_rc step_entry step label function_name
     local VPSO_BEGINNER_FLOW=1
-    local completed=("部署前预检")
+    local completed=("Предварительная проверка перед развертыванием")
     local skipped=()
     local optional_steps=(
-        "3|SSH 安全配置|func_security"
-        "4|SSH 公钥配置|func_add_ssh_key"
-        "5|Fail2ban 配置|func_fail2ban"
-        "6|防火墙配置|func_firewall_manage"
-        "7|配置备份|func_backup_center"
+        "3|Настройка безопасности SSH|func_security"
+        "4|Настройка открытых ключей SSH|func_add_ssh_key"
+        "5|Настройка Fail2ban|func_fail2ban"
+        "6|Настройка брандмауэра|func_firewall_manage"
+        "7|Резервное копирование конфигурации|func_backup_center"
     )
 
-    echo -e "${CYAN}[1/${total}] 部署前预检${PLAIN}"
+    echo -e "${CYAN}[1/${total}] Предварительная проверка перед развертыванием${PLAIN}"
     if ! func_preflight_check; then
-        echo -e "${RED}❌ 预检存在异常，新机器初始化已停止，未继续修改系统。${PLAIN}"
+        echo -e "${RED}❌ Обнаружены проблемы при предварительной проверке, инициализация нового сервера остановлена, система не была изменена.${PLAIN}"
         pause_return
         return 1
     fi
 
-    echo -e "${CYAN}[2/${total}] 基础初始化${PLAIN}"
+    echo -e "${CYAN}[2/${total}] Базовая инициализация${PLAIN}"
     if ! func_base_init; then
-        echo -e "${RED}❌ 基础初始化未完整完成，后续安全配置已停止。${PLAIN}"
+        echo -e "${RED}❌ Базовая инициализация завершена не полностью, последующие настройки безопасности остановлены.${PLAIN}"
         pause_return
         return 1
     fi
-    completed+=("基础初始化")
+    completed+=("Базовая инициализация")
 
     for step_entry in "${optional_steps[@]}"; do
         IFS='|' read -r step label function_name <<< "$step_entry"
@@ -368,18 +368,18 @@ func_beginner_machine_init() {
         elif [[ "$step_rc" -eq 2 ]]; then
             skipped+=("$label")
         else
-            echo -e "${RED}❌ ${label} 执行失败，新机器初始化已停止。${PLAIN}"
-            echo -e "${CYAN}已完成：${completed[*]}${PLAIN}"
+            echo -e "${RED}❌ ${label} не удалось выполнить, инициализация нового сервера остановлена.${PLAIN}"
+            echo -e "${CYAN}Завершено: ${completed[*]}${PLAIN}"
             pause_return
             return 1
         fi
     done
 
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${GREEN}✅ 新机器初始化流程结束。${PLAIN}"
-    echo -e "已完成：${completed[*]}"
+    echo -e "${GREEN}✅ Процесс инициализации нового сервера завершен.${PLAIN}"
+    echo -e "Завершено: ${completed[*]}"
     if [[ ${#skipped[@]} -gt 0 ]]; then
-        echo -e "${YELLOW}已跳过：${skipped[*]}${PLAIN}"
+        echo -e "${YELLOW}Пропущено: ${skipped[*]}${PLAIN}"
     fi
     pause_return
 }
@@ -388,23 +388,23 @@ func_beginner_menu() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "新手向导"
+        print_breadcrumb "Новичок-гид"
         echo -e "${BOLD}VPS-Optimize ${SCRIPT_VERSION}${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}这是简化入口，只保留第一次部署最常用的路径；老用户可返回完整菜单。${PLAIN}"
+        echo -e "${YELLOW}Это упрощенный вход, содержащий только наиболее часто используемые пути для первого развертывания; опытные пользователи могут вернуться в полное меню.${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}  1. 新机器初始化${PLAIN}       ${YELLOW}(预检 -> 初始化 -> SSH/公钥/Fail2ban/防火墙 -> 备份)${PLAIN}"
-        echo -e "${GREEN}  2. 安装面板/节点${PLAIN}     ${YELLOW}(进入面板、节点与订阅工具菜单)${PLAIN}"
-        echo -e "${GREEN}  3. 配置 443 单入口${PLAIN}   ${YELLOW}(面板/订阅/REALITY 共用公网 443)${PLAIN}"
-        echo -e "${GREEN}  4. 健康检查${PLAIN}          ${YELLOW}(服务状态、端口、证书、反馈诊断)${PLAIN}"
-        echo -e "${GREEN}  5. 备份/回滚${PLAIN}         ${YELLOW}(创建备份或恢复配置)${PLAIN}"
+        echo -e "${GREEN}  1. Инициализация нового сервера${PLAIN}       ${YELLOW}(предпроверка -> инициализация -> SSH/открытые ключи/Fail2ban/брандмауэр -> резервное копирование)${PLAIN}"
+        echo -e "${GREEN}  2. Установка панели/узла${PLAIN}     ${YELLOW}(переход в меню панелей, узлов и подписок)${PLAIN}"
+        echo -e "${GREEN}  3. Настройка единого входа 443${PLAIN}   ${YELLOW}(общий публичный 443 для панелей/подписок/REALITY)${PLAIN}"
+        echo -e "${GREEN}  4. Проверка состояния${PLAIN}          ${YELLOW}(состояние служб, порты, сертификаты, диагностика)${PLAIN}"
+        echo -e "${GREEN}  5. Резервное копирование/откат${PLAIN}         ${YELLOW}(создать резервную копию или восстановить конфигурацию)${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BLUE}  ?. 查看帮助${PLAIN}"
-        echo -e "${RED}  0. 返回主菜单 / q 返回${PLAIN}"
+        echo -e "${BLUE}  ?. Показать справку${PLAIN}"
+        echo -e "${RED}  0. Вернуться в главное меню / q вернуться${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local beginner_choice
-        read_trimmed beginner_choice "👉 请选择操作: "
+        read_trimmed beginner_choice "👉 Выберите действие: "
         case "$beginner_choice" in
             1)
                 func_beginner_machine_init
@@ -415,65 +415,65 @@ func_beginner_menu() {
             5) func_backup_center ;;
             "?"|help|h) show_beginner_help; echo ""; pause_return ;;
             0|q|Q) break ;;
-            *) echo -e "${RED}❌ 无效选择！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
 
 # ---------------------------------------------------------
-# 界面主循环 (新增 IP 防送中 & SublinkPro)
+# Основной цикл интерфейса (добавлены IP-защита и SublinkPro)
 # ---------------------------------------------------------
 main_menu() {
     create_shortcut
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "主菜单"
-        echo -e " ${BOLD}🚀 VPS-Optimize ${SCRIPT_VERSION} (快捷键: ${YELLOW}cy${PLAIN}${BOLD})${PLAIN}"
+        print_breadcrumb "Главное меню"
+        echo -e " ${BOLD}🚀 VPS-Optimize ${SCRIPT_VERSION} (горячие клавиши: ${YELLOW}cy${PLAIN}${BOLD})${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e " ${YELLOW}快捷输入：443 直达单入口，h 看健康，b 做备份，u 更新，q 退出。${PLAIN}"
-        echo -e " ${YELLOW}高风险操作需要输入 yes 确认，大小写均可；不确定时先做 [16] 备份。${PLAIN}"
+        echo -e " ${YELLOW}Быстрый ввод: 443 - прямой вход в единый вход, h - состояние, b - резервное копирование, u - обновление, q - выход.${PLAIN}"
+        echo -e " ${YELLOW}Операции с высоким риском требуют ввода yes для подтверждения (регистр не важен); при сомнениях сначала сделайте [16] резервное копирование.${PLAIN}"
         print_auto_update_notice
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e " ${BOLD}${BLUE}▶ 模式入口${PLAIN}"
-        echo -e "  ${GREEN}n.${PLAIN} 新手向导              ${YELLOW}(只显示核心路径)${PLAIN}"
-        echo -e "  ${GREEN}?.${PLAIN} 当前菜单帮助          ${YELLOW}(解释关键入口)${PLAIN}"
+        echo -e " ${BOLD}${BLUE}▶ Вход в режимы${PLAIN}"
+        echo -e "  ${GREEN}n.${PLAIN} Новичок-гид              ${YELLOW}(показывает только основные пути)${PLAIN}"
+        echo -e "  ${GREEN}?.${PLAIN} Справка по текущему меню          ${YELLOW}(поясняет ключевые входы)${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
-        echo -e " ${BOLD}${BLUE}▶ ① 推荐流程：新机器先跑这里${PLAIN}"
-        echo -e "  ${GREEN}1.${PLAIN} 运维预检与风险扫描    ${YELLOW}(部署前先看端口/系统/服务状态)${PLAIN}"
-        echo -e "  ${GREEN}2.${PLAIN} 基础环境初始化        ${YELLOW}(工具/时区/系统更新/基础 BBR)${PLAIN}"
-        echo -e "  ${GREEN}3.${PLAIN} 基础组件与常用服务    ${YELLOW}(Docker/Python/WARP/常用工具)${PLAIN}"
-        echo -e "  ${GREEN}4.${PLAIN} 反代（Caddy/Nginx）   ${YELLOW}(未接入 443 单入口的网站/面板反代)${PLAIN}"
-        echo -e "  ${GREEN}5.${PLAIN} 面板、节点与订阅工具  ${YELLOW}(3x-ui/Sing-box/订阅管理/Dockge)${PLAIN}"
+        echo -e " ${BOLD}${BLUE}▶ ① Рекомендуемый порядок: сначала запустите здесь новый сервер${PLAIN}"
+        echo -e "  ${GREEN}1.${PLAIN} Предварительная проверка и сканирование рисков    ${YELLOW}(перед развертыванием проверьте порты/систему/состояние служб)${PLAIN}"
+        echo -e "  ${GREEN}2.${PLAIN} Инициализация базовой среды        ${YELLOW}(инструменты/часовой пояс/обновление системы/базовый BBR)${PLAIN}"
+        echo -e "  ${GREEN}3.${PLAIN} Базовые компоненты и часто используемые службы    ${YELLOW}(Docker/Python/WARP/полезные утилиты)${PLAIN}"
+        echo -e "  ${GREEN}4.${PLAIN} Обратный прокси (Caddy/Nginx)   ${YELLOW}(для сайтов/панелей, не подключенных к единому входу 443)${PLAIN}"
+        echo -e "  ${GREEN}5.${PLAIN} Панели, узлы и инструменты подписок  ${YELLOW}(3x-ui/Sing-box/управление подписками/Dockge)${PLAIN}"
 
-        echo -e " ${BOLD}${BLUE}▶ ② 安全与访问控制${PLAIN}"
-        echo -e "  ${GREEN}6.${PLAIN} SSH 安全中心          ${YELLOW}(端口/公钥/密钥登录模式)${PLAIN}"
-        echo -e "  ${GREEN}7.${PLAIN} Fail2ban 防爆破       ${YELLOW}(自动封禁 SSH 爆破 IP)${PLAIN}"
-        echo -e "  ${GREEN}8.${PLAIN} 防火墙规则管理        ${YELLOW}(放行/删除/查看/关闭/连接数限制)${PLAIN}"
-        echo -e "  ${GREEN}9.${PLAIN} 系统开关与清理        ${YELLOW}(IPv6/IPv4优先/Ping/主机名/清理)${PLAIN}"
+        echo -e " ${BOLD}${BLUE}▶ ② Безопасность и контроль доступа${PLAIN}"
+        echo -e "  ${GREEN}6.${PLAIN} Центр безопасности SSH          ${YELLOW}(порт/открытые ключи/режим входа по ключу)${PLAIN}"
+        echo -e "  ${GREEN}7.${PLAIN} Fail2ban защита от взлома       ${YELLOW}(автоматическая блокировка IP при атаках на SSH)${PLAIN}"
+        echo -e "  ${GREEN}8.${PLAIN} Управление правилами брандмауэра        ${YELLOW}(разрешить/удалить/просмотреть/отключить/ограничение числа соединений)${PLAIN}"
+        echo -e "  ${GREEN}9.${PLAIN} Системные переключатели и очистка        ${YELLOW}(приоритет IPv6/IPv4/Ping/имя хоста/очистка)${PLAIN}"
 
-        echo -e " ${BOLD}${BLUE}▶ ③ 网络性能与容器${PLAIN}"
-        echo -e " ${GREEN}10.${PLAIN} 网络与内核优化        ${YELLOW}(BBR/TCP/ZRAM/DNS/轻量内核)${PLAIN}"
-        echo -e " ${GREEN}11.${PLAIN} Docker 安全管理       ${YELLOW}(本地防穿透/恢复访问)${PLAIN}"
+        echo -e " ${BOLD}${BLUE}▶ ③ Сетевая производительность и контейнеры${PLAIN}"
+        echo -e " ${GREEN}10.${PLAIN} Оптимизация сети и ядра        ${YELLOW}(BBR/TCP/ZRAM/DNS/легкое ядро)${PLAIN}"
+        echo -e " ${GREEN}11.${PLAIN} Безопасность Docker       ${YELLOW}(защита от локального проникновения/восстановление доступа)${PLAIN}"
 
-        echo -e " ${BOLD}${BLUE}▶ ④ 诊断、备份与维护${PLAIN}"
-        echo -e " ${GREEN}12.${PLAIN} 测速与质量检测        ${YELLOW}(YABS/流媒体/回程/IP质量)${PLAIN}"
-        echo -e " ${GREEN}13.${PLAIN} 端口排查与释放        ${YELLOW}(查看占用并强杀进程)${PLAIN}"
-        echo -e " ${GREEN}14.${PLAIN} 系统硬件探针          ${YELLOW}(CPU/内存/磁盘/网络实时信息)${PLAIN}"
-        echo -e " ${GREEN}15.${PLAIN} 服务健康总览          ${YELLOW}(服务状态/证书摘要/端口概览)${PLAIN}"
-        echo -e " ${GREEN}16.${PLAIN} 配置备份与回滚        ${YELLOW}(备份/列表/恢复/清理)${PLAIN}"
-        echo -e " ${BOLD}${YELLOW}17.${PLAIN} 更新脚本              ${CYAN}(快捷词：u / update / upd)${PLAIN}"
-        echo -e " ${RED}18.${PLAIN} 重启服务器"
+        echo -e " ${BOLD}${BLUE}▶ ④ Диагностика, резервирование и обслуживание${PLAIN}"
+        echo -e " ${GREEN}12.${PLAIN} Тест скорости и проверка качества        ${YELLOW}(YABS/потоковое видео/обратный путь/качество IP)${PLAIN}"
+        echo -e " ${GREEN}13.${PLAIN} Проверка и освобождение портов        ${YELLOW}(просмотр занятости и принудительное завершение процессов)${PLAIN}"
+        echo -e " ${GREEN}14.${PLAIN} Аппаратный зонд системы          ${YELLOW}(CPU/память/диск/информация о сети в реальном времени)${PLAIN}"
+        echo -e " ${GREEN}15.${PLAIN} Общий обзор состояния служб          ${YELLOW}(статус служб/сводка по сертификатам/обзор портов)${PLAIN}"
+        echo -e " ${GREEN}16.${PLAIN} Резервное копирование и откат конфигурации        ${YELLOW}(резервирование/список/восстановление/очистка)${PLAIN}"
+        echo -e " ${BOLD}${YELLOW}17.${PLAIN} Обновить скрипт              ${CYAN}(быстрый ввод: u / update / upd)${PLAIN}"
+        echo -e " ${RED}18.${PLAIN} Перезагрузить сервер"
         echo -e ""
-        echo -e " ${BOLD}${BLUE}▶ ⑤ 高频直达${PLAIN}"
-        echo -e " ${GREEN}19.${PLAIN} 443 单入口管理中心    ${YELLOW}(初始化/加网站/体检/证书修复)${PLAIN}"
+        echo -e " ${BOLD}${BLUE}▶ ⑤ Часто используемые${PLAIN}"
+        echo -e " ${GREEN}19.${PLAIN} Центр управления единым входом 443    ${YELLOW}(инициализация/добавление сайтов/проверка/восстановление сертификатов)${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e " ${RED} 0.${PLAIN} 退出面板"
+        echo -e " ${RED} 0.${PLAIN} Выйти из панели"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local choice
-        read_trimmed choice "👉 请输入数字或快捷词选择功能: "
+        read_trimmed choice "👉 Введите номер или быстрое слово для выбора функции: "
         choice=$(normalize_main_choice "$choice")
 
         case $choice in
@@ -501,7 +501,7 @@ main_menu() {
             19) func_sni_stack_quick_menu ;;
             0) exit 0 ;;
             *)
-                echo -e "${RED}❌ 无效的输入，请输入菜单中存在的数字！${PLAIN}"
+                echo -e "${RED}❌ Неверный ввод, введите номер, присутствующий в меню!${PLAIN}"
                 sleep 1
                 ;;
         esac
