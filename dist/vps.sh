@@ -9815,8 +9815,8 @@ collect_sni_stack_config() {
         is_yes "$cert_clear_confirm" || { echo -e "${YELLOW}Сначала очистите пути сертификатов в 3x-ui, сохраните и перезапустите, затем запустите мастер.${PLAIN}"; return 1; }
     fi
 
-    echo -e "${CYAN}Введите Cloudflare API Token (требуются права Zone.DNS.Edit + Zone.Zone.Read)${PLAIN}"
-    read_secret_trimmed CF_TOKEN "CF Token: "
+    ####echo -e "${CYAN}Введите Cloudflare API Token (требуются права Zone.DNS.Edit + Zone.Zone.Read)${PLAIN}"
+    #####read_secret_trimmed CF_TOKEN "CF Token: "
 
     PANEL_DOMAIN=$(normalize_domain_input "$panel_domain_input")
     REALITY_SNI=$(normalize_domain_input "$reality_sni_input")
@@ -9878,18 +9878,18 @@ collect_sni_stack_config() {
         confirm_backend_target_or_continue "Бэкенд сайта/прокси ${SITE_DOMAINS[$site_idx]}" "${SITE_BACKEND_ADDRS[$site_idx]}" "${SITE_BACKEND_PORTS[$site_idx]}" || return 1
     done
 
-    if [[ -z "$CF_TOKEN" || ${#CF_TOKEN} -lt 20 ]]; then echo -e "${RED}❌ Неверная длина Cloudflare Token.${PLAIN}"; return 1; fi
-    echo -e "${CYAN}▶ Онлайн-проверка Cloudflare Token...${PLAIN}"
-    verify_cf_token_online "$CF_TOKEN"
-    local verify_rc=$?
-    if [[ "$verify_rc" -eq 0 ]]; then
-        echo -e "${GREEN}✅ Проверка Cloudflare Token пройдена.${PLAIN}"
-    elif [[ "$verify_rc" -eq 2 ]]; then
-        echo -e "${YELLOW}⚠️ curl не установлен, пропускаем онлайн-проверку.${PLAIN}"
-    else
-        echo -e "${RED}❌ Ошибка проверки Cloudflare Token.${PLAIN}"
-        return 1
-    fi
+    ###if [[ -z "$CF_TOKEN" || ${#CF_TOKEN} -lt 20 ]]; then echo -e "${RED}❌ Неверная длина Cloudflare Token.${PLAIN}"; return 1; fi
+    ###echo -e "${CYAN}▶ Онлайн-проверка Cloudflare Token...${PLAIN}"
+    ###verify_cf_token_online "$CF_TOKEN"
+    ####local verify_rc=$?
+    ###if [[ "$verify_rc" -eq 0 ]]; then
+    ###    echo -e "${GREEN}✅ Проверка Cloudflare Token пройдена.${PLAIN}"
+    ####elif [[ "$verify_rc" -eq 2 ]]; then
+    ###    echo -e "${YELLOW}⚠️ curl не установлен, пропускаем онлайн-проверку.${PLAIN}"
+    ###else
+    ###    echo -e "${RED}❌ Ошибка проверки Cloudflare Token.${PLAIN}"
+    ###    return 1
+    ###fi
 }
 
 install_caddy_if_needed() {
@@ -10525,7 +10525,7 @@ restart_web_proxy_for_single_443() {
 
 issue_and_install_cert_for_domain() {
     local domain="$1"
-    local cf_token="$2"
+    ###local cf_token="$2"
     local acme_bin="/root/.acme.sh/acme.sh"
     local acme_email
     acme_email=$(get_acme_account_email)
@@ -10536,6 +10536,7 @@ issue_and_install_cert_for_domain() {
     mkdir -p /etc/caddy/certs /root/cert
     echo -e "${CYAN}▶ Запрос сертификата Cloudflare DNS для ${domain}...${PLAIN}"
     issue_cf_dns_cert_with_retry "$domain" "$cf_token" "$acme_bin" || return 1
+    ######выще убранна переменная , строчка выше была issue_cf_dns_cert_with_retry "$domain" "$cf_token" "$acme_bin" || return 1
     "$acme_bin" --install-cert -d "$domain" --ecc \
         --fullchain-file "/etc/caddy/certs/${domain}.crt" \
         --key-file "/etc/caddy/certs/${domain}.key" \
@@ -10854,11 +10855,11 @@ add_sni_stack_site() {
         return 1
     fi
     # shellcheck disable=SC1090
-    source "$cf_env_file"
-    if [[ -z "${CF_Token:-}" ]]; then
-        echo -e "${RED}❌ Cloudflare Token пуст, сначала обновите в меню обслуживания [2].${PLAIN}"
-        return 1
-    fi
+    ####source "$cf_env_file"
+    ####if [[ -z "${CF_Token:-}" ]]; then
+    ####    echo -e "${RED}❌ Cloudflare Token пуст, сначала обновите в меню обслуживания [2].${PLAIN}"
+    ###    return 1
+    ###fi
 
     echo -e "Этот пункт подходит для последующего добавления сайтов, например SublinkPro, Dockge, блогов, инструментов управления подписками и т.д."
     local web_engine web_label
@@ -10949,7 +10950,8 @@ add_sni_stack_site() {
     SITE_BACKEND_PORTS[$idx]="$site_port"
     [[ -n "${whitelist_ranges:-}" ]] && set_sni_ip_whitelist_for_domain "$site_domain" "$whitelist_ranges"
 
-    issue_and_install_cert_for_domain "$site_domain" "$CF_Token" || return 1
+    issue_and_install_cert_for_domain "$site_domain" || return 1
+    ##### убрана переменная выше строка была issue_and_install_cert_for_domain "$site_domain" "$CF_Token" || return 1
     apply_sni_stack_runtime_config || return 1
     echo -e "${GREEN}✅ Добавлен вход сайта: https://${site_domain}/${PLAIN}"
     echo -e "${YELLOW}Внимание: текущий VPS должен иметь доступ к ${site_addr}:${site_port}, браузер обращается только по https://${site_domain}/.${PLAIN}"
@@ -11846,8 +11848,8 @@ func_caddy_cf_reality_wizard() {
     local escaped_token
     mkdir -p "$cf_env_dir"
     chmod 700 "$cf_env_dir"
-    escaped_token=${CF_TOKEN//\'/\'"\'"\'}
-    printf "CF_Token='%s'\n" "$escaped_token" > "$cf_env_file"
+    ####escaped_token=${CF_TOKEN//\'/\'"\'"\'}
+    ####printf "CF_Token='%s'\n" "$escaped_token" > "$cf_env_file"
     chmod 600 "$cf_env_file"
 
     local backup_dir
@@ -11855,12 +11857,13 @@ func_caddy_cf_reality_wizard() {
     prepare_initial_entry_mode_dependencies "$ENTRY_MODE" || { rollback_sni_stack_after_failure "$backup_dir" "Ошибка проверки зависимостей режима входа"; return 1; }
     quarantine_legacy_caddy_443_configs
     quarantine_legacy_nginx_https_proxy_configs
-    issue_and_install_cert_for_domain "$PANEL_DOMAIN" "$CF_TOKEN" || { rollback_sni_stack_after_failure "$backup_dir" "Ошибка выдачи/установки сертификата для домена панели"; return 1; }
+    #####issue_and_install_cert_for_domain "$PANEL_DOMAIN" "$CF_TOKEN" || { rollback_sni_stack_after_failure "$backup_dir" "Ошибка выдачи/установки сертификата для домена панели"; return 1; }
     if [[ ${#SITE_DOMAINS[@]} -gt 0 ]]; then
         local site_domain
         for site_domain in "${SITE_DOMAINS[@]}"; do
             [[ -z "$site_domain" ]] && continue
-            issue_and_install_cert_for_domain "$site_domain" "$CF_TOKEN" || { rollback_sni_stack_after_failure "$backup_dir" "Ошибка выдачи/установки сертификата для домена ${site_domain}"; return 1; }
+            issue_and_install_cert_for_domain "$site_domain" || { rollback_sni_stack_after_failure "$backup_dir" "Ошибка выдачи/установки сертификата для домена ${site_domain}"; return 1; }
+            ####### убрана переменная выше строка была issue_and_install_cert_for_domain "$site_domain" "$CF_TOKEN" || { rollback_sni_stack_after_failure "$backup_dir" "Ошибка выдачи/установки сертификата для домена ${site_domain}"; return 1; }
         done
     fi
     preflight_entry_mode_before_cutover "$ENTRY_MODE" || { rollback_sni_stack_after_failure "$backup_dir" "Предпроверка режима ${ENTRY_MODE} не удалась, публичный 443 не переключён"; return 1; }
