@@ -1,54 +1,54 @@
 # shellcheck shell=bash
-# Disabled legacy Caddy + Reality wizard compatibility stub.
+# Отключённая заглушка совместимости со старым мастером Caddy + Reality.
 
 func_caddy_cf_reality_wizard_legacy_disabled() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧩 Reality 443 复用 + Cloudflare DNS 自动化向导${PLAIN}"
+    echo -e "${BOLD}🧩 Мастер автоматизации Reality 443 + Cloudflare DNS${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}本向导会让 Caddy 仅监听本地端口，不占用公网 80/443。${PLAIN}"
-    echo -e "${YELLOW}推荐用于：3x-ui Reality 已占用 443，同时 Web 服务需要同域名 HTTPS。${PLAIN}"
+    echo -e "${YELLOW}Этот мастер заставит Caddy слушать только локальный порт, не занимая публичные 80/443.${PLAIN}"
+    echo -e "${YELLOW}Рекомендуется для: 3x-ui Reality уже занял 443, но веб-службам нужен HTTPS на том же домене.${PLAIN}"
     echo -e "------------------------------------------------"
 
-    read_trimmed reality_occupied "❓ 当前 443 端口是否已被 3x-ui VLESS-Reality 占用？(y/n): "
+    read_trimmed reality_occupied "❓ Порт 443 уже занят VLESS-Reality 3x-ui? (y/n): "
     if is_no "$reality_occupied"; then
-        echo -e "${BLUE}ℹ️ 您选择了未占用 443，本向导仍将使用本地端口模式，避免与未来业务冲突。${PLAIN}"
+        echo -e "${BLUE}ℹ️ Вы выбрали, что 443 не занят, мастер всё равно будет использовать локальный режим во избежание конфликтов.${PLAIN}"
     fi
 
     local listen_port
-    read_trimmed listen_port "👉 请输入 Caddy 本地 TLS 监听端口 (默认 8443): "
+    read_trimmed listen_port "👉 Введите локальный TLS-порт Caddy (по умолчанию 8443): "
     listen_port=${listen_port:-8443}
     if ! [[ "$listen_port" =~ ^[0-9]+$ ]] || [[ "$listen_port" -lt 1 || "$listen_port" -gt 65535 ]]; then
-        echo -e "${RED}❌ 监听端口无效！必须是 1-65535 的纯数字。${PLAIN}"
+        echo -e "${RED}❌ Неверный порт! Должен быть 1-65535.${PLAIN}"
         return
     fi
     if is_yes "$reality_occupied" && [[ "$listen_port" -eq 443 ]]; then
-        echo -e "${RED}❌ 443 已用于 Reality，请改用本地高位端口 (如 8443/9443)。${PLAIN}"
+        echo -e "${RED}❌ 443 уже используется Reality, используйте локальный высокий порт (например 8443/9443).${PLAIN}"
         return
     fi
 
     local cf_token
-    echo -e "${CYAN}👇 请输入 Cloudflare API Token（需 Zone.DNS 编辑权限）${PLAIN}"
+    echo -e "${CYAN}👇 Введите Cloudflare API Token (нужны права Zone.DNS.Edit)${PLAIN}"
     read_secret_trimmed cf_token "CF Token: "
     if [[ -z "$cf_token" || ${#cf_token} -lt 20 ]]; then
-        echo -e "${RED}❌ Token 长度异常，已取消。${PLAIN}"
+        echo -e "${RED}❌ Неверная длина Token, отмена.${PLAIN}"
         return
     fi
-    echo -e "${CYAN}▶ 正在在线校验 Cloudflare Token...${PLAIN}"
+    echo -e "${CYAN}▶ Онлайн-проверка Cloudflare Token...${PLAIN}"
     verify_cf_token_online "$cf_token"
     local verify_rc=$?
     if [[ "$verify_rc" -eq 0 ]]; then
-        echo -e "${GREEN}✅ Token 校验通过。${PLAIN}"
+        echo -e "${GREEN}✅ Проверка Token пройдена.${PLAIN}"
     elif [[ "$verify_rc" -eq 2 ]]; then
-        echo -e "${YELLOW}⚠️ 未安装 curl，跳过在线校验。${PLAIN}"
+        echo -e "${YELLOW}⚠️ curl не установлен, пропускаем онлайн-проверку.${PLAIN}"
     else
-        echo -e "${RED}❌ Token 在线校验失败：请检查权限或确认 Token 未填错。${PLAIN}"
-        echo -e "${YELLOW}需要权限：Zone.DNS.Edit + Zone.Zone.Read${PLAIN}"
+        echo -e "${RED}❌ Ошибка онлайн-проверки Token: проверьте права или правильность ввода.${PLAIN}"
+        echo -e "${YELLOW}Требуются права: Zone.DNS.Edit + Zone.Zone.Read${PLAIN}"
         return
     fi
 
     if ! install_caddy_if_needed; then
-        echo -e "${RED}❌ Caddy 安装失败，请检查网络后重试。${PLAIN}"
+        echo -e "${RED}❌ Не удалось установить Caddy, проверьте сеть.${PLAIN}"
         return
     fi
 
@@ -57,16 +57,16 @@ func_caddy_cf_reality_wizard_legacy_disabled() {
     acme_email=$(get_acme_account_email)
     if [[ ! -x "$acme_bin" ]]; then
         if ! install_acme_sh "$acme_email"; then
-            echo -e "${RED}❌ acme.sh 安装失败，请检查网络后重试。${PLAIN}"
+            echo -e "${RED}❌ Не удалось установить acme.sh, проверьте сеть.${PLAIN}"
             return
         fi
     fi
     if [[ ! -x "$acme_bin" ]]; then
-        echo -e "${RED}❌ 未找到 acme.sh，可执行文件异常。${PLAIN}"
+        echo -e "${RED}❌ acme.sh не найден или неисполняем.${PLAIN}"
         return
     fi
     if ! prepare_acme_account "$acme_bin" "$acme_email"; then
-        echo -e "${RED}❌ acme 账户初始化失败，请检查邮箱配置后重试。${PLAIN}"
+        echo -e "${RED}❌ Не удалось инициализировать аккаунт acme.${PLAIN}"
         return
     fi
 
@@ -83,18 +83,18 @@ func_caddy_cf_reality_wizard_legacy_disabled() {
 
     if [[ ! -f /etc/caddy/Caddyfile ]]; then
         cat <<EOF > /etc/caddy/Caddyfile
-# Managed by VPS-Optimize
+# Управляется VPS-Optimize
 import conf.d/*
 EOF
     elif ! grep -q "import conf.d/\*" /etc/caddy/Caddyfile; then
         echo -e "\nimport conf.d/*" >> /etc/caddy/Caddyfile
     fi
 
-    echo -e "${CYAN}▶ 正在扫描并隔离旧式 Caddy 配置（防止抢占 443）...${PLAIN}"
+    echo -e "${CYAN}▶ Сканирование и изоляция старых конфигураций Caddy (во избежание захвата 443)...${PLAIN}"
     quarantine_legacy_caddy_443_configs
 
-    echo -e "${YELLOW}👇 开始添加域名反代规则（可连续添加多个）${PLAIN}"
-    echo -e "${YELLOW}格式：域名 -> 本地端口，例如 panel.example.com -> 8000${PLAIN}"
+    echo -e "${YELLOW}👇 Добавление правил обратного прокси для доменов (можно несколько)${PLAIN}"
+    echo -e "${YELLOW}Формат: домен -> локальный порт, например panel.example.com -> 8000${PLAIN}"
     echo -e "------------------------------------------------"
 
     local success_count=0
@@ -103,38 +103,38 @@ EOF
 
     while true; do
         local domain domain_input backend_port continue_add
-        read_trimmed domain_input "👉 请输入域名 (回车结束添加): "
+        read_trimmed domain_input "👉 Введите домен (Enter для завершения): "
         domain=$(normalize_domain_input "$domain_input")
         if [[ -z "$domain" ]]; then
             break
         fi
 
         if ! is_valid_domain "$domain"; then
-            print_domain_validation_error "域名" "$domain_input" "$domain"
+            print_domain_validation_error "домен" "$domain_input" "$domain"
             ((fail_count++))
             continue
         fi
 
-        read_trimmed backend_port "👉 请输入该域名反代的本地端口: "
+        read_trimmed backend_port "👉 Введите локальный порт бэкенда для этого домена: "
         if ! is_valid_port "$backend_port"; then
-            echo -e "${RED}❌ 端口无效：$backend_port${PLAIN}"
+            echo -e "${RED}❌ Неверный порт: $backend_port${PLAIN}"
             ((fail_count++))
             continue
         fi
 
         local conf_file="/etc/caddy/conf.d/${domain}.caddy"
         if [[ -f "$conf_file" ]]; then
-            echo -e "${RED}❌ 已存在域名配置：$conf_file，请先删除后再添加。${PLAIN}"
+            echo -e "${RED}❌ Конфигурация для домена уже существует: $conf_file${PLAIN}"
             ((fail_count++))
             continue
         fi
 
         # shellcheck disable=SC1090
         source "$cf_env_file"
-        echo -e "${CYAN}▶ 正在为 ${domain} 申请 DNS 证书...${PLAIN}"
+        echo -e "${CYAN}▶ Запрос сертификата DNS для ${domain}...${PLAIN}"
         if ! issue_cf_dns_cert_with_retry "$domain" "$CF_Token" "$acme_bin"; then
-            echo -e "${RED}❌ 证书申请失败：${domain}${PLAIN}"
-            echo -e "${YELLOW}   提示：可进入主菜单 [19] -> [12] -> [14] 一键自动修复后再重试。${PLAIN}"
+            echo -e "${RED}❌ Ошибка запроса сертификата: ${domain}${PLAIN}"
+            echo -e "${YELLOW}   Подсказка: используйте главное меню [19] -> [12] -> [14] для автоматического исправления.${PLAIN}"
             ((fail_count++))
             continue
         fi
@@ -146,7 +146,7 @@ EOF
             --fullchain-file "$cert_file" \
             --key-file "$key_file" \
             --reloadcmd "systemctl reload caddy >/dev/null 2>&1 || systemctl restart caddy >/dev/null 2>&1 || true" >/dev/null 2>&1; then
-            echo -e "${RED}❌ 证书安装失败：${domain}${PLAIN}"
+            echo -e "${RED}❌ Ошибка установки сертификата: ${domain}${PLAIN}"
             ((fail_count++))
             continue
         fi
@@ -169,37 +169,37 @@ https://${domain}:${listen_port} {
 }
 EOF
 
-        echo -e "${GREEN}✅ 域名 ${domain} 已完成：证书签发 + 反代配置 + 证书挂载。${PLAIN}"
+        echo -e "${GREEN}✅ Домен ${domain} готов: сертификат выдан + прокси настроен.${PLAIN}"
         ((success_count++))
 
-        read_trimmed continue_add "继续添加下一个域名？(y/n): "
+        read_trimmed continue_add "Продолжить добавление следующего домена? (y/n): "
         if ! is_yes "$continue_add"; then
             break
         fi
     done
 
-    echo -e "${CYAN}▶ 正在校验并加载 Caddy 配置...${PLAIN}"
+    echo -e "${CYAN}▶ Проверка и загрузка конфигурации Caddy...${PLAIN}"
     if caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
         systemctl enable caddy >/dev/null 2>&1
         systemctl restart caddy >/dev/null 2>&1
-        echo -e "${GREEN}✅ Caddy 已成功重载，配置生效。${PLAIN}"
+        echo -e "${GREEN}✅ Caddy успешно перезагружен, конфигурация активна.${PLAIN}"
     else
-        echo -e "${RED}❌ Caddy 配置校验失败！请检查 /etc/caddy/conf.d/ 下新增文件语法。${PLAIN}"
-        echo -e "${YELLOW}已保留证书文件，您修正配置后可手动执行: systemctl restart caddy${PLAIN}"
+        echo -e "${RED}❌ Проверка конфигурации Caddy не удалась! Проверьте синтаксис новых файлов в /etc/caddy/conf.d/.${PLAIN}"
+        echo -e "${YELLOW}Сертификаты сохранены, после исправления конфигурации выполните: systemctl restart caddy${PLAIN}"
     fi
 
     generate_caddy_cf_manifest
 
     echo -e "------------------------------------------------"
-    echo -e "${GREEN}🎯 向导执行完成：成功 ${success_count} 个，失败 ${fail_count} 个。${PLAIN}"
-    echo -e "${CYAN}证书软链接目录:${PLAIN} /root/cert"
-    echo -e "${CYAN}清单文件路径:${PLAIN} ${summary_file}"
-    echo -e "${YELLOW}💡 3x-ui 手动配置提示：${PLAIN}"
-    echo -e "1) 在 Reality 节点里设置 fallback/dest 指向: 127.0.0.1:${listen_port}"
-    echo -e "2) 每个回落域名需与本向导录入域名一致，SNI 才能命中对应证书和反代规则"
-    echo -e "3) 如业务强依赖真实访客IP，请后续再单独启用 PROXY Protocol 高阶方案"
+    echo -e "${GREEN}🎯 Мастер выполнен: успешно ${success_count}, ошибок ${fail_count}.${PLAIN}"
+    echo -e "${CYAN}Каталог символических ссылок сертификатов:${PLAIN} /root/cert"
+    echo -e "${CYAN}Файл манифеста:${PLAIN} ${summary_file}"
+    echo -e "${YELLOW}💡 Ручная настройка 3x-ui:${PLAIN}"
+    echo -e "1) В узле Reality установите fallback/dest на: 127.0.0.1:${listen_port}"
+    echo -e "2) Каждый fallback SNI должен соответствовать введённому домену для корректного попадания на сертификат и прокси"
+    echo -e "3) Если нужен реальный IP посетителя, позже включите PROXY Protocol"
 }
 
 # ---------------------------------------------------------
-# 新增功能：CF DNS 证书二次维护菜单
+# Новая функция: меню обслуживания сертификатов CF DNS
 # ---------------------------------------------------------
