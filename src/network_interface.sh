@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Network interface overview and operational controls.
+# Обзор сетевых интерфейсов и оперативные управляющие функции.
 
 network_iface_exists() {
     local iface="$1"
@@ -21,19 +21,19 @@ network_iface_is_default_route() {
 network_choose_iface() {
     local default_iface iface
     default_iface=$(traffic_guard_detect_iface)
-    iface=$(ask_with_default "网卡名称" "${default_iface:-eth0}")
+    iface=$(ask_with_default "Имя сетевого интерфейса" "${default_iface:-eth0}")
     if ! network_iface_exists "$iface"; then
-        echo -e "${RED}❌ 网卡 ${iface} 不存在。${PLAIN}" >&2
+        echo -e "${RED}❌ Интерфейс ${iface} не существует.${PLAIN}" >&2
         return 1
     fi
     printf '%s' "$iface"
 }
 
 network_show_overview() {
-    echo -e "${CYAN}--- 网卡地址 ---${PLAIN}"
+    echo -e "${CYAN}--- Адреса интерфейсов ---${PLAIN}"
     ip -br addr 2>/dev/null || ip addr
     echo ""
-    echo -e "${CYAN}--- 默认路由 ---${PLAIN}"
+    echo -e "${CYAN}--- Маршруты по умолчанию ---${PLAIN}"
     ip route show default 2>/dev/null || true
     ip -6 route show default 2>/dev/null || true
     echo ""
@@ -48,14 +48,14 @@ network_show_overview() {
 network_show_iface_detail() {
     local iface
     iface=$(network_choose_iface) || return 1
-    echo -e "${CYAN}--- ${iface} 链路详情 ---${PLAIN}"
+    echo -e "${CYAN}--- Детали канала ${iface} ---${PLAIN}"
     ip -d link show dev "$iface" 2>/dev/null || ip link show dev "$iface"
     echo ""
-    echo -e "${CYAN}--- ${iface} 流量统计 ---${PLAIN}"
+    echo -e "${CYAN}--- Статистика трафика ${iface} ---${PLAIN}"
     ip -s link show dev "$iface" 2>/dev/null || true
     if command -v ethtool >/dev/null 2>&1; then
         echo ""
-        echo -e "${CYAN}--- ${iface} 驱动/速率 ---${PLAIN}"
+        echo -e "${CYAN}--- Драйвер/скорость ${iface} ---${PLAIN}"
         ethtool "$iface" 2>/dev/null | sed -n '1,40p' || true
     fi
 }
@@ -67,48 +67,48 @@ network_set_iface_state() {
     if [[ "$state" == "down" ]]; then
         local default_hint=""
         if network_iface_is_default_route "$iface"; then
-            default_hint="当前网卡承载默认路由，关闭后 SSH 大概率会断开。"
+            default_hint="Этот интерфейс является маршрутом по умолчанию, его отключение, скорее всего, разорвёт SSH-соединение."
         else
-            default_hint="关闭网卡会影响该网卡上的所有连接。"
+            default_hint="Отключение интерфейса повлияет на все соединения через этот интерфейс."
         fi
-        confirm_danger "关闭网卡 ${iface}" \
-            "网卡 ${iface} 链路状态" \
-            "通过云厂商控制台或本菜单重新启用网卡" \
+        confirm_danger "Отключить интерфейс ${iface}" \
+            "Состояние канала интерфейса ${iface}" \
+            "Включите интерфейс через консоль провайдера или это меню" \
             "${default_hint}" || return 1
     fi
     ip link set dev "$iface" "$state" || {
-        echo -e "${RED}❌ 设置 ${iface} ${state} 失败。${PLAIN}"
+        echo -e "${RED}❌ Не удалось установить ${iface} в состояние ${state}.${PLAIN}"
         return 1
     }
-    echo -e "${GREEN}✅ 已设置 ${iface}: ${state}${PLAIN}"
+    echo -e "${GREEN}✅ Интерфейс ${iface} установлен в состояние: ${state}${PLAIN}"
 }
 
 network_set_iface_mtu() {
     local iface mtu
     iface=$(network_choose_iface) || return 1
-    read_trimmed mtu "请输入临时 MTU（576-9000，重启后可能恢复）: "
+    read_trimmed mtu "Введите временный MTU (576-9000, после перезагрузки может сброситься): "
     if ! [[ "$mtu" =~ ^[0-9]+$ ]] || (( 10#$mtu < 576 || 10#$mtu > 9000 )); then
-        echo -e "${RED}❌ MTU 无效。${PLAIN}"
+        echo -e "${RED}❌ Неверный MTU.${PLAIN}"
         return 1
     fi
-    confirm_risk_action "设置 ${iface} MTU 为 ${mtu}" \
-        "网卡 ${iface} 的运行时 MTU" \
-        "重新设置原 MTU，或重启网络/系统恢复云厂商默认值" \
-        "错误 MTU 可能导致部分网站或隧道访问异常。" || return 1
+    confirm_risk_action "Установить MTU ${iface} в ${mtu}" \
+        "Текущий MTU интерфейса ${iface}" \
+        "Установите прежний MTU или перезагрузите сеть/систему для восстановления значений провайдера" \
+        "Неверный MTU может вызвать проблемы с доступом к некоторым сайтам или туннелям." || return 1
     ip link set dev "$iface" mtu "$mtu" || {
-        echo -e "${RED}❌ 设置 MTU 失败。${PLAIN}"
+        echo -e "${RED}❌ Не удалось установить MTU.${PLAIN}"
         return 1
     }
-    echo -e "${GREEN}✅ ${iface} MTU 已临时设置为 ${mtu}${PLAIN}"
+    echo -e "${GREEN}✅ MTU интерфейса ${iface} временно установлен в ${mtu}${PLAIN}"
 }
 
 network_renew_dhcp() {
     local iface
     iface=$(network_choose_iface) || return 1
-    confirm_danger "刷新 ${iface} DHCP 租约" \
-        "网卡 ${iface} 的地址租约/网络连接" \
-        "通过云厂商控制台重连，或重启系统恢复网络" \
-        "如果这是当前 SSH 使用的公网网卡，刷新租约可能短暂断开连接。" || return 1
+    confirm_danger "Обновить DHCP-аренду на ${iface}" \
+        "Сетевой адрес/подключение интерфейса ${iface}" \
+        "Восстановите подключение через консоль провайдера или перезагрузите систему" \
+        "Если это публичный интерфейс, используемый для SSH, обновление аренды может временно разорвать соединение." || return 1
     if command -v dhclient >/dev/null 2>&1; then
         dhclient -r "$iface" >/dev/null 2>&1 || true
         dhclient "$iface" || return 1
@@ -117,32 +117,32 @@ network_renew_dhcp() {
     elif command -v nmcli >/dev/null 2>&1; then
         nmcli device reapply "$iface" || nmcli device connect "$iface" || return 1
     else
-        echo -e "${YELLOW}⚠️ 未检测到 dhclient/networkctl/nmcli，无法自动刷新 DHCP。${PLAIN}"
+        echo -e "${YELLOW}⚠️ dhclient/networkctl/nmcli не обнаружены, автоматическое обновление DHCP невозможно.${PLAIN}"
         return 1
     fi
-    echo -e "${GREEN}✅ 已尝试刷新 ${iface} 的 DHCP/网络连接。${PLAIN}"
+    echo -e "${GREEN}✅ Попытка обновления DHCP/сети для ${iface} выполнена.${PLAIN}"
 }
 
 func_network_interface_manage() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "网络/内核优化 > 网卡管理工具"
-        echo -e "${BOLD}🧰 网卡管理工具${PLAIN}"
+        print_breadcrumb "Сеть/оптимизация ядра > Инструменты управления интерфейсами"
+        echo -e "${BOLD}🧰 Инструменты управления интерфейсами${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}用途：查看网卡、路由、DNS 和链路状态；危险操作会要求确认。${PLAIN}"
+        echo -e "${YELLOW}Назначение: просмотр интерфейсов, маршрутов, DNS и состояния каналов; опасные операции требуют подтверждения.${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}  1. 查看网卡 / 路由 / DNS 概览${PLAIN}"
-        echo -e "${GREEN}  2. 查看指定网卡详情与流量统计${PLAIN}"
-        echo -e "${GREEN}  3. 启用指定网卡${PLAIN}"
-        echo -e "${RED}  4. 关闭指定网卡${PLAIN}"
-        echo -e "${YELLOW}  5. 临时设置网卡 MTU${PLAIN}"
-        echo -e "${YELLOW}  6. 刷新 DHCP/网络连接${PLAIN}"
+        echo -e "${GREEN}  1. Обзор интерфейсов / маршрутов / DNS${PLAIN}"
+        echo -e "${GREEN}  2. Детали указанного интерфейса и статистика трафика${PLAIN}"
+        echo -e "${GREEN}  3. Включить интерфейс${PLAIN}"
+        echo -e "${RED}  4. Отключить интерфейс${PLAIN}"
+        echo -e "${YELLOW}  5. Временно установить MTU интерфейса${PLAIN}"
+        echo -e "${YELLOW}  6. Обновить DHCP/сетевое подключение${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${RED}  0. 返回上一级 / q 返回${PLAIN}"
+        echo -e "${RED}  0. Вернуться на уровень выше / q${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
         local choice
-        read_trimmed choice "👉 请选择操作: "
+        read_trimmed choice "👉 Выберите действие: "
         case "$choice" in
             1) network_show_overview; pause_return ;;
             2) network_show_iface_detail; pause_return ;;
@@ -151,11 +151,11 @@ func_network_interface_manage() {
             5) network_set_iface_mtu; pause_return ;;
             6) network_renew_dhcp; pause_return ;;
             0|q|Q) break ;;
-            *) echo -e "${RED}❌ 无效选择！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
 
 # ---------------------------------------------------------
-# 24. 网络加速与内核优化菜单 (二级直达)
+# 24. Меню сетевого ускорения и оптимизации ядра (второй уровень)
 # ---------------------------------------------------------
