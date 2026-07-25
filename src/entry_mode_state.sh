@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# 443 entry mode state, listener detection, and compatibility helpers.
+# Состояние режима входа 443, обнаружение слушателей и вспомогательные функции совместимости.
 
 sni_stack_env_path() {
     echo "/etc/vps-optimize/sni-stack.env"
@@ -83,13 +83,13 @@ print_entry_mode_compat_notice() {
             printf '%s' "${ENTRY_MODE:-}"
         )
         if [[ -z "$env_mode" ]]; then
-            echo -e "${YELLOW}兼容提示：${env_file} 未写 ENTRY_MODE，已按 nginx-stream 读取；下次保存会写入 ENTRY_MODE='nginx-stream'。${PLAIN}"
+            echo -e "${YELLOW}Совместимость: ${env_file} не содержит ENTRY_MODE, сейчас читается как nginx-stream; при сохранении будет записано ENTRY_MODE='nginx-stream'.${PLAIN}"
         else
             case "$env_mode" in
                 "nginx_stream"|"xray_fallback"|"tcp_peek")
                     normalized=$(normalize_entry_mode_name "$env_mode" 2>/dev/null || echo "nginx-stream")
                     if ! rewrite_legacy_entry_mode_assignment "$env_file" "ENTRY_MODE" "$env_mode" 2>/dev/null; then
-                        echo -e "${YELLOW}兼容提示：检测到旧 ENTRY_MODE='${env_mode}'，当前按 '${normalized}' 读取；下次保存会写入新命名。${PLAIN}"
+                        echo -e "${YELLOW}Совместимость: обнаружен старый ENTRY_MODE='${env_mode}', сейчас читается как '${normalized}'; при сохранении будет новое имя.${PLAIN}"
                     fi
                     ;;
             esac
@@ -107,7 +107,7 @@ print_entry_mode_compat_notice() {
             "nginx_stream"|"xray_fallback"|"tcp_peek")
                 normalized=$(normalize_entry_mode_name "$state_engine" 2>/dev/null || echo "nginx-stream")
                 if ! rewrite_legacy_entry_mode_assignment "$state_file" "engine" "$state_engine" 2>/dev/null; then
-                    echo -e "${YELLOW}兼容提示：检测到旧 engine='${state_engine}'，当前按 '${normalized}' 读取；下次切换/重新应用会写入新命名。${PLAIN}"
+                    echo -e "${YELLOW}Совместимость: обнаружен старый engine='${state_engine}', сейчас читается как '${normalized}'; при переключении/повторном применении будет новое имя.${PLAIN}"
                 fi
                 ;;
         esac
@@ -166,12 +166,12 @@ entry_listener_display_name() {
     case "$listener" in
         nginx) echo "Nginx Stream (nginx)" ;;
         xray) echo "Xray Fallback (xray/3x-ui/x-ui)" ;;
-        tcppeek) echo "TCP Peek + Splice 模式 (vpso-mux 分流器)" ;;
-        caddy) echo "Caddy（不应直接接管 443 单入口）" ;;
-        none) echo "未监听" ;;
-        multiple) echo "多个进程监听/匹配" ;;
-        unknown) echo "已监听，但进程不可见" ;;
-        unknown:*) echo "未知进程 ${listener#unknown:}" ;;
+        tcppeek) echo "Режим TCP Peek + Splice (разделитель vpso-mux)" ;;
+        caddy) echo "Caddy (не должен напрямую занимать порт 443)" ;;
+        none) echo "Не слушает" ;;
+        multiple) echo "Несколько процессов слушают/совпадают" ;;
+        unknown) echo "Слушает, но процесс не виден" ;;
+        unknown:*) echo "Неизвестный процесс ${listener#unknown:}" ;;
         *) echo "$listener" ;;
     esac
 }
@@ -194,19 +194,19 @@ listen_line_status() {
     local proc
 
     if [[ "$addr" == "not-configured" || "$port" == "not-configured" ]]; then
-        echo "未配置"
+        echo "Не настроен"
         return 0
     fi
-    if [[ -z "$line" || "$line" == "未监听" || "$line" == "not-configured" ]]; then
-        echo "未监听"
+    if [[ -z "$line" || "$line" == "Не слушает" || "$line" == "not-configured" ]]; then
+        echo "Не слушает"
         return 0
     fi
 
     proc=$(listen_process_from_ss_line "$line")
     if [[ "$proc" == "unknown" ]]; then
-        echo "已监听（进程不可见）"
+        echo "Слушает (процесс не виден)"
     else
-        echo "已监听（${proc}）"
+        echo "Слушает (${proc})"
     fi
 }
 
@@ -281,7 +281,7 @@ detect_current_entry_status() {
     if xui_svc=$(xui_panel_service_name 2>/dev/null); then
         xui_status="${xui_svc}.service ${xui_status}"
     fi
-    ENTRY_STATUS_XRAY_SERVICE="面板托管 Xray: ${xui_status} / 独立 xray.service: $(service_status_compact xray)"
+    ENTRY_STATUS_XRAY_SERVICE="Панель управляет Xray: ${xui_status} / независимый xray.service: $(service_status_compact xray)"
     ENTRY_STATUS_TCPPEEK_SERVICE=$(service_status_compact vpso-mux)
     ENTRY_STATUS_CADDY_LISTEN_LINE="not-configured"
     ENTRY_STATUS_XRAY_LISTEN_LINE="not-configured"
@@ -304,38 +304,38 @@ detect_current_entry_status() {
 
 show_current_entry_status() {
     detect_current_entry_status
-    echo -e "${BOLD}当前 443 入口状态${PLAIN}"
-    echo -e "配置模式：${CYAN}${ENTRY_STATUS_MODE}${PLAIN}"
+    echo -e "${BOLD}Текущее состояние единого входа 443${PLAIN}"
+    echo -e "Режим конфигурации: ${CYAN}${ENTRY_STATUS_MODE}${PLAIN}"
     print_entry_mode_compat_notice
-    echo -e "公网 443：${ENTRY_STATUS_LISTENER_DISPLAY}"
-    echo -e "监听进程：${ENTRY_STATUS_LISTENER_PROCESS}"
+    echo -e "Публичный 443: ${ENTRY_STATUS_LISTENER_DISPLAY}"
+    echo -e "Процесс слушателя: ${ENTRY_STATUS_LISTENER_PROCESS}"
     if [[ "$ENTRY_STATUS_LISTENER" == "xray" ]]; then
-        echo -e "Xray 公网：${GREEN}公网 443 当前由 Xray/面板托管 Xray 监听${PLAIN}"
+        echo -e "Xray публичный: ${GREEN}публичный 443 сейчас слушается Xray/панельным Xray${PLAIN}"
     else
-        echo -e "Xray 公网：未检测到 Xray 监听公网 443"
+        echo -e "Xray публичный: Xray, слушающий публичный 443, не обнаружен"
     fi
     if [[ "$ENTRY_STATUS_CONSISTENT" == "yes" ]]; then
-        echo -e "一致性：${GREEN}配置模式与实际监听一致${PLAIN}"
+        echo -e "Согласованность: ${GREEN}режим конфигурации и фактический слушатель совпадают${PLAIN}"
     else
-        echo -e "一致性：${YELLOW}配置模式与实际监听不一致${PLAIN}"
-        echo -e "${YELLOW}配置模式与实际监听不一致，建议重新应用当前入口模式。${PLAIN}"
+        echo -e "Согласованность: ${YELLOW}режим конфигурации и фактический слушатель не совпадают${PLAIN}"
+        echo -e "${YELLOW}Несовпадение, рекомендуется повторно применить текущий режим входа.${PLAIN}"
     fi
     echo -e "------------------------------------------------"
-    echo -e "${BOLD}本地监听${PLAIN}"
-    echo -e "Caddy：${ENTRY_STATUS_CADDY_ADDR}:${ENTRY_STATUS_CADDY_PORT} - $(listen_line_status "$ENTRY_STATUS_CADDY_ADDR" "$ENTRY_STATUS_CADDY_PORT" "$ENTRY_STATUS_CADDY_LISTEN_LINE")"
-    echo -e "Xray： ${ENTRY_STATUS_XRAY_ADDR}:${ENTRY_STATUS_XRAY_PORT} - $(listen_line_status "$ENTRY_STATUS_XRAY_ADDR" "$ENTRY_STATUS_XRAY_PORT" "$ENTRY_STATUS_XRAY_LISTEN_LINE")"
+    echo -e "${BOLD}Локальные слушатели${PLAIN}"
+    echo -e "Caddy: ${ENTRY_STATUS_CADDY_ADDR}:${ENTRY_STATUS_CADDY_PORT} - $(listen_line_status "$ENTRY_STATUS_CADDY_ADDR" "$ENTRY_STATUS_CADDY_PORT" "$ENTRY_STATUS_CADDY_LISTEN_LINE")"
+    echo -e "Xray: ${ENTRY_STATUS_XRAY_ADDR}:${ENTRY_STATUS_XRAY_PORT} - $(listen_line_status "$ENTRY_STATUS_XRAY_ADDR" "$ENTRY_STATUS_XRAY_PORT" "$ENTRY_STATUS_XRAY_LISTEN_LINE")"
     echo -e "------------------------------------------------"
-    echo -e "${BOLD}服务状态${PLAIN}"
-    echo -e "nginx：${ENTRY_STATUS_NGINX_SERVICE}"
-    echo -e "TCP Peek + Splice / vpso-mux 分流器：${ENTRY_STATUS_TCPPEEK_SERVICE}"
-    echo -e "Xray/3x-ui/x-ui：${ENTRY_STATUS_XRAY_SERVICE}"
+    echo -e "${BOLD}Состояние служб${PLAIN}"
+    echo -e "nginx: ${ENTRY_STATUS_NGINX_SERVICE}"
+    echo -e "TCP Peek + Splice / разделитель vpso-mux: ${ENTRY_STATUS_TCPPEEK_SERVICE}"
+    echo -e "Xray/3x-ui/x-ui: ${ENTRY_STATUS_XRAY_SERVICE}"
 }
 
 show_current_entry_summary() {
     detect_current_entry_status
-    echo -e "${BOLD}当前入口模式：${CYAN}${ENTRY_STATUS_MODE}${PLAIN}"
+    echo -e "${BOLD}Текущий режим входа: ${CYAN}${ENTRY_STATUS_MODE}${PLAIN}"
     print_entry_mode_compat_notice
     if [[ "$ENTRY_STATUS_CONSISTENT" != "yes" ]]; then
-        echo -e "${YELLOW}⚠️ 配置模式与公网 443 实际监听不一致，详情看 [1]，建议确认后重新应用当前入口模式。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Режим конфигурации и фактическое прослушивание 443 не совпадают, проверьте через [1] и повторно примените текущий режим.${PLAIN}"
     fi
 }
