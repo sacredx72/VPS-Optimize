@@ -13693,57 +13693,57 @@ EOF
                     echo -e "${GREEN}✅ Fail2ban настроен и запущен! (защищённый порт: $current_p, бэкенд: $f2b_backend)${PLAIN}"
                     echo -e "${YELLOW}💡 Правило: 5 ошибок пароля за 10 минут — IP блокируется на 24 часа.${PLAIN}"
                 else
-                    echo -e "${RED}❌ Fail2ban 启动失败，正在显示关键日志：${PLAIN}"
+                    echo -e "${RED}❌ Не удалось запустить Fail2ban, показываю логи:${PLAIN}"
                     fail2ban-client -t 2>/dev/null || true
                     journalctl -u fail2ban -n 20 --no-pager 2>/dev/null || true
                 fi
             else
-                echo -e "${RED}❌ Fail2ban 安装或检测失败，请检查网络源。${PLAIN}"
+                echo -e "${RED}❌ Не удалось установить или обнаружить Fail2ban, проверьте источники пакетов.${PLAIN}"
             fi
             ;;
         3)
-            echo -e "${CYAN}正在卸载 Fail2ban...${PLAIN}"
-            remove_pkg fail2ban # <--- 核心修改：一句话极简卸载
+            echo -e "${CYAN}Удаление Fail2ban...${PLAIN}"
+            remove_pkg fail2ban
             quarantine_path /etc/fail2ban "/etc/vps-optimize/quarantine" >/dev/null 2>&1 || true
-            echo -e "${GREEN}✅ Fail2ban 已卸载，旧配置已隔离到 /etc/vps-optimize/quarantine。${PLAIN}"
+            echo -e "${GREEN}✅ Fail2ban удалён, старые конфигурации изолированы в /etc/vps-optimize/quarantine.${PLAIN}"
             ;;
         0|q|Q) return ;;
-        *) echo -e "${RED}❌ 无效的输入！${PLAIN}"; sleep 1 ;;
+        *) echo -e "${RED}❌ Неверный ввод!${PLAIN}"; sleep 1 ;;
     esac
-    read -n 1 -s -r -p "按任意键继续..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
 }
 # ---------------------------------------------------------
-# 新增功能：添加 SSH 公钥登录
+# Новая функция: добавление SSH-публичного ключа
 # ---------------------------------------------------------
 func_add_ssh_key() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🔑 添加 SSH 公钥登录 (免密安全认证)${PLAIN}"
+    echo -e "${BOLD}🔑 Добавление SSH-публичного ключа (безопасная аутентификация)${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}使用 SSH 密钥登录不仅免去输密码的烦恼，更能彻底免疫密码爆破！${PLAIN}"
-    echo -e "请准备好您的公钥 (通常以 ssh-rsa, ssh-ed25519、ecdsa 或 sk-* 开头)。"
+    echo -e "${YELLOW}Использование SSH-ключа избавляет от ввода пароля и полностью защищает от перебора паролей!${PLAIN}"
+    echo -e "Подготовьте ваш публичный ключ (обычно начинается с ssh-rsa, ssh-ed25519, ecdsa или sk-*)."
     echo -e "------------------------------------------------"
     local user enable_mode
-    user=$(ssh_choose_user) || { read -n 1 -s -r -p "按任意键继续..."; return; }
+    user=$(ssh_choose_user) || { read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."; return; }
     if ssh_add_public_key_for_user "$user"; then
-        echo -e "${GREEN}✅ 公钥添加完成。请立刻新开一个 SSH 窗口测试私钥登录。${PLAIN}"
-        read_trimmed enable_mode "是否同时写入“密钥 + 密码登录（保留/恢复密码）”模式？(y/N): "
+        echo -e "${GREEN}✅ Публичный ключ добавлен. Немедленно откройте новое SSH-окно для проверки входа по ключу.${PLAIN}"
+        read_trimmed enable_mode "Включить режим "ключи + пароль (восстановление пароля)"? (y/N): "
         if is_yes "$enable_mode"; then
             ssh_apply_auth_mode key_preferred || true
         fi
-        echo -e "${YELLOW}确认私钥登录 100% 成功后，可进入 [6 SSH 安全中心] -> [2 用户密钥登录模式] 禁用密码登录。${PLAIN}"
+        echo -e "${YELLOW}После подтверждения 100% работы ключа вы можете войти в [6 Центр безопасности SSH] -> [2 Режим входа по ключам] и отключить пароль.${PLAIN}"
     fi
-    read -n 1 -s -r -p "按任意键继续..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
 }
 # ---------------------------------------------------------
-# 5. Docker 深度管理 (重构版：非破坏性修改与防宕机回滚)
+# 5. Управление Docker (рефакторинг: неразрушающие изменения и откат)
 # ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # Module: docker_manage.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Docker exposure audit, managed project status, and Docker safety workflows.
+# Аудит публичных портов Docker, статус управляемых проектов и безопасность Docker.
 
 docker_port_line_is_public() {
     local line="$1"
@@ -13767,25 +13767,25 @@ print_managed_container_status() {
         state=$(docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null || echo "unknown")
         health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container" 2>/dev/null || true)
         ports=$(docker port "$container" 2>/dev/null | tr '\n' '; ')
-        [[ -z "$ports" ]] && ports="未暴露 Docker 端口或使用 host 网络"
-        [[ -z "$health" ]] && health="无 healthcheck"
+        [[ -z "$ports" ]] && ports="Не опубликованы порты Docker или используется host-сеть"
+        [[ -z "$health" ]] && health="healthcheck отсутствует"
         echo -e "${GREEN}${title}${PLAIN}: ${state} / ${health}"
-        echo -e "  端口: ${ports}"
+        echo -e "  Порты: ${ports}"
     else
-        echo -e "${YELLOW}${title}${PLAIN}: 未检测到容器 ${container}"
+        echo -e "${YELLOW}${title}${PLAIN}: контейнер ${container} не обнаружен"
     fi
 
     compose_file=$(find_compose_file "$dir" 2>/dev/null || true)
     if [[ -n "$compose_file" ]]; then
         echo -e "  Compose: ${CYAN}${compose_file}${PLAIN}"
     else
-        echo -e "  Compose: ${BLUE}未检测到 ${dir} 部署目录${PLAIN}"
+        echo -e "  Compose: ${BLUE}каталог ${dir} не обнаружен${PLAIN}"
     fi
 }
 
 print_subscription_compose_status() {
     if ! command -v docker >/dev/null 2>&1; then
-        echo -e "${YELLOW}未安装 Docker，跳过订阅工具容器状态。${PLAIN}"
+        echo -e "${YELLOW}Docker не установлен, пропускаем состояние контейнеров подписок.${PLAIN}"
         return 0
     fi
     print_managed_container_status "SublinkPro" "sublinkpro" "/opt/sublinkpro"
@@ -13798,24 +13798,24 @@ print_subscription_compose_status() {
 func_docker_project_status() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    print_breadcrumb "Docker 安全管理 > 项目容器状态"
-    echo -e "${BOLD}🐳 443 / 订阅工具相关容器状态${PLAIN}"
+    print_breadcrumb "Безопасность Docker > Статус контейнеров проектов"
+    echo -e "${BOLD}🐳 Статус контейнеров, связанных с 443 / подписками${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}这里只看本项目场景相关容器：SublinkPro、妙妙屋、Sub-Store、Dockge、Komari。${PLAIN}"
-    echo -e "${YELLOW}3x-ui、Caddy、Nginx 通常是 systemd 服务，状态请看 [15] 或 [19] 体检。${PLAIN}"
+    echo -e "${YELLOW}Здесь проверяются только контейнеры, относящиеся к этому проекту: SublinkPro, 妙妙屋, Sub-Store, Dockge, Komari.${PLAIN}"
+    echo -e "${YELLOW}3x-ui, Caddy, Nginx обычно управляются как systemd-службы, смотрите [15] или проверку [19].${PLAIN}"
     echo -e "------------------------------------------------"
     print_subscription_compose_status
     echo -e "------------------------------------------------"
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 func_docker_443_exposure_audit() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    print_breadcrumb "Docker 安全管理 > 443 暴露审计"
-    echo -e "${BOLD}🔎 Docker 端口暴露审计${PLAIN}"
+    print_breadcrumb "Безопасность Docker > Аудит публичного доступа 443"
+    echo -e "${BOLD}🔎 Аудит публичных портов Docker${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}目标：启用 443 单入口后，订阅工具和管理面板应尽量只绑定 127.0.0.1，再由 Caddy/Nginx 对外。${PLAIN}"
+    echo -e "${YELLOW}Цель: после включения единого входа 443 инструменты подписки и панели управления должны по возможности слушать только 127.0.0.1, а наружу их выставлять через Caddy/Nginx.${PLAIN}"
     echo -e "------------------------------------------------"
 
     local found_public=false
@@ -13835,29 +13835,29 @@ func_docker_443_exposure_audit() {
 
     if $found_public; then
         echo -e "------------------------------------------------"
-        echo -e "${YELLOW}建议：订阅工具、Dockge、Komari 用 127.0.0.1 绑定，公网访问走 [19] -> [8] 添加 443 反代域名。${PLAIN}"
-        echo -e "${YELLOW}如确实需要公网直连，请确认云安全组、系统防火墙和访问密码都已收紧。${PLAIN}"
+        echo -e "${YELLOW}Рекомендация: подписки, Dockge, Komari следует привязывать к 127.0.0.1, а публичный доступ организовывать через [19] -> [8] добавление прокси-домена 443.${PLAIN}"
+        echo -e "${YELLOW}Если действительно нужен прямой доступ, убедитесь, что безопасная группа облака, брандмауэр и доступ защищены.${PLAIN}"
     else
-        echo -e "${GREEN}✅ 未发现 Docker 容器通过 0.0.0.0 / :: 直接暴露端口。${PLAIN}"
+        echo -e "${GREEN}✅ Не обнаружено публичных портов Docker через 0.0.0.0 / ::.${PLAIN}"
     fi
 
     echo -e "------------------------------------------------"
     print_subscription_compose_status
     echo -e "------------------------------------------------"
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 func_docker_manage() {
     if declare -F ensure_docker_engine_ready >/dev/null 2>&1; then
-        ensure_docker_engine_ready || { read -n 1 -s -r -p "按任意键返回..."; return; }
+        ensure_docker_engine_ready || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
     elif ! command -v docker >/dev/null 2>&1; then
         clear
-        echo -e "${RED}❌ 未检测到 Docker 引擎，且当前运行环境缺少自动安装组件。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ Docker не обнаружен, и среда выполнения не поддерживает автоматическую установку.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
     
-    # 确保依赖工具存在 (使用我们抽象的 install_pkg)
+    # Установка зависимостей (используем install_pkg)
     if ! command -v jq >/dev/null 2>&1; then install_pkg jq; fi
 
     while true; do
@@ -13866,55 +13866,54 @@ func_docker_manage() {
         docker_ver=$(docker -v | awk '{print $3}' | tr -d ',')
         
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "Docker 安全管理"
-        echo -e "${BOLD}🐳 Docker 安全管理 (版本: ${GREEN}${docker_ver}${PLAIN}${BOLD})${PLAIN}"
+        print_breadcrumb "Безопасность Docker"
+        echo -e "${BOLD}🐳 Безопасность Docker (версия: ${GREEN}${docker_ver}${PLAIN}${BOLD})${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${GREEN}  1. 查看 443 / 订阅工具容器状态${PLAIN}"
-        echo -e "${GREEN}  2. Docker 端口暴露审计${PLAIN} ${YELLOW}(检查是否绕过 443 单入口)${PLAIN}"
-        echo -e "${GREEN}  3. 开启 Docker 本地防穿透${PLAIN} ${YELLOW}(限制映射端口仅 127.0.0.1 访问)${PLAIN}"
-        echo -e "${GREEN}  4. 解除 Docker 本地防穿透${PLAIN} ${YELLOW}(恢复全网可访，不破坏原配置)${PLAIN}"
-        echo -e "${BOLD}${YELLOW}  5. UPD 更新订阅工具容器${PLAIN} ${CYAN}(SublinkPro / 妙妙屋 / Sub-Store)${PLAIN}"
+        echo -e "${GREEN}  1. Статус контейнеров 443 / подписок${PLAIN}"
+        echo -e "${GREEN}  2. Аудит публичных портов Docker${PLAIN} ${YELLOW}(проверка обхода единого входа 443)${PLAIN}"
+        echo -e "${GREEN}  3. Включить локальную защиту Docker${PLAIN} ${YELLOW}(ограничить опубликованные порты только 127.0.0.1)${PLAIN}"
+        echo -e "${GREEN}  4. Отключить локальную защиту Docker${PLAIN} ${YELLOW}(восстановить доступ извне)${PLAIN}"
+        echo -e "${BOLD}${YELLOW}  5. Обновить контейнеры подписок${PLAIN} ${CYAN}(SublinkPro / 妙妙屋 / Sub-Store)${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${RED}  0. 返回主菜单 / q 返回${PLAIN}"
+        echo -e "${RED}  0. Вернуться в главное меню / q${PLAIN}"
         
         local c
-        read_trimmed c "👉 请选择操作: "
+        read_trimmed c "👉 Выберите действие: "
         case $c in
             1) func_docker_project_status ;;
             2) func_docker_443_exposure_audit ;;
             3)
-                confirm_risk_action "开启 Docker 本地防穿透" \
-                    "Docker daemon.json 和 Docker 服务重启" \
-                    "使用自动备份的 daemon.json 恢复并重启 Docker" \
-                    "确认现有容器不依赖公网直连映射端口。" || { echo -e "${BLUE}已取消操作。${PLAIN}"; sleep 1; continue; }
-                echo -e "${CYAN}▶ 正在配置 Docker 安全策略...${PLAIN}"
+                confirm_risk_action "Включить локальную защиту Docker" \
+                    "Docker daemon.json и перезапуск службы Docker" \
+                    "Восстановите из автоматически созданной резервной копии daemon.json и перезапустите Docker" \
+                    "Убедитесь, что существующие контейнеры не зависят от прямого публичного доступа." || { echo -e "${BLUE}Операция отменена.${PLAIN}"; sleep 1; continue; }
+                echo -e "${CYAN}▶ Настройка политики безопасности Docker...${PLAIN}"
                 mkdir -p /etc/docker
                 local conf_file="/etc/docker/daemon.json"
                 local backup_file="${conf_file}.bak_$(date +%s)"
                 local tmp_json
-                tmp_json=$(mktemp /tmp/docker-daemon.XXXXXX) || { echo -e "${RED}❌ 临时文件创建失败，已取消操作。${PLAIN}"; sleep 1; continue; }
+                tmp_json=$(mktemp /tmp/docker-daemon.XXXXXX) || { echo -e "${RED}❌ Не удалось создать временный файл, отмена.${PLAIN}"; sleep 1; continue; }
                 
-                # 检查并备份
                 if [[ -f "$conf_file" ]]; then
                     if ! cp -p "$conf_file" "$backup_file"; then
-                        echo -e "${RED}❌ Docker 配置备份失败，已取消操作。${PLAIN}"
+                        echo -e "${RED}❌ Не удалось создать резервную копию конфигурации Docker, отмена.${PLAIN}"
                         rm -f "$tmp_json"
                         sleep 1
                         continue
                     fi
-                    echo -e "${YELLOW}⚠️ 已备份原有配置至 $backup_file${PLAIN}"
+                    echo -e "${YELLOW}⚠️ Создана резервная копия исходной конфигурации: $backup_file${PLAIN}"
                     
-                    # 使用 jq 进行非破坏性合并，保留用户原有配置
+                    # Неразрушающее слияние с jq, сохранение всех существующих настроек
                     if ! jq '. + {"ip": "127.0.0.1", "log-driver": "json-file", "log-opts": {"max-size": "50m", "max-file": "3"}}' "$conf_file" > "$tmp_json" 2>/dev/null; then
-                        echo -e "${RED}❌ 原 daemon.json 格式损坏，合并失败！操作中止。${PLAIN}"
+                        echo -e "${RED}❌ Исходный daemon.json повреждён, слияние не удалось! Операция прервана.${PLAIN}"
                         rm -f "$tmp_json"
-                        echo -e "${YELLOW}备份已保留：$backup_file${PLAIN}"
-                        read -n 1 -s -r -p "按任意键继续..."
+                        echo -e "${YELLOW}Резервная копия сохранена: $backup_file${PLAIN}"
+                        read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
                         continue
                     fi
                     mv "$tmp_json" "$conf_file"
                 else
-                    # 文件不存在时初始生成
+                    # Файл отсутствует — создаём новый
                     cat <<EOF > "$conf_file"
 {
   "ip": "127.0.0.1",
@@ -13927,12 +13926,12 @@ func_docker_manage() {
 EOF
                 fi
                 
-                # 防宕机重启机制：如果新配置导致引擎崩溃，立刻回滚！
+                # Безопасный перезапуск с откатом при сбое
                 if systemctl restart docker >/dev/null 2>&1; then
-                    echo -e "${GREEN}✅ 已开启安全保护，Docker 容器端口仅限本地反代访问！${PLAIN}"
-                    [[ -f "$backup_file" ]] && echo -e "${CYAN}Docker 配置备份已保留：$backup_file${PLAIN}"
+                    echo -e "${GREEN}✅ Включена локальная защита, порты контейнеров доступны только для локального прокси!${PLAIN}"
+                    [[ -f "$backup_file" ]] && echo -e "${CYAN}Резервная копия конфигурации Docker сохранена: $backup_file${PLAIN}"
                 else
-                    echo -e "${RED}❌ 致命错误：新配置导致 Docker 引擎无法启动！正在自动回滚...${PLAIN}"
+                    echo -e "${RED}❌ Критическая ошибка: новая конфигурация не позволяет запустить Docker! Автоматический откат...${PLAIN}"
                     if [[ -f "$backup_file" ]]; then
                         mv "$backup_file" "$conf_file"
                     else
@@ -13945,65 +13944,65 @@ EOF
             4)
                 local conf_file="/etc/docker/daemon.json"
                 if [[ -f "$conf_file" ]]; then
-                    confirm_risk_action "解除 Docker 本地防穿透" \
-                        "Docker daemon.json 和 Docker 服务重启" \
-                        "使用自动备份的 daemon.json 恢复并重启 Docker" \
-                        "解除后容器映射端口可能重新公网可达，请确认防火墙和云安全组。" || { echo -e "${BLUE}已取消操作。${PLAIN}"; sleep 1; continue; }
-                    echo -e "${CYAN}▶ 正在安全移除 Docker 端口限制...${PLAIN}"
+                    confirm_risk_action "Отключить локальную защиту Docker" \
+                        "Docker daemon.json и перезапуск Docker" \
+                        "Восстановите из автоматически созданной резервной копии daemon.json" \
+                        "После отключения опубликованные порты контейнеров могут снова стать публично доступными, проверьте брандмауэр и безопасную группу." || { echo -e "${BLUE}Операция отменена.${PLAIN}"; sleep 1; continue; }
+                    echo -e "${CYAN}▶ Безопасное удаление ограничений Docker...${PLAIN}"
                     local backup_file="${conf_file}.bak_$(date +%s)"
                     local tmp_json
-                    tmp_json=$(mktemp /tmp/docker-daemon.XXXXXX) || { echo -e "${RED}❌ 临时文件创建失败，已取消操作。${PLAIN}"; sleep 1; continue; }
+                    tmp_json=$(mktemp /tmp/docker-daemon.XXXXXX) || { echo -e "${RED}❌ Не удалось создать временный файл, отмена.${PLAIN}"; sleep 1; continue; }
                     if ! cp -p "$conf_file" "$backup_file"; then
-                        echo -e "${RED}❌ Docker 配置备份失败，已取消操作。${PLAIN}"
+                        echo -e "${RED}❌ Не удалось создать резервную копию конфигурации Docker, отмена.${PLAIN}"
                         rm -f "$tmp_json"
                         sleep 1
                         continue
                     fi
 
-                    # 核心修复：只精准删除 ip 限制，绝不误删国内镜像源等其他配置！
+                    # Удаляем только поле ip
                     if ! jq 'del(.ip)' "$conf_file" > "$tmp_json" 2>/dev/null; then
-                        echo -e "${RED}❌ JSON 解析失败，操作中止。${PLAIN}"
+                        echo -e "${RED}❌ Ошибка разбора JSON, операция прервана.${PLAIN}"
                         rm -f "$tmp_json"
-                        echo -e "${YELLOW}备份已保留：$backup_file${PLAIN}"
-                        read -n 1 -s -r -p "按任意键继续..."
+                        echo -e "${YELLOW}Резервная копия сохранена: $backup_file${PLAIN}"
+                        read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
                         continue
                     fi
                     mv "$tmp_json" "$conf_file"
 
                     if systemctl restart docker >/dev/null 2>&1; then
-                        echo -e "${GREEN}✅ 已解除限制，容器端口恢复公网可访状态！${PLAIN}"
-                        echo -e "${CYAN}Docker 配置备份已保留：$backup_file${PLAIN}"
+                        echo -e "${GREEN}✅ Локальная защита отключена, контейнеры снова доступны извне!${PLAIN}"
+                        echo -e "${CYAN}Резервная копия сохранена: $backup_file${PLAIN}"
                     else
-                        echo -e "${RED}❌ 卸载异常：导致引擎无法启动！正在回滚...${PLAIN}"
+                        echo -e "${RED}❌ Ошибка: не удалось запустить Docker! Откат...${PLAIN}"
                         mv "$backup_file" "$conf_file"
                         systemctl restart docker >/dev/null 2>&1
                     fi
                 else
-                    echo -e "${BLUE}未检测到限制配置文件，当前已是全网开放状态。${PLAIN}"
+                    echo -e "${BLUE}Файл ограничений не обнаружен, система уже открыта.${PLAIN}"
                 fi
                 sleep 2
                 ;;
             5) func_update_subscription_tools ;;
             0|q|Q) break ;;
-            *) echo -e "${RED}❌ 无效的输入！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный ввод!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
 # ---------------------------------------------------------
-# 6. BBR 增强管理
+# 6. Управление BBR
 # ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # Module: kernel_tuning.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# BBR, TCP tuning, ZRAM, optimized kernel installation, and old-kernel cleanup.
+# Настройка BBR, TCP, ZRAM, установка оптимизированных ядер и очистка старых ядер.
 
 func_bbr_manage() {
     clear
-    echo -e "${CYAN}👉 正在调用 ylx2016 网络极速脚本...${PLAIN}"
-    run_remote_script "运行 ylx2016 网络极速脚本" "https://github.com/ylx2016/Linux-NetSpeed/raw/master/tcpx.sh"
-    pause_after_external_script "操作结束，按回车键返回菜单..."
+    echo -e "${CYAN}👉 Вызов скрипта сетевой оптимизации ylx2016...${PLAIN}"
+    run_remote_script "Запуск скрипта сетевой оптимизации ylx2016" "https://github.com/ylx2016/Linux-NetSpeed/raw/master/tcpx.sh"
+    pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню..."
 }
 
 sysctl_tune_split_line() {
@@ -14060,12 +14059,12 @@ sysctl_tune_check_supported_file() {
         if [[ "$line" =~ ^([A-Za-z0-9_.-]+)[[:space:]]*= ]]; then
             key="${BASH_REMATCH[1]}"
         else
-            echo -e "${RED}❌ 第 ${item_no} 项语法错误: $line${PLAIN}"
+            echo -e "${RED}❌ Синтаксическая ошибка в строке ${item_no}: $line${PLAIN}"
             return 1
         fi
         if ! output=$(sysctl -n "$key" 2>&1); then
-            echo -e "${RED}❌ 第 ${item_no} 项当前内核不支持: $key${PLAIN}"
-            [[ -n "$output" ]] && echo -e "${YELLOW}sysctl 输出：${output}${PLAIN}"
+            echo -e "${RED}❌ Строка ${item_no} не поддерживается текущим ядром: $key${PLAIN}"
+            [[ -n "$output" ]] && echo -e "${YELLOW}Вывод sysctl: ${output}${PLAIN}"
             return 1
         fi
     done < "$conf_file"
@@ -14083,17 +14082,17 @@ sysctl_tune_apply_file() {
             key="${BASH_REMATCH[1]}"
             value="$(trim_input "${BASH_REMATCH[2]}")"
         else
-            echo -e "${RED}❌ 第 ${item_no} 项语法错误: $line${PLAIN}"
+            echo -e "${RED}❌ Синтаксическая ошибка в строке ${item_no}: $line${PLAIN}"
             return 1
         fi
         if ! output=$(sysctl -w "$key=$value" 2>&1); then
-            echo -e "${RED}❌ 第 ${item_no} 项应用失败: ${key} = ${value}${PLAIN}"
+            echo -e "${RED}❌ Строка ${item_no} не применилась: ${key} = ${value}${PLAIN}"
             if [[ "$output" == *"cannot stat"* || "$output" == *"No such file"* ]]; then
-                echo -e "${YELLOW}原因：当前内核不支持该参数。${PLAIN}"
+                echo -e "${YELLOW}Причина: ядро не поддерживает этот параметр.${PLAIN}"
             else
-                echo -e "${YELLOW}原因：当前内核拒绝该值或参数值语法错误。${PLAIN}"
+                echo -e "${YELLOW}Причина: ядро отклонило значение или синтаксическая ошибка.${PLAIN}"
             fi
-            [[ -n "$output" ]] && echo -e "${YELLOW}sysctl 输出：${output}${PLAIN}"
+            [[ -n "$output" ]] && echo -e "${YELLOW}Вывод sysctl: ${output}${PLAIN}"
             return 1
         fi
     done < "$conf_file"
@@ -14112,38 +14111,36 @@ sysctl_tune_restore_previous_config() {
 }
 
 # ---------------------------------------------------------
-# 7. 动态 TCP 调优 (修复版：放宽正则以兼容多值与特殊符号)
+# 7. Динамическая настройка TCP (исправленная версия: поддержка множества значений)
 # ---------------------------------------------------------
 func_tcp_tune() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🚀 动态 TCP 极致调优 (Omnitt)${PLAIN}"
+    echo -e "${BOLD}🚀 Динамическая оптимизация TCP (Omnitt)${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "👉 推荐浏览器访问: ${BLUE}https://omnitt.com/${PLAIN} 获取针对您网络的定制参数"
+    echo -e "👉 Рекомендуется открыть в браузере: ${BLUE}https://omnitt.com/${PLAIN} для получения параметров под вашу сеть"
     echo -e "------------------------------------------------"
     
-    read_trimmed yn "❓ 准备好粘贴参数了吗？(y 继续 / n 取消): "
+    read_trimmed yn "❓ Готовы вставить параметры? (y продолжение / n отмена): "
     if ! is_yes "$yn"; then return; fi
     
     local temp_f="/etc/sysctl.d/99-omnitt-tune.conf"
     local backup_f="${temp_f}.bak_$(date +%s)"
     
-    # 事务起点：备份原配置
+    # Начало транзакции: резервная копия
     if [[ -f "$temp_f" ]]; then
         cp "$temp_f" "$backup_f"
     fi
     
     > "$temp_f"
-    echo -e "\n${YELLOW}👇 请在下方直接【右键粘贴】代码。${PLAIN}"
-    echo -e "${YELLOW}💡 粘贴完成后，请按下【回车键】，然后输入 ${RED}EOF${YELLOW} 并再次回车保存：${PLAIN}"
+    echo -e "\n${YELLOW}👇 Вставьте код прямо ниже (правой кнопкой).${PLAIN}"
+    echo -e "${YELLOW}💡 После вставки нажмите Enter, затем введите ${RED}EOF${YELLOW} и снова Enter для сохранения:${PLAIN}"
     
     local has_content=false
     local parse_failed=false
     while IFS= read -r line; do
-        # 极简清洗：去除回车符和前后多余空格
         line="$(trim_input "$line")"
         
-        # 结束符匹配（忽略大小写）
         if [[ "${line,,}" == "eof" ]]; then
             break
         fi
@@ -14165,8 +14162,8 @@ func_tcp_tune() {
                 1)
                     ;;
                 *)
-                    echo -e "${RED}❌ 参数语法错误，已停止应用: $candidate${PLAIN}"
-                    echo -e "${YELLOW}格式应为: net.ipv4.tcp_xxx = value${PLAIN}"
+                    echo -e "${RED}❌ Синтаксическая ошибка в параметре: $candidate${PLAIN}"
+                    echo -e "${YELLOW}Формат: net.ipv4.tcp_xxx = value${PLAIN}"
                     parse_failed=true
                     ;;
             esac
@@ -14174,66 +14171,65 @@ func_tcp_tune() {
     done
     
     if $parse_failed; then
-        echo -e "${YELLOW}正在触发安全回滚...${PLAIN}"
+        echo -e "${YELLOW}Выполняется откат...${PLAIN}"
         sysctl_tune_restore_previous_config "$backup_f" "$temp_f"
-        echo -e "${BLUE}✅ 已恢复系统原 TCP 配置文件。${PLAIN}"
+        echo -e "${BLUE}✅ Восстановлена исходная конфигурация TCP.${PLAIN}"
     elif $has_content; then
-        echo -e "${CYAN}▶ 正在校验并应用新 TCP 参数...${PLAIN}"
-        # 验证新配置是否被内核完全接受
+        echo -e "${CYAN}▶ Проверка и применение новых параметров TCP...${PLAIN}"
         if sysctl_tune_check_supported_file "$temp_f" && sysctl_tune_apply_file "$temp_f"; then
-            echo -e "${GREEN}✅ 动态 TCP 调优参数应用成功！网络吞吐量已提升。${PLAIN}"
-            rm -f "$backup_f" # 成功则删除备份
+            echo -e "${GREEN}✅ Динамическая оптимизация TCP применена успешно! Пропускная способность улучшена.${PLAIN}"
+            rm -f "$backup_f"
         else
-            echo -e "${RED}❌ 致命错误：您粘贴的部分参数当前内核不支持或语法错误！${PLAIN}"
-            echo -e "${YELLOW}正在触发安全回滚...${PLAIN}"
+            echo -e "${RED}❌ Ошибка: некоторые параметры не поддерживаются ядром или неверны!${PLAIN}"
+            echo -e "${YELLOW}Выполняется откат...${PLAIN}"
             sysctl_tune_restore_previous_config "$backup_f" "$temp_f"
-            echo -e "${BLUE}✅ 已恢复系统原 TCP 状态，未造成任何破坏。${PLAIN}"
+            echo -e "${BLUE}✅ Восстановлена исходная конфигурация TCP.${PLAIN}"
         fi
     else
-        echo -e "${YELLOW}⚠️ 未检测到有效的 TCP 调优参数，操作已取消。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Действительные параметры TCP не обнаружены, операция отменена.${PLAIN}"
         sysctl_tune_restore_previous_config "$backup_f" "$temp_f"
     fi
     
-    read -n 1 -s -r -p "按任意键继续..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
 }
 
 # ---------------------------------------------------------
-# 8. 智能内存调优 (重构版：安全接管与 DRY 化)
+# 8. Умная настройка памяти (рефакторинг: безопасное управление и DRY)
 # ---------------------------------------------------------
 func_zram_swap() {
     clear
     local mem
     mem=$(free -m | awk '/^Mem:/{print $2}')
-    echo -e "${CYAN}💡 硬件自适应调优 (检测到本机 ${mem}MB 物理内存)${PLAIN}"
+    echo -e "${CYAN}💡 Автоматическая адаптивная настройка (обнаружено ${mem} МБ физической памяти)${PLAIN}"
     echo -e "------------------------------------------------"
-    echo -e " ${GREEN}1. 激进档 (适合 1G 以下小鸡)${PLAIN}"
-    echo -e "    - ZRAM 100% 压缩, Swappiness=100。全力防止宕机。"
-    echo -e " ${GREEN}2. 积极档 (适合 2-4G 主流机型)${PLAIN}"
-    echo -e "    - ZRAM 70% 压缩, Swappiness=60。平衡性能与空间。"
-    echo -e " ${GREEN}3. 保守档 (适合 8G 以上性能怪兽)${PLAIN}"
-    echo -e "    - ZRAM 25% 压缩, Swappiness=10。追求极致响应速度。"
+    echo -e " ${GREEN}1. Агрессивный профиль (для малых VPS <1 ГБ)${PLAIN}"
+    echo -e "    - ZRAM 100%, Swappiness=100. Максимальная защита от зависаний."
+    echo -e " ${GREEN}2. Активный профиль (для 2-4 ГБ)${PLAIN}"
+    echo -e "    - ZRAM 70%, Swappiness=60. Баланс производительности и пространства."
+    echo -e " ${GREEN}3. Консервативный профиль (для >8 ГБ)${PLAIN}"
+    echo -e "    - ZRAM 25%, Swappiness=10. Максимальная отзывчивость."
     echo -e "------------------------------------------------"
     
     local choice
-    read_trimmed choice "👉 请选择您的调优挡位 [1/2/3] (直接回车按内存自动匹配): "
+    read_trimmed choice "👉 Выберите профиль [1/2/3] (Enter для автоматического выбора по памяти): "
     
     if [[ -z "$choice" ]]; then
         if [[ "$mem" -lt 1024 ]]; then choice=1
         elif [[ "$mem" -le 4096 ]]; then choice=2
         else choice=3
         fi
-        echo -e "${YELLOW}💡 系统已根据本机内存 (${mem}MB) 自动选择：[ 挡位 $choice ]${PLAIN}"
+        echo -e "${YELLOW}💡 Система автоматически выбрала профиль $choice на основе памяти (${mem} МБ).${PLAIN}"
         sleep 1.5
     fi
     
-    # 提早阻断，避免非 Debian 机器运行破坏性 Swap 卸载指令
+    # Защита от не-Debian систем
     if ! is_debian; then
-        echo -e "${RED}❌ 抱歉，当前系统并非 Debian/Ubuntu 衍生系，暂不支持自动化 ZRAM 调优。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ К сожалению, автоматическая настройка ZRAM поддерживается только на Debian/Ubuntu.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
-    echo -e "${CYAN}▶ 正在进行第一阶段：整理底层磁盘 Swap (保留 512M 保底防假死)...${PLAIN}"
+    echo -e "${CYAN}▶ Этап 1: Настройка дискового Swap (резерв 512 МБ)...${PLAIN}"
     
     swapoff -a >/dev/null 2>&1
     local old_swap
@@ -14249,11 +14245,10 @@ func_zram_swap() {
     sed -i -E 's/^([^#].*[[:space:]]swap[[:space:]].*)/#\1/' /etc/fstab
     sed -i '\@^/swapfile@d' /etc/fstab
     echo "/swapfile none swap sw 0 0" >> /etc/fstab
-    echo -e "${GREEN}✅ 已建立 512M 极小磁盘 Swap 作为系统崩溃的最后防线！${PLAIN}"
+    echo -e "${GREEN}✅ Создан минимальный Swap 512 МБ как последняя защита от зависаний!${PLAIN}"
     
-    echo -e "${CYAN}▶ 正在进行第二阶段：配置 ZRAM 内存压缩引擎...${PLAIN}"
+    echo -e "${CYAN}▶ Этап 2: Настройка ZRAM...${PLAIN}"
     
-    # 核心修改：使用全局包安装器
     install_pkg zram-tools
     modprobe zram >/dev/null 2>&1
     
@@ -14290,12 +14285,12 @@ EOF
     sysctl -p /etc/sysctl.d/99-zram-swappiness.conf >/dev/null 2>&1
     
 if grep -q zram /proc/swaps; then
-        echo -e "${GREEN}✅ ZRAM 调优落地完成！(已设置: ${percent}% 压缩比, ${swap_val} 交换倾向)${PLAIN}"
+        echo -e "${GREEN}✅ Настройка ZRAM завершена! (коэффициент сжатия: ${percent}%, swappiness: ${swap_val})${PLAIN}"
     else
-        echo -e "${RED}❌ 警告：内核拒绝挂载 ZRAM (常见于 LXC/OpenVZ 架构)。${PLAIN}"
-        echo -e "${CYAN}▶ 正在启动降级优化方案：传统 Swap 扩容与内核防假死调优...${PLAIN}"
+        echo -e "${RED}❌ Внимание: ядро отказалось монтировать ZRAM (часто на LXC/OpenVZ).${PLAIN}"
+        echo -e "${CYAN}▶ Запуск запасного варианта: расширение Swap и настройка ядра...${PLAIN}"
         
-        # 1. 扩容保底 Swap：从 512M 升级至 1024M (1GB)
+        # 1. Расширение Swap до 1 ГБ
         swapoff /swapfile >/dev/null 2>&1
         quarantine_path /swapfile "/root/vps-optimize-quarantine/swap" >/dev/null 2>&1 || true
         dd if=/dev/zero of=/swapfile bs=1M count=1024 status=none
@@ -14303,10 +14298,7 @@ if grep -q zram /proc/swaps; then
         mkswap /swapfile >/dev/null 2>&1
         swapon /swapfile >/dev/null 2>&1
         
-        # 2. 注入降级专属的内核内存管理参数
-        # swappiness=30 : 只有内存比较吃紧时才使用较慢的磁盘 Swap
-        # vfs_cache_pressure=50 : 降低系统回收目录/文件系统缓存的频率，提高小鸡流畅度
-        # overcommit_memory=1 : 允许内核分配超过物理内存的空间，防止 Redis/数据库 等服务在启动时被直接 Kill
+        # 2. Параметры ядра для запасного варианта
         cat <<EOF > /etc/sysctl.d/99-fallback-mem.conf
 vm.swappiness = 30
 vm.vfs_cache_pressure = 50
@@ -14314,13 +14306,13 @@ vm.overcommit_memory = 1
 EOF
         sysctl -p /etc/sysctl.d/99-fallback-mem.conf >/dev/null 2>&1
         
-        echo -e "${GREEN}✅ 降级优化落地：已动态扩充 1GB 磁盘 Swap，并激活保守内存回收策略！${PLAIN}"
+        echo -e "${GREEN}✅ Запасной вариант применён: создан Swap 1 ГБ и активирована консервативная политика памяти!${PLAIN}"
     fi
     
-    read -n 1 -s -r -p "按任意键继续..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
 }
 # ---------------------------------------------------------
-# 9. 安装/切换优化内核 (Cloud/KVM 稳定优先 + XanMod 高级可选)
+# 9. Установка/переключение оптимизированных ядер (Cloud/KVM — стабильно, XanMod — продвинутый)
 # ---------------------------------------------------------
 normalize_kernel_arch() {
     case "$(uname -m)" in
@@ -14340,17 +14332,17 @@ set_grub_default_kernel_by_keyword() {
     local target_v menu_1 menu_2
 
     if ! command -v dpkg >/dev/null 2>&1 || [[ ! -f /etc/default/grub ]]; then
-        echo -e "${YELLOW}⚠️ 未检测到 dpkg/GRUB 配置，已跳过自动接管引导。${PLAIN}"
+        echo -e "${YELLOW}⚠️ dpkg или /etc/default/grub не обнаружены, автоматическое управление загрузкой пропущено.${PLAIN}"
         return 0
     fi
 
     target_v=$(dpkg -l | awk '/^ii[[:space:]]+linux-image-[0-9]/ && /'"$kernel_keyword"'/ {print $2}' | sed 's/linux-image-//' | sort -V | tail -n 1)
     if [[ -z "$target_v" ]]; then
-        echo -e "${RED}❌ 错误：未找到已安装的 ${kernel_keyword} 内核包，请检查安装日志。${PLAIN}"
+        echo -e "${RED}❌ Ошибка: не найдено установленное ядро ${kernel_keyword}, проверьте логи установки.${PLAIN}"
         return 1
     fi
 
-    echo -e "${CYAN}▶ 正在接管 GRUB 底层引导，锁定启动内核为: $target_v ...${PLAIN}"
+    echo -e "${CYAN}▶ Настройка GRUB для загрузки ядра: $target_v ...${PLAIN}"
     if grep -q '^GRUB_DEFAULT=' /etc/default/grub; then
         sed -i 's/^GRUB_DEFAULT=.*/GRUB_DEFAULT=saved/' /etc/default/grub
     else
@@ -14366,7 +14358,7 @@ set_grub_default_kernel_by_keyword() {
     local grub_cfg="/boot/grub/grub.cfg"
     [[ -f "$grub_cfg" ]] || grub_cfg="/boot/grub2/grub.cfg"
     if [[ ! -f "$grub_cfg" ]]; then
-        echo -e "${YELLOW}⚠️ 未找到 grub.cfg，新内核已安装，但请重启后手动确认默认启动项。${PLAIN}"
+        echo -e "${YELLOW}⚠️ grub.cfg не найден, новое ядро установлено, но проверьте вручную загрузочный пункт после перезагрузки.${PLAIN}"
         return 0
     fi
 
@@ -14375,11 +14367,11 @@ set_grub_default_kernel_by_keyword() {
 
     if [[ -n "$menu_1" && -n "$menu_2" ]]; then
         grub-set-default "$menu_1>$menu_2" 2>/dev/null || grub2-set-default "$menu_1>$menu_2" 2>/dev/null || true
-        echo -e "${GREEN}✅ GRUB 引导接管成功！重启后将优先进入：$target_v${PLAIN}"
+        echo -e "${GREEN}✅ Настройка GRUB выполнена! После перезагрузки загрузится $target_v${PLAIN}"
         return 0
     fi
 
-    echo -e "${YELLOW}⚠️ 警告：GRUB 菜单寻址失败。系统可能仍以最高版本号内核启动。${PLAIN}"
+    echo -e "${YELLOW}⚠️ Предупреждение: не удалось определить пункт меню GRUB. Система может загружать ядро с наибольшим номером версии.${PLAIN}"
     return 1
 }
 
@@ -14388,17 +14380,17 @@ install_cloud_kvm_kernel() {
     local candidates=()
 
     if uname -r | grep -qE "kvm|cloud|virtual"; then
-        echo -e "${GREEN}✅ 系统当前已运行 KVM/Cloud/Virtual 优化内核 ($(uname -r))，无需重复安装！${PLAIN}"
+        echo -e "${GREEN}✅ Система уже использует оптимизированное ядро KVM/Cloud/Virtual ($(uname -r)), установка не требуется!${PLAIN}"
         return 0
     fi
 
     arch=$(normalize_kernel_arch)
     if [[ "$arch" == "unknown" ]]; then
-        echo -e "${RED}❌ 当前架构 $(uname -m) 暂不支持自动切换精简内核。${PLAIN}"
+        echo -e "${RED}❌ Текущая архитектура $(uname -m) не поддерживает автоматическую установку лёгкого ядра.${PLAIN}"
         return 1
     fi
 
-    echo -e "${CYAN}▶ 正在安装发行版官方 Cloud/KVM/Virtual 精简内核...${PLAIN}"
+    echo -e "${CYAN}▶ Установка официального лёгкого ядра Cloud/KVM/Virtual...${PLAIN}"
     ensure_minimal_system_compat
 
     if [[ "$OS" == "debian" ]]; then
@@ -14416,7 +14408,7 @@ install_cloud_kvm_kernel() {
         fi
         kernel_keyword="kvm|virtual|generic"
     else
-        echo -e "${RED}❌ Cloud/KVM/Virtual 内核功能目前仅支持 Debian 和 Ubuntu。${PLAIN}"
+        echo -e "${RED}❌ Установка Cloud/KVM/Virtual ядра поддерживается только на Debian и Ubuntu.${PLAIN}"
         return 1
     fi
 
@@ -14428,19 +14420,19 @@ install_cloud_kvm_kernel() {
 
     for pkg in "${candidates[@]}"; do
         if ! apt_pkg_available "$pkg"; then
-            echo -e "${YELLOW}  - 当前源未提供 ${pkg}，尝试下一个候选...${PLAIN}"
+            echo -e "${YELLOW}  - Пакет ${pkg} недоступен в репозитории, пробую следующий...${PLAIN}"
             continue
         fi
-        echo -e "${CYAN}▶ 尝试安装内核包: ${pkg}${PLAIN}"
+        echo -e "${CYAN}▶ Попытка установки пакета ядра: ${pkg}${PLAIN}"
         if install_pkg "$pkg"; then
-            echo -e "${GREEN}✅ 已安装内核包: ${pkg}${PLAIN}"
+            echo -e "${GREEN}✅ Установлен пакет ядра: ${pkg}${PLAIN}"
             set_grub_default_kernel_by_keyword "$kernel_keyword"
             return $?
         fi
-        echo -e "${YELLOW}  - ${pkg} 安装失败，尝试下一个候选...${PLAIN}"
+        echo -e "${YELLOW}  - ${pkg} не установился, пробую следующий...${PLAIN}"
     done
 
-    echo -e "${RED}❌ 未能安装可用的官方精简内核，请检查系统版本、架构和软件源。${PLAIN}"
+    echo -e "${RED}❌ Не удалось установить доступное лёгкое ядро, проверьте версию системы, архитектуру и источники.${PLAIN}"
     return 1
 }
 
@@ -14484,12 +14476,12 @@ add_xanmod_repo() {
     key_tmp=$(mktemp /tmp/xanmod-key.XXXXXX) || return 1
     if ! curl -fsSL --connect-timeout 10 --max-time 60 --retry 2 --retry-delay 1 https://dl.xanmod.org/archive.key -o "$key_tmp"; then
         rm -f "$key_tmp"
-        echo -e "${RED}❌ XanMod GPG key 下载失败。${PLAIN}"
+        echo -e "${RED}❌ Не удалось загрузить GPG key XanMod.${PLAIN}"
         return 1
     fi
     if ! gpg --batch --yes --dearmor -o /etc/apt/keyrings/xanmod-archive-keyring.gpg "$key_tmp"; then
         rm -f "$key_tmp"
-        echo -e "${RED}❌ XanMod GPG key 下载或写入失败。${PLAIN}"
+        echo -e "${RED}❌ Не удалось записать GPG key XanMod.${PLAIN}"
         return 1
     fi
     rm -f "$key_tmp"
@@ -14502,12 +14494,12 @@ install_xanmod_kernel_package() {
     local pkg
     while IFS= read -r pkg; do
         apt_pkg_available "$pkg" || continue
-        echo -e "${CYAN}▶ 尝试安装 XanMod 包: ${pkg}${PLAIN}"
+        echo -e "${CYAN}▶ Попытка установки пакета XanMod: ${pkg}${PLAIN}"
         if install_pkg "$pkg"; then
-            echo -e "${GREEN}✅ 已安装 XanMod 内核包: ${pkg}${PLAIN}"
+            echo -e "${GREEN}✅ Установлен пакет XanMod: ${pkg}${PLAIN}"
             return 0
         fi
-        echo -e "${YELLOW}  - ${pkg} 安装失败，尝试更保守候选...${PLAIN}"
+        echo -e "${YELLOW}  - ${pkg} не установился, пробую более консервативный...${PLAIN}"
     done < <(xanmod_candidate_packages "$preferred_level")
 
     return 1
@@ -14517,19 +14509,19 @@ install_xanmod_kernel() {
     local codename confirm arch cpu_level
 
     if uname -r | grep -qi "xanmod"; then
-        echo -e "${GREEN}✅ 系统当前已运行 XanMod 内核 ($(uname -r))，无需重复安装！${PLAIN}"
+        echo -e "${GREEN}✅ Система уже использует ядро XanMod ($(uname -r)), установка не требуется!${PLAIN}"
         return 0
     fi
 
     if ! is_debian; then
-        echo -e "${RED}❌ XanMod 自动安装目前仅支持 Debian/Ubuntu 衍生系统。${PLAIN}"
+        echo -e "${RED}❌ Автоматическая установка XanMod поддерживается только на Debian/Ubuntu.${PLAIN}"
         return 1
     fi
 
     arch=$(normalize_kernel_arch)
     if [[ "$arch" != "amd64" ]]; then
-        echo -e "${RED}❌ XanMod 官方 x64v 内核仅支持 x86_64/amd64，本机为 $(uname -m)。${PLAIN}"
-        echo -e "${YELLOW}建议改用官方 Cloud/Virtual 内核。${PLAIN}"
+        echo -e "${RED}❌ Официальные ядра XanMod x64v поддерживают только x86_64/amd64, текущая архитектура $(uname -m).${PLAIN}"
+        echo -e "${YELLOW}Рекомендуется использовать официальное Cloud/Virtual ядро.${PLAIN}"
         return 1
     fi
 
@@ -14538,31 +14530,31 @@ install_xanmod_kernel() {
         codename=$(lsb_release -sc 2>/dev/null)
     fi
     if [[ -z "$codename" ]]; then
-        echo -e "${RED}❌ 无法识别系统代号，无法安全添加 XanMod 源。${PLAIN}"
+        echo -e "${RED}❌ Не удалось определить кодовое имя системы, невозможно безопасно добавить репозиторий XanMod.${PLAIN}"
         return 1
     fi
     if ! xanmod_supported_codename "$codename"; then
-        echo -e "${YELLOW}⚠️ 当前系统代号 ${codename} 可能不在脚本内置 XanMod 兼容列表中。${PLAIN}"
-        echo -e "${YELLOW}脚本仍会尝试添加源；若 apt update 失败，请改用官方 Cloud/Virtual 内核。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Кодовое имя ${codename} может быть не в списке поддерживаемых XanMod.${PLAIN}"
+        echo -e "${YELLOW}Скрипт попытается добавить репозиторий; если apt update не удастся, используйте официальное Cloud/Virtual ядро.${PLAIN}"
     fi
 
     cpu_level=$(xanmod_cpu_level)
 
-    echo -e "${RED}⚠️  XanMod 是第三方性能内核，可能影响 DKMS/驱动/部分云厂商兼容性。${PLAIN}"
-    echo -e "${YELLOW}检测到 CPU 兼容级别：${cpu_level}，将从对应 XanMod LTS 包开始尝试，并自动向下兜底。${PLAIN}"
-    echo -e "${YELLOW}建议先确认有快照、救援控制台，且知道如何从 GRUB 切回旧内核。${PLAIN}"
-    confirm_risk_action "安装 XanMod 内核" \
-        "内核包、引导配置和 GRUB 菜单" \
-        "使用当前可启动内核或云厂商救援模式恢复" \
-        "建议先创建 VPS 快照，并确认不是 OpenVZ 老系统。" || { echo -e "${BLUE}已取消 XanMod 安装。${PLAIN}"; return 1; }
+    echo -e "${RED}⚠️ XanMod — стороннее производительное ядро, может повлиять на совместимость с драйверами/DKMS/облачными провайдерами.${PLAIN}"
+    echo -e "${YELLOW}Обнаружен уровень CPU: ${cpu_level}, будет попытка установки соответствующего XanMod LTS с автоматическим понижением.${PLAIN}"
+    echo -e "${YELLOW}Рекомендуется иметь снимок, консоль восстановления и знать, как вернуться к старому ядру через GRUB.${PLAIN}"
+    confirm_risk_action "Установка ядра XanMod" \
+        "Пакеты ядра, конфигурация загрузчика и меню GRUB" \
+        "Восстановите из текущего загрузочного ядра или режима восстановления" \
+        "Рекомендуется создать снимок VPS и убедиться, что это не OpenVZ." || { echo -e "${BLUE}Установка XanMod отменена.${PLAIN}"; return 1; }
 
-    echo -e "${CYAN}▶ 正在添加 XanMod 官方 APT 源并安装兼容内核...${PLAIN}"
+    echo -e "${CYAN}▶ Добавление официального APT-репозитория XanMod и установка совместимого ядра...${PLAIN}"
     ensure_minimal_system_compat
     install_pkg ca-certificates curl gpg gnupg || return 1
     add_xanmod_repo "$codename" || return 1
 
     if ! install_xanmod_kernel_package "$cpu_level"; then
-        echo -e "${RED}❌ XanMod 内核安装失败，可能是当前系统代号/软件源/CPU 级别暂不兼容。${PLAIN}"
+        echo -e "${RED}❌ Не удалось установить ядро XanMod, возможно, кодовое имя/репозиторий/уровень CPU несовместимы.${PLAIN}"
         return 1
     fi
 
@@ -14572,40 +14564,40 @@ install_xanmod_kernel() {
 func_install_kernel() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}☁️  安装/切换优化内核${PLAIN}"
+    echo -e "${BOLD}☁️ Установка/переключение оптимизированных ядер${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${GREEN}  1. Cloud/KVM/Virtual 官方云内核${PLAIN} ${YELLOW}(推荐：稳定、轻量、云厂商兼容更好)${PLAIN}"
-    echo -e "     Debian/Ubuntu 会按架构自动尝试 cloud/kvm/virtual/generic 候选。"
-    echo -e "${GREEN}  2. XanMod 性能内核${PLAIN} ${YELLOW}(高级：自动匹配 x64v1-v4 并向下兜底)${PLAIN}"
-    echo -e "     适合：愿意折腾、追求低延迟/新特性；仅 amd64，建议有快照或救援控制台。"
+    echo -e "${GREEN}  1. Официальное Cloud/KVM/Virtual ядро${PLAIN} ${YELLOW}(рекомендуется: стабильное, лёгкое, лучше совместимость)${PLAIN}"
+    echo -e "     На Debian/Ubuntu будет автоматически подобрано cloud/kvm/virtual/generic."
+    echo -e "${GREEN}  2. XanMod производительное ядро${PLAIN} ${YELLOW}(продвинутый: автоматическое определение x64v1-v4)${PLAIN}"
+    echo -e "     Подходит: для тех, кто готов экспериментировать, нужна низкая задержка/новые функции; только amd64, требуется снимок."
     echo -e "------------------------------------------------"
-    echo -e "${RED}  0. 返回 / q 返回${PLAIN}"
+    echo -e "${RED}  0. Вернуться / q${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
 
     local kernel_choice virt
-    read_trimmed kernel_choice "👉 请选择要安装的内核类型 [推荐 1]: "
+    read_trimmed kernel_choice "👉 Выберите тип ядра [рекомендуется 1]: "
     kernel_choice="${kernel_choice:-1}"
     [[ "$kernel_choice" == "0" ]] && return
 
     virt=$(systemd-detect-virt 2>/dev/null || echo "unknown")
     if [[ "$virt" =~ lxc|openvz ]]; then
-        echo -e "${RED}❌ 致命错误：检测到当前 VPS 为 $virt 容器架构！${PLAIN}"
-        echo -e "${YELLOW}💡 容器与母机共享内核，无法更改内核。操作已安全中止。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ Обнаружена контейнерная виртуализация $virt!${PLAIN}"
+        echo -e "${YELLOW}💡 Контейнеры используют ядро хоста, смена ядра невозможна. Операция безопасно остановлена.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
     local arch
     arch=$(normalize_kernel_arch)
     if [[ "$arch" == "unknown" ]]; then
-        echo -e "${RED}❌ 致命错误：当前架构暂不支持自动切换内核，本机为 $(uname -m)！${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ Текущая архитектура $(uname -m) не поддерживает автоматическую смену ядра.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
     if [[ "$kernel_choice" == "2" && "$arch" != "amd64" ]]; then
-        echo -e "${RED}❌ XanMod x64v 内核仅支持 x86_64/amd64，本机为 $(uname -m)。${PLAIN}"
-        echo -e "${YELLOW}建议选择 [1] 官方 Cloud/KVM/Virtual 内核。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ XanMod x64v поддерживает только x86_64/amd64, текущая $(uname -m).${PLAIN}"
+        echo -e "${YELLOW}Рекомендуется выбрать [1] официальное Cloud/KVM/Virtual ядро.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
@@ -14613,108 +14605,107 @@ func_install_kernel() {
     case "$kernel_choice" in
         1) install_cloud_kvm_kernel ;;
         2) install_xanmod_kernel ;;
-        *) echo -e "${RED}❌ 无效选择。${PLAIN}"; read -n 1 -s -r -p "按任意键返回..."; return ;;
+        *) echo -e "${RED}❌ Неверный выбор.${PLAIN}"; read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return ;;
     esac
     install_rc=$?
     if [[ "$install_rc" -ne 0 ]]; then
         echo -e "------------------------------------------------"
-        echo -e "${YELLOW}⚠️ 内核安装/切换未完成，未继续提示重启。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${YELLOW}⚠️ Установка/переключение ядра не завершены, перезагрузка не предлагается.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
     echo -e "------------------------------------------------"
-    echo -e "${YELLOW}⚠️ 核心生效指引：${PLAIN}"
-    echo -e "1. 新内核引导已配置完毕，请先选择主菜单的 ${RED}[17] 重启服务器${PLAIN}。"
-    echo -e "2. 重启后请运行 ${GREEN}uname -r${PLAIN} 确认实际进入的新内核。"
-    echo -e "3. 确认稳定后，再进入本菜单选择 ${GREEN}[5] 清理旧内核${PLAIN}。"
+    echo -e "${YELLOW}⚠️ Инструкция по применению:${PLAIN}"
+    echo -e "1. Настройка загрузки завершена, сначала выберите ${RED}[17] Перезагрузить сервер${PLAIN}."
+    echo -e "2. После перезагрузки выполните ${GREEN}uname -r${PLAIN} для проверки фактического ядра."
+    echo -e "3. После подтверждения стабильности войдите в это меню и выберите ${GREEN}[5] Очистка старых ядер${PLAIN}."
 
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 # ---------------------------------------------------------
-# 10. 清理冗余旧内核 (数组菜单驱动 + 核心防砖拦截版)
+# 10. Очистка старых ядер
 # ---------------------------------------------------------
 func_clean_kernel() {
     clear
     if [[ ! "$OS" =~ debian|ubuntu ]]; then
-        echo -e "${RED}❌ 此功能目前仅支持 Debian/Ubuntu 衍生系统！${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ Эта функция поддерживается только на Debian/Ubuntu!${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
     local current_k
     current_k=$(uname -r)
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧹 清理冗余旧内核${PLAIN}"
+    echo -e "${BOLD}🧹 Очистка старых ядер${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "当前正在运行的内核为: ${GREEN}${current_k}${PLAIN}"
-    echo -e "${RED}⚠️ 系统已自动为您屏蔽正在运行的内核以及常用云/虚拟化/性能内核。${PLAIN}"
+    echo -e "Текущее работающее ядро: ${GREEN}${current_k}${PLAIN}"
+    echo -e "${RED}⚠️ Система автоматически исключает работающее ядро, а также популярные облачные/виртуальные/производительные ядра.${PLAIN}"
     echo -e "------------------------------------------------"
     
-    # 自动提取所有非当前的内核包存入数组 (排除元包，采用高可用字段匹配)
     mapfile -t old_kernels < <(dpkg -l | awk '$1 == "ii" && $2 ~ /^linux-image-[0-9]/ {print $2}' | grep -v "$current_k" | grep -Ev "cloud|kvm|virtual|generic|xanmod")
 
     if [[ ${#old_kernels[@]} -eq 0 ]]; then
-        echo -e "${GREEN}✅ 系统非常干净，没有发现需要清理的冗余旧内核。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${GREEN}✅ Система чиста, старых ядер для удаления не найдено.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
-    echo -e "${YELLOW}扫描到以下冗余内核可供清理：${PLAIN}"
+    echo -e "${YELLOW}Обнаружены следующие старые ядра для очистки:${PLAIN}"
     for i in "${!old_kernels[@]}"; do
         echo -e " [${CYAN}$((i+1))${PLAIN}] ${old_kernels[$i]}"
     done
-    echo -e " [${RED}0${PLAIN}] 取消并返回"
+    echo -e " [${RED}0${PLAIN}] Отмена"
     echo -e "------------------------------------------------"
 
     local k_choice
-    read_trimmed k_choice "👉 请输入要卸载的序号: "
+    read_trimmed k_choice "👉 Введите номер для удаления: "
 
     if [[ "$k_choice" == "0" ]]; then
-        echo -e "${BLUE}已取消卸载操作。${PLAIN}"
+        echo -e "${BLUE}Удаление отменено.${PLAIN}"
     elif [[ "$k_choice" =~ ^[1-9][0-9]*$ ]] && [[ "$k_choice" -le "${#old_kernels[@]}" ]]; then
         local target_k="${old_kernels[$((k_choice-1))]}"
-        confirm_danger "卸载旧内核 ${target_k}" "会删除内核包并刷新 GRUB，引导异常时可能影响下次启动。" "建议先创建 VPS 快照；当前运行内核已自动排除，如失败请从快照或救援模式恢复。" || {
-            echo -e "${BLUE}已取消卸载操作。${PLAIN}"
-            read -n 1 -s -r -p "按任意键返回..."
+        confirm_danger "Удалить старое ядро ${target_k}" "Будет удалён пакет ядра и обновлён GRUB; ошибка может повлиять на следующую загрузку." "Рекомендуется создать снимок VPS; работающее ядро автоматически исключено, в случае проблем восстановитесь из снимка или режима восстановления." || {
+            echo -e "${BLUE}Удаление отменено.${PLAIN}"
+            read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
             return
         }
-        echo -e "${CYAN}正在静默卸载 $target_k 并刷新引导...${PLAIN}"
+        echo -e "${CYAN}Удаление $target_k и обновление GRUB...${PLAIN}"
         export DEBIAN_FRONTEND=noninteractive
         if apt-get purge -yq "$target_k" && update-grub >/dev/null 2>&1 && apt-get autoremove --purge -yq >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ 旧内核 [$target_k] 清理完成！磁盘空间已释放。${PLAIN}"
+            echo -e "${GREEN}✅ Старое ядро [$target_k] удалено! Освобождено место на диске.${PLAIN}"
         else
-            echo -e "${RED}❌ 清理失败！存在依赖问题或执行被中断。${PLAIN}"
+            echo -e "${RED}❌ Ошибка удаления! Проверьте зависимости или прерывание.${PLAIN}"
         fi
         unset DEBIAN_FRONTEND
     else
-        echo -e "${RED}❌ 无效的选择！${PLAIN}"
+        echo -e "${RED}❌ Неверный выбор!${PLAIN}"
     fi
 
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 # ---------------------------------------------------------
-# 11. 极速硬件探针
+# 11. Аппаратный зонд
 # ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # Module: diagnostics_status.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Compact service status helpers and system hardware/runtime overview.
+# Компактные вспомогательные функции статуса служб и обзор оборудования/среды выполнения.
 
 service_status_compact() {
     local svc="$1"
     if service_unit_exists "$svc"; then
         if systemctl is-active --quiet "$svc"; then
-            printf '%b' "${GREEN}运行中${PLAIN}"
+            printf '%b' "${GREEN}Запущен${PLAIN}"
         else
-            printf '%b' "${YELLOW}未运行${PLAIN}"
+            printf '%b' "${YELLOW}Не запущен${PLAIN}"
         fi
     else
-        printf '%b' "${BLUE}未安装${PLAIN}"
+        printf '%b' "${BLUE}Не установлен${PLAIN}"
     fi
 }
 
@@ -14749,14 +14740,14 @@ xui_panel_status_compact() {
     local svc
     if svc=$(xui_panel_service_name); then
         if systemctl is-active --quiet "$svc"; then
-            printf '%b' "${GREEN}运行中${PLAIN}"
+            printf '%b' "${GREEN}Запущен${PLAIN}"
         else
-            printf '%b' "${YELLOW}未运行${PLAIN}"
+            printf '%b' "${YELLOW}Не запущен${PLAIN}"
         fi
     elif xui_panel_installed_by_files; then
-        printf '%b' "${YELLOW}已安装/未运行${PLAIN}"
+        printf '%b' "${YELLOW}Установлен/не запущен${PLAIN}"
     else
-        printf '%b' "${BLUE}未安装${PLAIN}"
+        printf '%b' "${BLUE}Не установлен${PLAIN}"
     fi
 }
 
@@ -14764,14 +14755,14 @@ xui_panel_state_for_issue() {
     local svc
     if svc=$(xui_panel_service_name); then
         if systemctl is-active --quiet "$svc"; then
-            echo "运行中 (${svc}.service)"
+            echo "Запущен (${svc}.service)"
         else
-            echo "已安装/未运行 (${svc}.service)"
+            echo "Установлен/не запущен (${svc}.service)"
         fi
     elif xui_panel_installed_by_files; then
-        echo "已安装/未检测到 systemd 服务"
+        echo "Установлен/не обнаружен systemd-сервис"
     else
-        echo "未检测到"
+        echo "Не обнаружен"
     fi
 }
 
@@ -14792,28 +14783,28 @@ docker_public_binding_count() {
 }
 
 print_project_runtime_overview() {
-    echo -e "${CYAN}🧩 VPS-Optimize 场景概览${PLAIN}"
-    echo -e "脚本版本 : ${GREEN}${SCRIPT_VERSION}${PLAIN}"
-    echo -e "关键服务 : nginx[$(service_status_compact nginx)] caddy[$(service_status_compact caddy)] docker[$(service_status_compact docker)] 3x-ui面板[$(xui_panel_status_compact)] Xray内核[$(service_status_compact xray)]"
+    echo -e "${CYAN}🧩 Обзор сценариев VPS-Optimize${PLAIN}"
+    echo -e "Версия скрипта : ${GREEN}${SCRIPT_VERSION}${PLAIN}"
+    echo -e "Ключевые службы : nginx[$(service_status_compact nginx)] caddy[$(service_status_compact caddy)] docker[$(service_status_compact docker)] панель 3x-ui[$(xui_panel_status_compact)] ядро Xray[$(service_status_compact xray)]"
 
     if [[ -f /etc/vps-optimize/sni-stack.env ]]; then
         if load_sni_stack_env >/dev/null 2>&1; then
-            echo -e "443 入口 : ${NGINX_LISTEN_ADDR}:${NGINX_LISTEN_PORT} -> Caddy ${CADDY_LISTEN_ADDR}:${CADDY_LISTEN_PORT} / REALITY ${XRAY_LISTEN_ADDR}:${XRAY_LISTEN_PORT}"
-            echo -e "3x-ui   : 面板 https://${PANEL_DOMAIN}${PANEL_WEB_PATH} -> ${PANEL_LISTEN_ADDR}:${PANEL_LISTEN_PORT}"
-            echo -e "订阅路径 : 普通 ${SUB_URI_PATH} / Clash-Mihomo ${CLASH_URI_PATH} -> ${SUB_LISTEN_ADDR}:${SUB_LISTEN_PORT}"
-            echo -e "扩展分流 : 网站/反代 ${#SITE_DOMAINS[@]} 个，TCP/SNI 入站 ${#TCP_ROUTE_SNIS[@]} 个"
+            echo -e "443 вход : ${NGINX_LISTEN_ADDR}:${NGINX_LISTEN_PORT} -> Caddy ${CADDY_LISTEN_ADDR}:${CADDY_LISTEN_PORT} / REALITY ${XRAY_LISTEN_ADDR}:${XRAY_LISTEN_PORT}"
+            echo -e "3x-ui   : панель https://${PANEL_DOMAIN}${PANEL_WEB_PATH} -> ${PANEL_LISTEN_ADDR}:${PANEL_LISTEN_PORT}"
+            echo -e "Пути подписок : обычная ${SUB_URI_PATH} / Clash-Mihomo ${CLASH_URI_PATH} -> ${SUB_LISTEN_ADDR}:${SUB_LISTEN_PORT}"
+            echo -e "Дополнительная маршрутизация : сайтов/прокси ${#SITE_DOMAINS[@]}, TCP/SNI входящих ${#TCP_ROUTE_SNIS[@]}"
         else
-        echo -e "443 入口 : ${YELLOW}检测到配置文件，但读取失败，请运行 [19] -> [13] 体检。${PLAIN}"
+        echo -e "443 вход : ${YELLOW}Обнаружен конфигурационный файл, но не удалось прочитать, выполните [19] -> [13] проверку.${PLAIN}"
         fi
     else
-        echo -e "443 入口 : ${BLUE}尚未配置；需要面板/订阅/REALITY 共用 443 时进入 [19]。${PLAIN}"
+        echo -e "443 вход : ${BLUE}Ещё не настроен; если нужен общий 443 для панели/подписок/REALITY, используйте [19].${PLAIN}"
     fi
 
     if command -v docker >/dev/null 2>&1; then
         local running_containers public_binds
         running_containers=$(docker ps -q 2>/dev/null | wc -l | tr -d '[:space:]')
         public_binds=$(docker_public_binding_count)
-        echo -e "Docker   : 运行容器 ${running_containers:-0} 个，公网映射 ${public_binds:-0} 条"
+        echo -e "Docker   : запущено контейнеров ${running_containers:-0}, публичных маппингов ${public_binds:-0}"
     fi
 
     if declare -F print_traffic_guard_diagnostic_summary >/dev/null; then
@@ -14827,38 +14818,38 @@ func_system_info() {
     os_name=$(grep -w "PRETTY_NAME" /etc/os-release | cut -d= -f2 | tr -d '"')
     
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🖥️  本机详细硬件与网络信息大屏${PLAIN}"
+    echo -e "${BOLD}🖥️ Полная информация об оборудовании и сети${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}系统 OS  :${PLAIN} $os_name ($(uname -m))"
-    echo -e "${YELLOW}内核版本 :${PLAIN} $(uname -r)"
-    echo -e "${YELLOW}虚拟架构 :${PLAIN} $(systemd-detect-virt 2>/dev/null || echo "未知")"
+    echo -e "${YELLOW}ОС        :${PLAIN} $os_name ($(uname -m))"
+    echo -e "${YELLOW}Ядро      :${PLAIN} $(uname -r)"
+    echo -e "${YELLOW}Виртуализация :${PLAIN} $(systemd-detect-virt 2>/dev/null || echo "неизвестно")"
     echo -e "------------------------------------------------"
-    echo -e "${YELLOW}CPU 型号 :${PLAIN} $(lscpu | grep "Model name:" | sed 's/Model name:\s*//')"
-    echo -e "${YELLOW}CPU 核心 :${PLAIN} $(nproc) 核心"
+    echo -e "${YELLOW}Модель CPU :${PLAIN} $(lscpu | grep "Model name:" | sed 's/Model name:\s*//')"
+    echo -e "${YELLOW}Ядер CPU   :${PLAIN} $(nproc)"
     echo -e "------------------------------------------------"
-    echo -e "${YELLOW}物理内存 :${PLAIN} $(free -h | awk '/^Mem:/ {print $3}') / $(free -h | awk '/^Mem:/ {print $2}')"
-    echo -e "${YELLOW}交换内存 :${PLAIN} $(free -h | awk '/^Swap:/ {print $3}') / $(free -h | awk '/^Swap:/ {print $2}')"
-    echo -e "${YELLOW}硬盘空间 :${PLAIN} $(df -h / | awk 'NR==2 {print $3}') / $(df -h / | awk 'NR==2 {print $2}')"
+    echo -e "${YELLOW}Физическая память :${PLAIN} $(free -h | awk '/^Mem:/ {print $3}') / $(free -h | awk '/^Mem:/ {print $2}')"
+    echo -e "${YELLOW}Swap        :${PLAIN} $(free -h | awk '/^Swap:/ {print $3}') / $(free -h | awk '/^Swap:/ {print $2}')"
+    echo -e "${YELLOW}Дисковое пространство :${PLAIN} $(df -h / | awk 'NR==2 {print $3}') / $(df -h / | awk 'NR==2 {print $2}')"
     echo -e "------------------------------------------------"
-    echo -e "${YELLOW}IPv4 地址:${PLAIN} $(curl -s4 --max-time 3 icanhazip.com || echo "无公网IPv4")"
-    echo -e "${YELLOW}IPv6 地址:${PLAIN} $(curl -s6 --max-time 3 icanhazip.com || echo "无公网IPv6")"
-    echo -e "${YELLOW}运行时间 :${PLAIN} $(uptime -p | sed 's/up //')"
+    echo -e "${YELLOW}IPv4 адрес :${PLAIN} $(curl -s4 --max-time 3 icanhazip.com || echo "нет публичного IPv4")"
+    echo -e "${YELLOW}IPv6 адрес :${PLAIN} $(curl -s6 --max-time 3 icanhazip.com || echo "нет публичного IPv6")"
+    echo -e "${YELLOW}Время работы :${PLAIN} $(uptime -p | sed 's/up //')"
     echo -e "------------------------------------------------"
     print_project_runtime_overview
     echo -e "${CYAN}================================================${PLAIN}"
     
-    read -n 1 -s -r -p "按任意键返回主菜单..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата в главное меню..."
 }
 
 # ---------------------------------------------------------
-# 12. 综合测试合集
+# 12. Комплексный тестовый набор
 # ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # Module: diagnostics_network.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# 443 network probes, benchmark script launchers, and port-dog integration.
+# Сетевые пробы 443, запуск бенчмарк-скриптов и интеграция port-dog.
 
 probe_host_for_listen_addr() {
     local addr="$1"
@@ -14879,17 +14870,17 @@ tcp_probe_host() {
 
     for ((i = 1; i <= attempts; i++)); do
         if tcp_probe_once "$host" "$port"; then
-            echo -e "${GREEN}✅ ${label}: ${host}:${port} 可连接${PLAIN}"
+            echo -e "${GREEN}✅ ${label}: ${host}:${port} доступен${PLAIN}"
             return 0
         fi
         if local_listen_socket_matches_probe "$host" "$port"; then
-            echo -e "${GREEN}✅ ${label}: ${host}:${port} 已检测到本地监听${PLAIN}"
+            echo -e "${GREEN}✅ ${label}: ${host}:${port} обнаружен локальный слушатель${PLAIN}"
             return 0
         fi
         [[ "$i" -lt "$attempts" ]] && sleep "$delay"
     done
 
-    echo -e "${RED}❌ ${label}: ${host}:${port} 连接失败${PLAIN}"
+    echo -e "${RED}❌ ${label}: ${host}:${port} недоступен${PLAIN}"
     return 1
 }
 
@@ -14935,17 +14926,17 @@ probe_tls_sni_certificate() {
     local connect_target
 
     if ! command -v timeout >/dev/null 2>&1 || ! command -v openssl >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️ ${label}: 缺少 timeout 或 openssl，跳过 TLS/SNI 证书探测。${PLAIN}"
+        echo -e "${YELLOW}⚠️ ${label}: отсутствует timeout или openssl, проверка TLS/SNI пропущена.${PLAIN}"
         return 0
     fi
 
     connect_target=$(format_hostport "$host" "$port")
     if timeout 10 openssl s_client -connect "$connect_target" -servername "$sni" </dev/null 2>/dev/null | grep -q "BEGIN CERTIFICATE"; then
-        echo -e "${GREEN}✅ ${label}: ${connect_target} / SNI ${sni} 已返回证书链${PLAIN}"
+        echo -e "${GREEN}✅ ${label}: ${connect_target} / SNI ${sni} вернул цепочку сертификатов${PLAIN}"
         return 0
     fi
 
-    echo -e "${RED}❌ ${label}: ${connect_target} / SNI ${sni} 未正常返回证书链${PLAIN}"
+    echo -e "${RED}❌ ${label}: ${connect_target} / SNI ${sni} не вернул цепочку сертификатов${PLAIN}"
     return 1
 }
 
@@ -14967,19 +14958,19 @@ curl_sni_path_probe() {
     local path="$4"
     local url code curl_rc
     if ! command -v curl >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️ ${label}: 缺少 curl，跳过 HTTPS 路径探测。${PLAIN}"
+        echo -e "${YELLOW}⚠️ ${label}: curl не установлен, проверка HTTPS-пути пропущена.${PLAIN}"
         return 1
     fi
     url=$(https_url_for_port "$domain" "$port" "$path")
     code=$(curl -k -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 12 --resolve "${domain}:${port}:127.0.0.1" "$url" 2>/dev/null)
     curl_rc=$?
     if [[ "$curl_rc" -ne 0 || ! "$code" =~ ^[0-9]{3}$ || "$code" == "000" ]]; then
-        echo -e "${RED}❌ ${label}: ${url} 无响应或 TLS/SNI 失败（curl exit ${curl_rc}, HTTP ${code:-000}）${PLAIN}"
+        echo -e "${RED}❌ ${label}: ${url} нет ответа или TLS/SNI не работает (curl exit ${curl_rc}, HTTP ${code:-000})${PLAIN}"
         return 1
     fi
     case "$code" in
         404)
-            echo -e "${YELLOW}⚠️ ${label}: ${url} HTTP ${code}，443/SNI 已到达，但路径或后端可能不匹配。${PLAIN}"
+            echo -e "${YELLOW}⚠️ ${label}: ${url} HTTP ${code}, 443/SNI достигнут, но путь или бэкенд могут не совпадать.${PLAIN}"
             return 0
             ;;
         *)
@@ -14994,164 +14985,164 @@ tls_sni_probe_local() {
     local sni="$2"
     local port="$3"
     if ! command -v openssl >/dev/null 2>&1 || ! command -v timeout >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️ ${label}: 缺少 openssl/timeout，跳过 TLS SNI 探测。${PLAIN}"
+        echo -e "${YELLOW}⚠️ ${label}: отсутствует openssl/timeout, проверка TLS SNI пропущена.${PLAIN}"
         return 1
     fi
     if timeout 10 openssl s_client -connect "127.0.0.1:${port}" -servername "$sni" </dev/null 2>/dev/null | grep -q "BEGIN CERTIFICATE"; then
-        echo -e "${GREEN}✅ ${label}: Nginx 入口能按 ${sni} 命中 TLS 证书链${PLAIN}"
+        echo -e "${GREEN}✅ ${label}: Nginx вход может попасть по SNI ${sni} на цепочку сертификатов${PLAIN}"
         return 0
     fi
-    echo -e "${YELLOW}⚠️ ${label}: 未拿到证书链，请检查 Nginx stream、Caddy 证书或 SNI。${PLAIN}"
+    echo -e "${YELLOW}⚠️ ${label}: цепочка сертификатов не получена, проверьте Nginx stream, сертификаты Caddy или SNI.${PLAIN}"
     return 1
 }
 
 func_443_network_test() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    print_breadcrumb "测速与质量检测 > 443 单入口测试"
-    echo -e "${BOLD}🧪 443 单入口网络访问测试${PLAIN}"
+    print_breadcrumb "Тесты скорости и качества > Проверка единого входа 443"
+    echo -e "${BOLD}🧪 Сетевой тест единого входа 443${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
 
     if [[ ! -f /etc/vps-optimize/sni-stack.env ]]; then
-        echo -e "${YELLOW}未检测到 443 单入口配置。请先进入 [19] -> [2] 完成首次配置。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${YELLOW}Конфигурация единого входа 443 не обнаружена. Сначала выполните [19] -> [2] первичную настройку.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
-    load_sni_stack_env || { read -n 1 -s -r -p "按任意键返回..."; return; }
+    load_sni_stack_env || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
 
-    echo -e "面板入口：https://${PANEL_DOMAIN}${PANEL_WEB_PATH}"
-    echo -e "订阅入口：https://${PANEL_DOMAIN}${SUB_URI_PATH}"
-    echo -e "Clash/Mihomo：https://${PANEL_DOMAIN}${CLASH_URI_PATH}"
-    echo -e "REALITY SNI：${REALITY_SNI}:${NGINX_LISTEN_PORT} -> ${XRAY_LISTEN_ADDR}:${XRAY_LISTEN_PORT}"
+    echo -e "Вход панели: https://${PANEL_DOMAIN}${PANEL_WEB_PATH}"
+    echo -e "Вход подписки: https://${PANEL_DOMAIN}${SUB_URI_PATH}"
+    echo -e "Clash/Mihomo: https://${PANEL_DOMAIN}${CLASH_URI_PATH}"
+    echo -e "REALITY SNI: ${REALITY_SNI}:${NGINX_LISTEN_PORT} -> ${XRAY_LISTEN_ADDR}:${XRAY_LISTEN_PORT}"
     echo -e "------------------------------------------------"
 
-    check_domain_dns_sanity "$PANEL_DOMAIN" "面板域名" "warn" || true
+    check_domain_dns_sanity "$PANEL_DOMAIN" "Домен панели" "warn" || true
     [[ "$PANEL_DOMAIN" != "$REALITY_SNI" ]] && check_domain_dns_sanity "$REALITY_SNI" "REALITY SNI" "warn" || true
 
     echo -e "------------------------------------------------"
-    tcp_probe_host "公网入口 TCP" "$PANEL_DOMAIN" "$NGINX_LISTEN_PORT" || true
-    tcp_probe_host "本机 Nginx 入口" "127.0.0.1" "$NGINX_LISTEN_PORT" || true
-    tcp_probe_host "$(web_proxy_engine_label) 本地 TLS" "$(probe_host_for_listen_addr "$CADDY_LISTEN_ADDR")" "$CADDY_LISTEN_PORT" || true
-    tcp_probe_host "3x-ui 面板后端" "$(probe_host_for_listen_addr "$PANEL_LISTEN_ADDR")" "$PANEL_LISTEN_PORT" || true
-    tcp_probe_host "3x-ui 订阅后端" "$(probe_host_for_listen_addr "$SUB_LISTEN_ADDR")" "$SUB_LISTEN_PORT" || true
-    tcp_probe_host "REALITY 本地入站" "$(probe_host_for_listen_addr "$XRAY_LISTEN_ADDR")" "$XRAY_LISTEN_PORT" || true
+    tcp_probe_host "Публичный TCP вход" "$PANEL_DOMAIN" "$NGINX_LISTEN_PORT" || true
+    tcp_probe_host "Локальный Nginx вход" "127.0.0.1" "$NGINX_LISTEN_PORT" || true
+    tcp_probe_host "$(web_proxy_engine_label) локальный TLS" "$(probe_host_for_listen_addr "$CADDY_LISTEN_ADDR")" "$CADDY_LISTEN_PORT" || true
+    tcp_probe_host "Бэкенд панели 3x-ui" "$(probe_host_for_listen_addr "$PANEL_LISTEN_ADDR")" "$PANEL_LISTEN_PORT" || true
+    tcp_probe_host "Бэкенд подписки 3x-ui" "$(probe_host_for_listen_addr "$SUB_LISTEN_ADDR")" "$SUB_LISTEN_PORT" || true
+    tcp_probe_host "Локальный Xray/REALITY" "$(probe_host_for_listen_addr "$XRAY_LISTEN_ADDR")" "$XRAY_LISTEN_PORT" || true
 
     echo -e "------------------------------------------------"
-    tls_sni_probe_local "面板 SNI TLS" "$PANEL_DOMAIN" "$NGINX_LISTEN_PORT" || true
-    curl_sni_path_probe "面板路径" "$PANEL_DOMAIN" "$NGINX_LISTEN_PORT" "$PANEL_WEB_PATH" || true
-    curl_sni_path_probe "普通订阅路径" "$PANEL_DOMAIN" "$NGINX_LISTEN_PORT" "$SUB_URI_PATH" || true
-    curl_sni_path_probe "Clash/Mihomo 路径" "$PANEL_DOMAIN" "$NGINX_LISTEN_PORT" "$CLASH_URI_PATH" || true
+    tls_sni_probe_local "TLS SNI панели" "$PANEL_DOMAIN" "$NGINX_LISTEN_PORT" || true
+    curl_sni_path_probe "Путь панели" "$PANEL_DOMAIN" "$NGINX_LISTEN_PORT" "$PANEL_WEB_PATH" || true
+    curl_sni_path_probe "Путь обычной подписки" "$PANEL_DOMAIN" "$NGINX_LISTEN_PORT" "$SUB_URI_PATH" || true
+    curl_sni_path_probe "Путь Clash/Mihomo" "$PANEL_DOMAIN" "$NGINX_LISTEN_PORT" "$CLASH_URI_PATH" || true
 
     echo -e "------------------------------------------------"
-    echo -e "${YELLOW}说明：HTTP 401/403/302 通常表示链路已到达后端；404 多数是路径或 3x-ui 订阅设置不一致。${PLAIN}"
-    read -n 1 -s -r -p "按任意键返回..."
+    echo -e "${YELLOW}Пояснение: HTTP 401/403/302 обычно означает, что цепочка достигла бэкенда; 404 чаще всего — несовпадение пути или настроек подписки 3x-ui.${PLAIN}"
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 func_test_scripts() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${BOLD}📊 VPS 综合测速与质量检验合集库${PLAIN}"
+        echo -e "${BOLD}📊 Комплексный набор тестов скорости и качества VPS${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${GREEN}  1. YABS 硬件性能测试      ${YELLOW}  2. SuperBench 综合测速${PLAIN}"
-        echo -e "${GREEN}  3. bench.sh 基础测试      ${YELLOW}  4. 融合怪详细测速${PLAIN}"
-        echo -e "${GREEN}  5. 三网回程路由测试       ${YELLOW}  6. IP 质量 / 欺诈度检测${PLAIN}"
-        echo -e "${GREEN}  7. NodeSeek 综合测试      ${YELLOW}  8. 流媒体解锁检测${PLAIN}"
+        echo -e "${GREEN}  1. YABS тест производительности ${YELLOW}  2. SuperBench комплексный${PLAIN}"
+        echo -e "${GREEN}  3. bench.sh базовый тест      ${YELLOW}  4. FusionBench детальный${PLAIN}"
+        echo -e "${GREEN}  5. Трассировка обратного пути  ${YELLOW}  6. Качество IP / мошенничество${PLAIN}"
+        echo -e "${GREEN}  7. NodeSeek комплексный      ${YELLOW}  8. Проверка разблокировки стриминга${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${RED}  0. 返回主菜单 / q 返回${PLAIN}"
+        echo -e "${RED}  0. Вернуться в главное меню / q${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
         
         local t
         local ran_test=false
-        read_trimmed t "👉 请输入对应序号选择: "
+        read_trimmed t "👉 Введите соответствующий номер: "
         case $t in
-            1) ran_test=true; run_remote_script "运行 YABS 硬件性能测试" "https://yabs.sh" ;;
-            2) ran_test=true; run_remote_script "运行 SuperBench 综合测速" "https://about.superbench.pro" ;;
-            3) ran_test=true; run_remote_script "运行 bench.sh 基础测试" "https://bench.sh" ;;
-            4) ran_test=true; run_remote_script "运行融合怪详细测速" "https://gitlab.com/spiritysdx/za/-/raw/main/ecs.sh" ;;
-            5) ran_test=true; run_remote_script "运行三网回程路由测试" "https://raw.githubusercontent.com/zhanghanyun/backtrace/main/install.sh" ;;
-            6) ran_test=true; run_remote_script "运行 IP 质量 / 欺诈度检测" "https://IP.Check.Place" ;;
-            7) ran_test=true; run_remote_script "运行 NodeSeek 综合测试" "https://run.NodeQuality.com" ;;
-            8) ran_test=true; run_remote_script "运行流媒体解锁检测" "https://check.unlock.media" ;;
+            1) ran_test=true; run_remote_script "Запуск YABS теста производительности" "https://yabs.sh" ;;
+            2) ran_test=true; run_remote_script "Запуск SuperBench комплексного теста" "https://about.superbench.pro" ;;
+            3) ran_test=true; run_remote_script "Запуск bench.sh базового теста" "https://bench.sh" ;;
+            4) ran_test=true; run_remote_script "Запуск FusionBench детального теста" "https://gitlab.com/spiritysdx/za/-/raw/main/ecs.sh" ;;
+            5) ran_test=true; run_remote_script "Запуск трассировки обратного пути" "https://raw.githubusercontent.com/zhanghanyun/backtrace/main/install.sh" ;;
+            6) ran_test=true; run_remote_script "Запуск проверки качества IP / мошенничества" "https://IP.Check.Place" ;;
+            7) ran_test=true; run_remote_script "Запуск NodeSeek комплексного теста" "https://run.NodeQuality.com" ;;
+            8) ran_test=true; run_remote_script "Запуск проверки разблокировки стриминга" "https://check.unlock.media" ;;
             0|q|Q) break ;;
-            *) echo -e "${RED}❌ 无效的选择！${PLAIN}"; sleep 1; continue ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1; continue ;;
         esac
         echo ""
         if [[ "$ran_test" == "true" ]]; then
-            pause_after_external_script "操作结束，按回车键返回测试菜单..."
+            pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню тестов..."
         fi
     done
 }
 # ---------------------------------------------------------
-# 13, 14, 15 面板与流量狗快速部署
+# 13, 14, 15 Быстрое развертывание панелей и dog
 # ---------------------------------------------------------
 func_port_dog() {
     clear
-    echo -e "${CYAN}👉 正在拉取并执行端口实际流量监控工具...${PLAIN}"
-    run_remote_script "安装端口实际流量监控工具" "https://raw.githubusercontent.com/Chunlion/VPS-Optimize/main/dog.sh"
-    pause_after_external_script "操作结束，按回车键返回菜单..."
+    echo -e "${CYAN}👉 Загрузка и выполнение инструмента мониторинга реального трафика портов...${PLAIN}"
+    run_remote_script "Установка инструмента мониторинга реального трафика портов" "https://raw.githubusercontent.com/sacredx72/VPS-Optimize/main/dog.sh"
+    pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню..."
 }
 
 # ---------------------------------------------------------
 # Module: panel_installers.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Panel, node, DNS unlock, and IP sentinel installation shortcuts.
+# Быстрые установщики панелей, узлов, DNS разблокировки и IP Sentinel.
 
 func_xpanel() {
     clear
     local version_choice install_url install_desc ssl_hint
     local -a install_args=()
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}安装 3x-ui / x-ui 面板${PLAIN}"
+    echo -e "${BOLD}Установка 3x-ui / x-ui панели${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}账号密码说明：本入口会运行 3x-ui 官方安装器。${PLAIN}"
-    echo -e "${YELLOW}管理员账号、密码和面板路径通常由官方安装器交互设置或在安装结束时输出。${PLAIN}"
-    echo -e "${YELLOW}请留意安装结束输出并及时保存；后续也可通过 x-ui / 3x-ui 官方菜单修改。${PLAIN}"
+    echo -e "${YELLOW}Пояснение по учётным данным: этот пункт запускает официальный установщик 3x-ui.${PLAIN}"
+    echo -e "${YELLOW}Имя администратора, пароль и путь к панели обычно задаются интерактивно или выводятся в конце установки.${PLAIN}"
+    echo -e "${YELLOW}Обратите внимание на вывод и сохраните данные; позже их можно изменить через официальное меню x-ui / 3x-ui.${PLAIN}"
     echo -e "------------------------------------------------"
-    echo -e "${GREEN}  1. 安装最新版${PLAIN}       ${YELLOW}(默认，跟随官方 master 安装器)${PLAIN}"
-    echo -e "${GREEN}  2. 安装 v2.9.4${PLAIN}      ${YELLOW}(固定版本，适合需要按 2.9.4 教程复现的机器)${PLAIN}"
-    echo -e "${RED}  0. 取消${PLAIN}"
+    echo -e "${GREEN}  1. Установить последнюю версию${PLAIN}       ${YELLOW}(по умолчанию, master установщик)${PLAIN}"
+    echo -e "${GREEN}  2. Установить v2.9.4${PLAIN}      ${YELLOW}(фиксированная версия, для машин, использующих туториалы по 2.9.4)${PLAIN}"
+    echo -e "${RED}  0. Отмена${PLAIN}"
     echo -e "------------------------------------------------"
-    read_trimmed version_choice "请选择 3x-ui 安装版本（默认 1）: "
+    read_trimmed version_choice "Выберите версию 3x-ui (по умолчанию 1): "
     case "$(echo "${version_choice:-1}" | tr '[:upper:]' '[:lower:]')" in
-        1|latest|最新版)
-            install_desc="安装 3x-ui / x-ui 面板（最新版）"
+        1|latest|последняя)
+            install_desc="Установка 3x-ui / x-ui панели (последняя)"
             install_url="https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh"
-            ssl_hint="最新版 3.x 安装器如果询问 SSL certificate setup method，请选择 Skip SSL / 不申请 SSL。443 单入口会由本脚本的 Caddy + acme.sh 统一托管公网证书。"
+            ssl_hint="Для новых установок 3.x, если установщик спрашивает о методе настройки SSL, выберите Skip SSL / не запрашивать SSL. Единый вход 443 будет обслуживать публичные сертификаты через Caddy + acme.sh."
             ;;
         2|2.9.4|v2.9.4)
-            install_desc="安装 3x-ui / x-ui 面板（v2.9.4）"
+            install_desc="Установка 3x-ui / x-ui панели (v2.9.4)"
             install_url="https://raw.githubusercontent.com/mhsanaei/3x-ui/v2.9.4/install.sh"
             install_args=("v2.9.4")
-            ssl_hint="v2.9.4 属于 2.x 老流程：如果安装器或面板里已经设置过 SSL 证书，后续 443 单入口向导会继续按旧方式清空面板/订阅证书路径。"
+            ssl_hint="v2.9.4 — старый процесс 2.x: если в установщике или панели уже был настроен SSL, последующий мастер единого входа 443 продолжит очистку путей сертификатов панели/подписки по-старому."
             ;;
         0|q|Q)
-            echo -e "${BLUE}已取消安装。${PLAIN}"
-            pause_after_external_script "按回车键返回菜单..."
+            echo -e "${BLUE}Установка отменена.${PLAIN}"
+            pause_after_external_script "Нажмите Enter для возврата в меню..."
             return
             ;;
         *)
-            echo -e "${RED}❌ 无效选择，已取消安装。${PLAIN}"
-            pause_after_external_script "按回车键返回菜单..."
+            echo -e "${RED}❌ Неверный выбор, установка отменена.${PLAIN}"
+            pause_after_external_script "Нажмите Enter для возврата в меню..."
             return
             ;;
     esac
     echo -e "${YELLOW}${ssl_hint}${PLAIN}"
-    echo -e "${CYAN}👉 正在拉取 mhsanaei 的官方 3x-ui 安装脚本...${PLAIN}"
+    echo -e "${CYAN}👉 Загрузка официального установочного скрипта 3x-ui от mhsanaei...${PLAIN}"
     if run_remote_script "$install_desc" "$install_url" "${install_args[@]}"; then
         detect_xui_single_443_defaults
         print_xui_single_443_detected_defaults
     fi
-    pause_after_external_script "操作结束，按回车键返回菜单..."
+    pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню..."
 }
 
 func_xpanel_manage() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧭 3x-ui / x-ui 管理 / 卸载${PLAIN}"
+    echo -e "${BOLD}🧭 Управление / Удаление 3x-ui / x-ui${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}用途：进入官方管理菜单，执行配置查看、账号管理、更新或卸载等操作。${PLAIN}"
+    echo -e "${YELLOW}Назначение: вход в официальное меню управления, просмотр конфигурации, управление учётными записями, обновление или удаление.${PLAIN}"
     echo -e "------------------------------------------------"
 
     local panel_cmd=""
@@ -15162,96 +15153,96 @@ func_xpanel_manage() {
     fi
 
     if [[ -z "$panel_cmd" ]]; then
-        echo -e "${YELLOW}未检测到 x-ui / 3x-ui 命令，当前机器可能尚未安装 3x-ui 面板。${PLAIN}"
+        echo -e "${YELLOW}Команда x-ui / 3x-ui не обнаружена, возможно, панель ещё не установлена.${PLAIN}"
         local yn
-        read_trimmed yn "是否现在安装 3x-ui 面板？(y/n): "
+        read_trimmed yn "Установить 3x-ui панель сейчас? (y/n): "
         if is_yes "$yn"; then
             func_xpanel
         else
-            echo -e "${BLUE}已取消操作。${PLAIN}"
-            read -n 1 -s -r -p "按任意键返回..."
+            echo -e "${BLUE}Операция отменена.${PLAIN}"
+            read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         fi
         return
     fi
 
-    echo -e "${GREEN}即将打开 ${panel_cmd} 官方管理菜单。${PLAIN}"
-    echo -e "${YELLOW}如需卸载，请在官方菜单中选择对应卸载项。${PLAIN}"
+    echo -e "${GREEN}Будет открыто официальное меню управления ${panel_cmd}.${PLAIN}"
+    echo -e "${YELLOW}Для удаления выберите соответствующий пункт в официальном меню.${PLAIN}"
     echo -e "------------------------------------------------"
     "$panel_cmd"
-    pause_after_external_script "操作结束，按回车键返回菜单..."
+    pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню..."
 }
 
 func_xui_custom_manager() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧭 x-ui 增强套件${PLAIN}"
+    echo -e "${BOLD}🧭 Расширенный набор x-ui${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}用途：补充 3x-ui 面板内没有的维护能力，例如自定义流量重置、校准已用流量、备份恢复和健康检查。${PLAIN}"
-    echo -e "${YELLOW}提示：也可以在主菜单直接输入 xcm 进入；脚本内输入 ? 可看功能索引。${PLAIN}"
-    echo -e "${YELLOW}建议：修改数据库或恢复备份前，先做快照或通过脚本备份 x-ui 数据。${PLAIN}"
+    echo -e "${YELLOW}Назначение: дополняет возможности, отсутствующие в панели 3x-ui, например кастомный сброс трафика, калибровка использованного трафика, бэкап/восстановление и проверка состояния.${PLAIN}"
+    echo -e "${YELLOW}Подсказка: также можно ввести xcm в главном меню; внутри скрипта можно нажать ? для просмотра функционала.${PLAIN}"
+    echo -e "${YELLOW}Рекомендация: перед изменением базы данных или восстановлением создайте снимок или сделайте бэкап данных x-ui через скрипт.${PLAIN}"
     echo -e "------------------------------------------------"
-    run_remote_script "运行 x-ui 增强套件脚本" "https://raw.githubusercontent.com/Chunlion/VPS-Optimize/main/xui-custom-manager.sh"
-    pause_after_external_script "操作结束，按回车键返回菜单..."
+    run_remote_script "Запуск расширенного набора x-ui" "https://raw.githubusercontent.com/sacredx72/VPS-Optimize/main/xui-custom-manager.sh"
+    pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню..."
 }
 
 func_sui_panel() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}安装 S-UI 面板${PLAIN}"
+    echo -e "${BOLD}Установка S-UI панели${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}账号密码说明：本入口会运行 S-UI 官方安装器。${PLAIN}"
-    echo -e "${YELLOW}管理员账号、密码和面板访问参数由官方安装器设置或在安装结束时输出。${PLAIN}"
-    echo -e "${YELLOW}请留意安装结束输出并及时保存；后续也可通过 s-ui 官方菜单修改。${PLAIN}"
+    echo -e "${YELLOW}Пояснение по учётным данным: этот пункт запускает официальный установщик S-UI.${PLAIN}"
+    echo -e "${YELLOW}Имя администратора, пароль и параметры доступа к панели задаются установщиком или выводятся в конце.${PLAIN}"
+    echo -e "${YELLOW}Обратите внимание на вывод и сохраните данные; позже их можно изменить через официальное меню s-ui.${PLAIN}"
     echo -e "------------------------------------------------"
-    echo -e "${CYAN}👉 正在拉取 alireza0 的 S-UI 官方安装脚本...${PLAIN}"
-    run_remote_script "安装 S-UI 面板" "https://raw.githubusercontent.com/alireza0/s-ui/master/install.sh"
-    pause_after_external_script "操作结束，按回车键返回菜单..."
+    echo -e "${CYAN}👉 Загрузка официального установочного скрипта S-UI от alireza0...${PLAIN}"
+    run_remote_script "Установка S-UI панели" "https://raw.githubusercontent.com/alireza0/s-ui/master/install.sh"
+    pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню..."
 }
 
 func_sui_manage() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧭 S-UI 管理 / 卸载${PLAIN}"
+    echo -e "${BOLD}🧭 Управление / Удаление S-UI${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}用途：进入 S-UI 官方管理菜单，执行配置查看、账号管理、更新或卸载等操作。${PLAIN}"
+    echo -e "${YELLOW}Назначение: вход в официальное меню управления S-UI, просмотр конфигурации, управление учётными записями, обновление или удаление.${PLAIN}"
     echo -e "------------------------------------------------"
 
     if ! command -v s-ui >/dev/null 2>&1; then
-        echo -e "${YELLOW}未检测到 s-ui 命令，当前机器可能尚未安装 S-UI。${PLAIN}"
+        echo -e "${YELLOW}Команда s-ui не обнаружена, возможно, S-UI ещё не установлен.${PLAIN}"
         local yn
-        read_trimmed yn "是否现在安装 S-UI？(y/n): "
+        read_trimmed yn "Установить S-UI сейчас? (y/n): "
         if is_yes "$yn"; then
             func_sui_panel
         else
-            echo -e "${BLUE}已取消操作。${PLAIN}"
-            read -n 1 -s -r -p "按任意键返回..."
+            echo -e "${BLUE}Операция отменена.${PLAIN}"
+            read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         fi
         return
     fi
 
-    echo -e "${GREEN}即将打开 S-UI 官方管理菜单。${PLAIN}"
-    echo -e "${YELLOW}如需卸载，请在官方菜单中选择对应卸载项。${PLAIN}"
+    echo -e "${GREEN}Будет открыто официальное меню управления S-UI.${PLAIN}"
+    echo -e "${YELLOW}Для удаления выберите соответствующий пункт в официальном меню.${PLAIN}"
     echo -e "------------------------------------------------"
     s-ui
-    pause_after_external_script "操作结束，按回车键返回菜单..."
+    pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню..."
 }
 
 func_singbox_233boy() {
     clear
-    echo -e "${CYAN}👉 正在拉取 233boy 的 Sing-box 一键脚本...${PLAIN}"
-    echo -e "${YELLOW}脚本来源：https://github.com/233boy/sing-box${PLAIN}"
-    echo -e "${YELLOW}使用文档：https://233boy.com/sing-box/sing-box-script/${PLAIN}"
-    echo -e "${GREEN}安装完成后通常可使用 sing-box 或 sb 命令进入管理面板。${PLAIN}"
-    run_remote_script "安装 Sing-box 233boy 一键脚本" "https://github.com/233boy/sing-box/raw/main/install.sh"
-    pause_after_external_script "操作结束，按回车键返回菜单..."
+    echo -e "${CYAN}👉 Загрузка скрипта 233boy для Sing-box...${PLAIN}"
+    echo -e "${YELLOW}Источник: https://github.com/233boy/sing-box${PLAIN}"
+    echo -e "${YELLOW}Документация: https://233boy.com/sing-box/sing-box-script/${PLAIN}"
+    echo -e "${GREEN}После установки обычно можно использовать команду sing-box или sb для входа в меню управления.${PLAIN}"
+    run_remote_script "Установка скрипта 233boy для Sing-box" "https://github.com/233boy/sing-box/raw/main/install.sh"
+    pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню..."
 }
 
 func_singbox_manage() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧭 Sing-box 管理 / 卸载${PLAIN}"
+    echo -e "${BOLD}🧭 Управление / Удаление Sing-box${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}用途：进入已安装 Sing-box 一键脚本的管理菜单。${PLAIN}"
+    echo -e "${YELLOW}Назначение: вход в меню управления установленного скрипта Sing-box.${PLAIN}"
     echo -e "------------------------------------------------"
 
     local sb_cmd=""
@@ -15262,133 +15253,133 @@ func_singbox_manage() {
     fi
 
     if [[ -z "$sb_cmd" ]]; then
-        echo -e "${YELLOW}未检测到 sb / sing-box 管理命令。${PLAIN}"
-        echo -e "${BLUE}如果是首次部署，请先选择对应的 Sing-box 安装项。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${YELLOW}Команда sb / sing-box не обнаружена.${PLAIN}"
+        echo -e "${BLUE}Если это первая установка, сначала выберите соответствующий пункт установки Sing-box.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
-    echo -e "${GREEN}即将打开 ${sb_cmd} 管理菜单。${PLAIN}"
-    echo -e "${YELLOW}如需卸载，请在脚本菜单中选择对应卸载项。${PLAIN}"
+    echo -e "${GREEN}Будет открыто меню управления ${sb_cmd}.${PLAIN}"
+    echo -e "${YELLOW}Для удаления выберите соответствующий пункт в меню скрипта.${PLAIN}"
     echo -e "------------------------------------------------"
     "$sb_cmd"
-    pause_after_external_script "操作结束，按回车键返回菜单..."
+    pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню..."
 }
 
 func_xray_233boy() {
     clear
-    echo -e "${CYAN}👉 正在拉取 233boy 的 Xray 一键脚本...${PLAIN}"
-    echo -e "${YELLOW}脚本来源：https://github.com/233boy/Xray${PLAIN}"
-    echo -e "${YELLOW}使用文档：https://233boy.com/xray/xray-script/${PLAIN}"
-    echo -e "${GREEN}安装完成后通常可使用 xray 命令进入管理面板。${PLAIN}"
-    run_remote_script "安装 Xray 233boy 一键脚本" "https://github.com/233boy/Xray/raw/main/install.sh"
-    pause_after_external_script "操作结束，按回车键返回菜单..."
+    echo -e "${CYAN}👉 Загрузка скрипта 233boy для Xray...${PLAIN}"
+    echo -e "${YELLOW}Источник: https://github.com/233boy/Xray${PLAIN}"
+    echo -e "${YELLOW}Документация: https://233boy.com/xray/xray-script/${PLAIN}"
+    echo -e "${GREEN}После установки обычно можно использовать команду xray для входа в меню управления.${PLAIN}"
+    run_remote_script "Установка скрипта 233boy для Xray" "https://github.com/233boy/Xray/raw/main/install.sh"
+    pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню..."
 }
 
 func_xray_manage() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧭 Xray 管理 / 卸载${PLAIN}"
+    echo -e "${BOLD}🧭 Управление / Удаление Xray${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}用途：进入 233boy Xray 官方管理菜单。${PLAIN}"
+    echo -e "${YELLOW}Назначение: вход в официальное меню управления 233boy Xray.${PLAIN}"
     echo -e "------------------------------------------------"
 
     if ! command -v xray >/dev/null 2>&1; then
-        echo -e "${YELLOW}未检测到 xray 管理命令，当前机器可能尚未安装 233boy Xray 脚本。${PLAIN}"
+        echo -e "${YELLOW}Команда xray не обнаружена, возможно, скрипт 233boy Xray ещё не установлен.${PLAIN}"
         local yn
-        read_trimmed yn "是否现在安装 Xray？(y/n): "
+        read_trimmed yn "Установить Xray сейчас? (y/n): "
         if is_yes "$yn"; then
             func_xray_233boy
         else
-            echo -e "${BLUE}已取消操作。${PLAIN}"
-            read -n 1 -s -r -p "按任意键返回..."
+            echo -e "${BLUE}Операция отменена.${PLAIN}"
+            read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         fi
         return
     fi
 
-    echo -e "${GREEN}即将打开 xray 管理菜单。${PLAIN}"
-    echo -e "${YELLOW}如需卸载，请在官方菜单中选择对应卸载项。${PLAIN}"
+    echo -e "${GREEN}Будет открыто меню управления xray.${PLAIN}"
+    echo -e "${YELLOW}Для удаления выберите соответствующий пункт в официальном меню.${PLAIN}"
     echo -e "------------------------------------------------"
     xray
-    pause_after_external_script "操作结束，按回车键返回菜单..."
+    pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню..."
 }
 
 # ---------------------------------------------------------
-# 17. DNS 流媒体分流解锁 (Alice DNS)
+# 17. DNS разблокировка стриминга (Alice DNS)
 # ---------------------------------------------------------
 func_dns_unlock() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🔓 DNS 流媒体分流解锁 (DNS-Alice-Unlock)${PLAIN}"
+    echo -e "${BOLD}🔓 DNS разблокировка стриминга (DNS-Alice-Unlock)${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}功能介绍与使用说明：${PLAIN}"
-    echo -e " 1. 该脚本通过修改本地 DNS 解析，实现 Netflix, Disney+ 等特定区域流媒体的解锁。"
-    echo -e " 2. ${GREEN}仅对流媒体域名进行分流${PLAIN}，不影响您的原生 IP 和普通上网速度。"
-    echo -e " 3. 项目地址：${BLUE}https://github.com/Jimmyzxk/DNS-Alice-Unlock/${PLAIN}"
+    echo -e "${YELLOW}Описание и инструкция:${PLAIN}"
+    echo -e " 1. Скрипт изменяет локальное DNS-разрешение для разблокировки Netflix, Disney+ и других региональных стримингов."
+    echo -e " 2. ${GREEN}Маршрутизирует только домены стримингов${PLAIN}, не влияет на ваш реальный IP и обычную скорость интернета."
+    echo -e " 3. Проект: ${BLUE}https://github.com/Jimmyzxk/DNS-Alice-Unlock/${PLAIN}"
     echo -e "------------------------------------------------"
-    echo -e "${RED}⚠️  风险提示：运行此脚本会修改您服务器的 /etc/resolv.conf 配置。${PLAIN}"
-    echo -e "    如果您不懂如何自行配置解锁机的 DNS 记录，请务必先查阅项目文档！"
+    echo -e "${RED}⚠️ Предупреждение: этот скрипт изменяет /etc/resolv.conf вашего сервера.${PLAIN}"
+    echo -e "    Если вы не знаете, как самостоятельно настраивать DNS для разблокировки, обязательно изучите документацию проекта!"
     echo -e "------------------------------------------------"
     
     local yn
-    read_trimmed yn "❓ 确认现在运行 Alice DNS 解锁脚本吗？(y/n): "
+    read_trimmed yn "❓ Запустить скрипт разблокировки Alice DNS сейчас? (y/n): "
     if is_yes "$yn"; then
-        run_remote_script "运行 Alice DNS 解锁脚本" "https://raw.githubusercontent.com/Jimmyzxk/DNS-Alice-Unlock/refs/heads/main/dns-unlock.sh"
+        run_remote_script "Запуск скрипта разблокировки Alice DNS" "https://raw.githubusercontent.com/Jimmyzxk/DNS-Alice-Unlock/refs/heads/main/dns-unlock.sh"
     else
-        echo -e "${BLUE}已安全取消操作。${PLAIN}"
+        echo -e "${BLUE}Операция безопасно отменена.${PLAIN}"
     fi
-    pause_after_external_script "操作结束，按回车键返回菜单..."
+    pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню..."
 }
 # ---------------------------------------------------------
-# 新增功能：安装 IP Sentinel (防止 IP 送中)
+# Новая функция: установка IP Sentinel (предотвращение смены локации IP)
 # ---------------------------------------------------------
 func_ip_sentinel() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🛡️ 安装 IP Sentinel (防止 IP 送中)${PLAIN}"
+    echo -e "${BOLD}🛡️ Установка IP Sentinel (предотвращение смены локации IP)${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}该脚本将持续监控并修正路由，防止服务器 IP 被错误定位至中国大陆。${PLAIN}"
+    echo -e "${YELLOW}Этот скрипт будет постоянно контролировать и исправлять маршрутизацию, чтобы IP сервера не был ошибочно определён как китайский.${PLAIN}"
     echo -e "------------------------------------------------"
     
-    read_trimmed yn "❓ 确定要安装并配置 IP Sentinel(公共网关) 吗？(y/n): "
+    read_trimmed yn "❓ Установить и настроить IP Sentinel (публичный шлюз)? (y/n): "
     if is_yes "$yn"; then
-        run_remote_script "安装并配置 IP Sentinel" "https://raw.githubusercontent.com/hotyue/IP-Sentinel/main/core/install.sh"
+        run_remote_script "Установка и настройка IP Sentinel" "https://raw.githubusercontent.com/hotyue/IP-Sentinel/main/core/install.sh"
     else
-        echo -e "${BLUE}已取消操作。${PLAIN}"
+        echo -e "${BLUE}Операция отменена.${PLAIN}"
     fi
-    pause_after_external_script "操作结束，按回车键返回菜单..."
+    pause_after_external_script "Операция завершена, нажмите Enter для возврата в меню..."
 }
 
 # ---------------------------------------------------------
-# 新增功能：安装 SublinkPro (强大的订阅转换与管理面板)
+# Новая функция: установка SublinkPro (мощная панель управления подписками)
 # ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # Module: compose_runtime.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Docker Compose runtime helpers and generic compose project management.
+# Вспомогательные функции Docker Compose и управление проектами Compose.
 
 install_docker_compose_standalone() {
     local compose_url tmp_file
     compose_url="https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)"
-    tmp_file=$(mktemp /tmp/docker-compose.XXXXXX) || { echo -e "${RED}❌ 临时文件创建失败。${PLAIN}"; return 1; }
+    tmp_file=$(mktemp /tmp/docker-compose.XXXXXX) || { echo -e "${RED}❌ Не удалось создать временный файл.${PLAIN}"; return 1; }
 
     if ! download_remote_script "$compose_url" "$tmp_file"; then
         rm -f "$tmp_file"
-        echo -e "${RED}❌ Docker Compose 下载失败，请检查网络或 GitHub 访问。${PLAIN}"
+        echo -e "${RED}❌ Не удалось загрузить Docker Compose, проверьте сеть или доступ к GitHub.${PLAIN}"
         return 1
     fi
 
     if [[ ! -s "$tmp_file" ]]; then
         rm -f "$tmp_file"
-        echo -e "${RED}❌ Docker Compose 下载文件为空，已取消安装。${PLAIN}"
+        echo -e "${RED}❌ Загруженный файл Docker Compose пуст, установка отменена.${PLAIN}"
         return 1
     fi
 
     if ! mv "$tmp_file" /usr/local/bin/docker-compose; then
         rm -f "$tmp_file"
-        echo -e "${RED}❌ Docker Compose 写入 /usr/local/bin 失败。${PLAIN}"
+        echo -e "${RED}❌ Не удалось записать Docker Compose в /usr/local/bin.${PLAIN}"
         return 1
     fi
     chmod +x /usr/local/bin/docker-compose || return 1
@@ -15400,19 +15391,19 @@ ensure_docker_engine_ready() {
         return 0
     fi
 
-    echo -e "${YELLOW}⚠️ 未检测到 Docker，正在自动安装 Docker 引擎...${PLAIN}"
-    if ! VPSO_REMOTE_SCRIPT_CONFIRM=0 run_remote_script "安装 Docker 引擎" "https://get.docker.com"; then
-        echo -e "${RED}❌ Docker 自动安装失败，请检查网络或软件源。${PLAIN}"
+    echo -e "${YELLOW}⚠️ Docker не обнаружен, автоматическая установка Docker Engine...${PLAIN}"
+    if ! VPSO_REMOTE_SCRIPT_CONFIRM=0 run_remote_script "Установка Docker Engine" "https://get.docker.com"; then
+        echo -e "${RED}❌ Автоматическая установка Docker не удалась, проверьте сеть или источники.${PLAIN}"
         return 1
     fi
 
     if ! command -v docker >/dev/null 2>&1; then
-        echo -e "${RED}❌ Docker 安装后仍不可用，请检查安装日志。${PLAIN}"
+        echo -e "${RED}❌ Docker не доступен после установки, проверьте логи.${PLAIN}"
         return 1
     fi
 
     systemctl enable --now docker >/dev/null 2>&1 || true
-    echo -e "${GREEN}✅ Docker 引擎已安装。${PLAIN}"
+    echo -e "${GREEN}✅ Docker Engine установлен.${PLAIN}"
 }
 
 ensure_docker_compose_ready() {
@@ -15424,10 +15415,10 @@ ensure_docker_compose_ready() {
     elif command -v docker-compose >/dev/null 2>&1; then
         DOCKER_COMPOSE_CMD="docker-compose"
     else
-        echo -e "${YELLOW}⚠️ 未检测到 Docker Compose 插件，正在为您安装...${PLAIN}"
+        echo -e "${YELLOW}⚠️ Docker Compose плагин не обнаружен, установка...${PLAIN}"
         install_docker_compose_standalone || return 1
         DOCKER_COMPOSE_CMD="docker-compose"
-        echo -e "${GREEN}✅ Docker Compose 安装完成。${PLAIN}"
+        echo -e "${GREEN}✅ Docker Compose установлен.${PLAIN}"
     fi
 }
 
@@ -15464,87 +15455,87 @@ manage_compose_project() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${BOLD}🧭 ${project_name} 管理 / 卸载${PLAIN}"
+        echo -e "${BOLD}🧭 ${project_name} управление / удаление${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}部署目录：${CYAN}${project_dir}${PLAIN}"
-        echo -e "${YELLOW}数据提示：${CYAN}${data_hint}${PLAIN}"
+        echo -e "${YELLOW}Каталог развёртывания: ${CYAN}${project_dir}${PLAIN}"
+        echo -e "${YELLOW}Подсказка по данным: ${CYAN}${data_hint}${PLAIN}"
         echo -e "------------------------------------------------"
 
         if [[ ! -d "$project_dir" ]] || ! compose_file=$(find_compose_file "$project_dir"); then
-            echo -e "${YELLOW}未检测到 ${project_name} 的 Compose 部署。${PLAIN}"
-            echo -e "${BLUE}可以先返回上级菜单选择对应安装项。${PLAIN}"
-            read -n 1 -s -r -p "按任意键返回..."
+            echo -e "${YELLOW}Развёртывание ${project_name} через Compose не обнаружено.${PLAIN}"
+            echo -e "${BLUE}Сначала вернитесь в предыдущее меню и выберите соответствующий пункт установки.${PLAIN}"
+            read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
             return
         fi
 
-        echo -e "${GREEN}  1. 查看运行状态${PLAIN}"
-        echo -e "${CYAN}  2. 查看/编辑 Compose 配置${PLAIN} ${YELLOW}(备份、校验，可选择 up -d)${PLAIN}"
-        echo -e "${GREEN}  3. 重启服务${PLAIN}"
-        echo -e "${GREEN}  4. 更新镜像并重建${PLAIN}"
-        echo -e "${YELLOW}  5. 停止并移除容器（保留目录数据）${PLAIN}"
-        echo -e "${RED}  6. 归档部署目录（停止容器并隔离配置/数据）${PLAIN}"
-        echo -e "${RED}  0. 返回上级菜单 / q 返回${PLAIN}"
+        echo -e "${GREEN}  1. Просмотр состояния выполнения${PLAIN}"
+        echo -e "${CYAN}  2. Просмотр/редактирование конфигурации Compose${PLAIN} ${YELLOW}(резервное копирование, проверка, up -d)${PLAIN}"
+        echo -e "${GREEN}  3. Перезапуск службы${PLAIN}"
+        echo -e "${GREEN}  4. Обновить образы и пересобрать${PLAIN}"
+        echo -e "${YELLOW}  5. Остановить и удалить контейнеры (данные каталога сохраняются)${PLAIN}"
+        echo -e "${RED}  6. Архивация каталога развёртывания (остановка контейнеров и изоляция конфигурации/данных)${PLAIN}"
+        echo -e "${RED}  0. Вернуться в предыдущее меню / q${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
-        read_trimmed choice "👉 请选择操作: "
+        read_trimmed choice "👉 Выберите действие: "
         case "$choice" in
             1)
-                ensure_docker_compose_ready || { read -n 1 -s -r -p "按任意键返回..."; return; }
+                ensure_docker_compose_ready || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
                 (cd "$project_dir" && $DOCKER_COMPOSE_CMD -f "$compose_file" ps)
-                read -n 1 -s -r -p "按任意键返回..."
+                read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
                 ;;
             2)
-                edit_applied_config_file "$compose_file" "compose" "${project_name} Compose 配置"
-                read -n 1 -s -r -p "按任意键返回..."
+                edit_applied_config_file "$compose_file" "compose" "${project_name} конфигурация Compose"
+                read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
                 ;;
             3)
-                ensure_docker_compose_ready || { read -n 1 -s -r -p "按任意键返回..."; return; }
+                ensure_docker_compose_ready || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
                 (cd "$project_dir" && $DOCKER_COMPOSE_CMD -f "$compose_file" restart)
-                read -n 1 -s -r -p "按任意键返回..."
+                read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
                 ;;
             4)
-                ensure_docker_compose_ready || { read -n 1 -s -r -p "按任意键返回..."; return; }
+                ensure_docker_compose_ready || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
                 (cd "$project_dir" && $DOCKER_COMPOSE_CMD -f "$compose_file" pull && $DOCKER_COMPOSE_CMD -f "$compose_file" up -d)
-                read -n 1 -s -r -p "按任意键返回..."
+                read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
                 ;;
             5)
-                if confirm_risk_action "停止并移除 ${project_name} 容器" \
-                    "Docker Compose 容器运行状态" \
-                    "在 ${project_dir} 中重新执行 compose up -d，或回到管理菜单重建" \
-                    "目录数据会保留，但服务会立即中断。"; then
-                    ensure_docker_compose_ready || { read -n 1 -s -r -p "按任意键返回..."; return; }
+                if confirm_risk_action "Остановить и удалить контейнеры ${project_name}" \
+                    "Состояние выполнения контейнеров Docker Compose" \
+                    "Повторно выполните compose up -d в ${project_dir}, или вернитесь в меню управления и пересоберите" \
+                    "Данные каталога сохраняются, но служба будет немедленно прервана."; then
+                    ensure_docker_compose_ready || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
                     (cd "$project_dir" && $DOCKER_COMPOSE_CMD -f "$compose_file" down)
-                    echo -e "${GREEN}✅ 已停止并移除容器，部署目录仍保留：${project_dir}${PLAIN}"
+                    echo -e "${GREEN}✅ Контейнеры остановлены и удалены, каталог развёртывания сохранён: ${project_dir}${PLAIN}"
                 else
-                    echo -e "${BLUE}已取消操作。${PLAIN}"
+                    echo -e "${BLUE}Операция отменена.${PLAIN}"
                 fi
-                read -n 1 -s -r -p "按任意键返回..."
+                read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
                 ;;
             6)
-                echo -e "${RED}⚠️  高风险：这会停止容器并把 ${project_dir} 移入隔离目录，配置、数据库或本地数据不再原地可用。${PLAIN}"
-                echo -e "${YELLOW}隔离后如需彻底清理，请确认无误后手动处理隔离目录。${PLAIN}"
-                if confirm_risk_action "归档 ${project_name} 部署目录" \
-                    "Docker Compose 容器、部署目录、配置和本地数据位置" \
-                    "从 /opt/.vps-optimize-quarantine 手动移回原路径后重新启动" \
-                    "确认已经备份数据库和配置，且服务可以中断。"; then
+                echo -e "${RED}⚠️ Высокий риск: контейнеры будут остановлены, а ${project_dir} перемещён в карантин — конфигурация, базы данных или локальные данные перестанут быть доступны на месте.${PLAIN}"
+                echo -e "${YELLOW}После архивации для окончательной очистки подтвердите и вручную обработайте карантинный каталог.${PLAIN}"
+                if confirm_risk_action "Архивация каталога развёртывания ${project_name}" \
+                    "Контейнеры Docker Compose, каталог развёртывания, конфигурация и локальные данные" \
+                    "Восстановите вручную из /opt/.vps-optimize-quarantine, вернув на исходный путь, затем перезапустите" \
+                    "Убедитесь, что база данных и конфигурация зарезервированы, и служба может быть прервана."; then
                     if ! is_managed_compose_dir "$project_dir"; then
-                        echo -e "${RED}❌ 安全检查未通过，拒绝归档非脚本托管目录：${project_dir}${PLAIN}"
+                        echo -e "${RED}❌ Проверка безопасности не пройдена, отказ в архивации не управляемого скриптом каталога: ${project_dir}${PLAIN}"
                     else
-                        ensure_docker_compose_ready || { read -n 1 -s -r -p "按任意键返回..."; return; }
+                        ensure_docker_compose_ready || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
                         (cd "$project_dir" && $DOCKER_COMPOSE_CMD -f "$compose_file" down -v)
                         if quarantine_path "$project_dir" "/opt/.vps-optimize-quarantine"; then
-                            echo -e "${GREEN}✅ 已归档 ${project_name} 部署目录。${PLAIN}"
+                            echo -e "${GREEN}✅ Архивация ${project_name} выполнена.${PLAIN}"
                         else
-                            echo -e "${RED}❌ 归档失败，请手动检查目录：${project_dir}${PLAIN}"
+                            echo -e "${RED}❌ Ошибка архивации, проверьте каталог вручную: ${project_dir}${PLAIN}"
                         fi
                     fi
                 else
-                    echo -e "${BLUE}已取消归档。${PLAIN}"
+                    echo -e "${BLUE}Архивация отменена.${PLAIN}"
                 fi
-                read -n 1 -s -r -p "按任意键返回..."
+                read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
                 ;;
             0|q|Q) return ;;
-            *) echo -e "${RED}❌ 无效选择！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
@@ -15553,7 +15544,7 @@ manage_compose_project() {
 # Module: subscription_apps.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Subscription and management app installers.
+# Установщики приложений подписок и управления.
 
 generate_random_secret() {
     if command -v openssl >/dev/null 2>&1; then
@@ -15564,47 +15555,47 @@ generate_random_secret() {
 }
 
 print_public_https_reverse_proxy_hint() {
-    echo -e "${YELLOW}公网 HTTPS 访问建议：未启用 443 单入口时，请走主菜单 [4 反代] 里的 Caddy 或 Nginx HTTPS 反代；已启用 443 单入口时，请走主菜单 [19 443 单入口管理中心] -> [8 管理 Web 域名/反代]。${PLAIN}"
+    echo -e "${YELLOW}Для публичного HTTPS-доступа: если единый вход 443 не включён, используйте главное меню [4 Обратный прокси] для Caddy или Nginx HTTPS прокси; если включён — главное меню [19 Центр управления единым входом 443] -> [8 Управление веб-доменами/прокси].${PLAIN}"
 }
 
 func_sublinkpro() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🔗 安装 SublinkPro (节点订阅转换与管理面板)${PLAIN}"
+    echo -e "${BOLD}🔗 Установка SublinkPro (панель управления подписками и конвертации)${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
     
-    ensure_docker_compose_ready || { read -n 1 -s -r -p "按任意键返回..."; return; }
+    ensure_docker_compose_ready || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
 
-    # 部署目录初始化
+    # Инициализация каталога развёртывания
     local install_dir="/opt/sublinkpro"
     local sublink_bind_addr="127.0.0.1"
     local sublink_port="8000"
-    sublink_bind_addr=$(ask_with_default "请输入 SublinkPro 监听地址" "$sublink_bind_addr")
-    is_valid_listen_addr "$sublink_bind_addr" || { echo -e "${RED}❌ 监听地址无效。${PLAIN}"; read -n 1 -s -r -p "按任意键返回..."; return; }
+    sublink_bind_addr=$(ask_with_default "Введите адрес прослушивания SublinkPro" "$sublink_bind_addr")
+    is_valid_listen_addr "$sublink_bind_addr" || { echo -e "${RED}❌ Неверный адрес прослушивания.${PLAIN}"; read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
 
     while true; do
-        sublink_port=$(ask_with_default "请输入 SublinkPro 对外访问端口" "$sublink_port")
+        sublink_port=$(ask_with_default "Введите публичный порт SublinkPro" "$sublink_port")
         if is_valid_port "$sublink_port"; then
             break
         fi
-        echo -e "${RED}❌ 端口无效，请输入 1-65535 之间的数字。${PLAIN}"
+        echo -e "${RED}❌ Неверный порт, введите 1-65535.${PLAIN}"
     done
     warn_if_public_bind "SublinkPro" "$sublink_bind_addr" "$sublink_port" || return 1
 
-    echo -e "${YELLOW}💡 SublinkPro 将被安全部署在: ${CYAN}$install_dir${PLAIN}"
-    echo -e "${YELLOW}💡 SublinkPro 监听地址将使用: ${CYAN}${sublink_bind_addr}:${sublink_port}${PLAIN}"
+    echo -e "${YELLOW}💡 SublinkPro будет развёрнут в: ${CYAN}$install_dir${PLAIN}"
+    echo -e "${YELLOW}💡 Адрес прослушивания SublinkPro: ${CYAN}${sublink_bind_addr}:${sublink_port}${PLAIN}"
     print_public_https_reverse_proxy_hint
-    echo -e "${YELLOW}账号密码说明：当前安装流程不提供自定义后台账号密码。${PLAIN}"
-    echo -e "${YELLOW}默认后台账号：${CYAN}admin${PLAIN} / 默认后台密码：${CYAN}123456${PLAIN}"
-    echo -e "${YELLOW}部署完成后请尽快登录后台修改默认密码。${PLAIN}"
+    echo -e "${YELLOW}Пояснение по учётным данным: текущий процесс установки не позволяет задать пользовательские учётные данные.${PLAIN}"
+    echo -e "${YELLOW}Учётные данные по умолчанию: ${CYAN}admin${PLAIN} / пароль: ${CYAN}123456${PLAIN}"
+    echo -e "${YELLOW}После развёртывания обязательно войдите и смените пароль.${PLAIN}"
     echo -e "------------------------------------------------"
     
-    read_trimmed yn "❓ 确认现在开始一键安装吗？(y/n): "
+    read_trimmed yn "❓ Подтвердить установку? (y/n): "
     if is_yes "$yn"; then
         mkdir -p "$install_dir"
         cd "$install_dir" || return
 
-        # 生成 docker-compose.yml 文件
+        # Генерация docker-compose.yml
         cat <<EOF > docker-compose.yml
 services:
   sublinkpro:
@@ -15619,73 +15610,73 @@ services:
     restart: unless-stopped
 EOF
         
-        echo -e "${CYAN}▶ 正在拉取镜像并启动 SublinkPro 容器...${PLAIN}"
+        echo -e "${CYAN}▶ Загрузка образа и запуск контейнера SublinkPro...${PLAIN}"
         $DOCKER_COMPOSE_CMD up -d
         
         local access_host
         access_host="$sublink_bind_addr"
-        [[ "$sublink_bind_addr" == "0.0.0.0" || "$sublink_bind_addr" == "::" ]] && access_host=$(curl -s4 --max-time 3 icanhazip.com 2>/dev/null || echo "您的服务器IP")
+        [[ "$sublink_bind_addr" == "0.0.0.0" || "$sublink_bind_addr" == "::" ]] && access_host=$(curl -s4 --max-time 3 icanhazip.com 2>/dev/null || echo "IP вашего сервера")
         
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}🎉 SublinkPro 部署并启动成功！${PLAIN}"
+        echo -e "${GREEN}🎉 SublinkPro развёрнут и запущен!${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "🌐 ${BOLD}本地访问地址:${PLAIN} http://${access_host}:${sublink_port}"
-        echo -e "👤 ${BOLD}默认后台账号:${PLAIN} admin"
-        echo -e "🔑 ${BOLD}默认后台密码:${PLAIN} 123456"
-        echo -e "${YELLOW}⚠️ 当前安装流程未提供自定义账号密码，请登录后尽快修改默认密码。${PLAIN}"
+        echo -e "🌐 ${BOLD}Локальный адрес:${PLAIN} http://${access_host}:${sublink_port}"
+        echo -e "👤 ${BOLD}Учётные данные по умолчанию:${PLAIN} admin"
+        echo -e "🔑 ${BOLD}Пароль по умолчанию:${PLAIN} 123456"
+        echo -e "${YELLOW}⚠️ Текущий процесс установки не позволяет задать пользовательские учётные данные, войдите и смените пароль.${PLAIN}"
         print_public_https_reverse_proxy_hint
         echo -e "------------------------------------------------"
-        echo -e "${YELLOW}⚠️ 核心防丢提示：${PLAIN}"
-        echo -e "系统产生的数据库、模板和日志都已持久化映射在 ${CYAN}$install_dir${PLAIN} 下。"
-        echo -e "如果您日后需要升级容器或重装 VPS，请务必提前打包备份该目录下的 ${GREEN}./db${PLAIN} 和 ${GREEN}./template${PLAIN} 文件夹！"
+        echo -e "${YELLOW}⚠️ Важное предупреждение:${PLAIN}"
+        echo -e "База данных, шаблоны и логи сохраняются в ${CYAN}$install_dir${PLAIN}."
+        echo -e "При обновлении контейнера или переустановке VPS обязательно сделайте резервную копию каталогов ${GREEN}./db${PLAIN} и ${GREEN}./template${PLAIN}!"
         echo -e "------------------------------------------------"
     else
-        echo -e "${BLUE}已安全取消部署。${PLAIN}"
+        echo -e "${BLUE}Развёртывание безопасно отменено.${PLAIN}"
     fi
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 func_miaomiaowu() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}安装 妙妙屋订阅管理 (Docker Compose)${PLAIN}"
+    echo -e "${BOLD}Установка 妙妙屋 (подписки, Docker Compose)${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
 
-    ensure_docker_compose_ready || { read -n 1 -s -r -p "按任意键返回..."; return; }
+    ensure_docker_compose_ready || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
 
     local install_dir="/opt/miaomiaowu"
     local mmw_bind_addr="127.0.0.1"
     local mmw_port="8080"
     local jwt_secret
 
-    mmw_bind_addr=$(ask_with_default "妙妙屋监听地址" "$mmw_bind_addr")
-    is_valid_listen_addr "$mmw_bind_addr" || { echo -e "${RED}❌ 监听地址无效。${PLAIN}"; read -n 1 -s -r -p "按任意键返回..."; return; }
+    mmw_bind_addr=$(ask_with_default "Адрес прослушивания 妙妙屋" "$mmw_bind_addr")
+    is_valid_listen_addr "$mmw_bind_addr" || { echo -e "${RED}❌ Неверный адрес прослушивания.${PLAIN}"; read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
 
     while true; do
-        mmw_port=$(ask_with_default "请输入 妙妙屋 对外访问端口" "$mmw_port")
+        mmw_port=$(ask_with_default "Введите публичный порт 妙妙屋" "$mmw_port")
         if is_valid_port "$mmw_port"; then
             break
         fi
-        echo -e "${RED}❌ 端口无效，请输入 1-65535 之间的数字。${PLAIN}"
+        echo -e "${RED}❌ Неверный порт, введите 1-65535.${PLAIN}"
     done
     warn_if_public_bind "妙妙屋订阅管理" "$mmw_bind_addr" "$mmw_port" || return 1
 
-    jwt_secret=$(ask_with_default "JWT_SECRET（回车自动生成随机密钥）" "")
+    jwt_secret=$(ask_with_default "JWT_SECRET (Enter для автоматической генерации)" "")
     if [[ -z "$jwt_secret" ]]; then
         jwt_secret=$(generate_random_secret)
     fi
 
-    echo -e "${YELLOW}部署目录：${CYAN}${install_dir}${PLAIN}"
-    echo -e "${YELLOW}监听地址：${CYAN}${mmw_bind_addr}:${mmw_port}${PLAIN}"
-    echo -e "${YELLOW}数据目录：${CYAN}${install_dir}/data、subscribes、rule_templates${PLAIN}"
+    echo -e "${YELLOW}Каталог развёртывания: ${CYAN}${install_dir}${PLAIN}"
+    echo -e "${YELLOW}Адрес прослушивания: ${CYAN}${mmw_bind_addr}:${mmw_port}${PLAIN}"
+    echo -e "${YELLOW}Каталоги данных: ${CYAN}${install_dir}/data, subscribes, rule_templates${PLAIN}"
     print_public_https_reverse_proxy_hint
-    echo -e "${YELLOW}不要直接开放容器端口到公网。${PLAIN}"
-    echo -e "${YELLOW}账号密码说明：当前安装流程不预设账号密码。${PLAIN}"
-    echo -e "${YELLOW}首次打开面板会进入初始化页，请在页面中创建管理员账号和密码。${PLAIN}"
+    echo -e "${YELLOW}Не открывайте порты контейнера напрямую в интернет.${PLAIN}"
+    echo -e "${YELLOW}Пояснение по учётным данным: текущий процесс установки не предусматривает предустановленных учётных данных.${PLAIN}"
+    echo -e "${YELLOW}При первом открытии панели вы попадёте на страницу инициализации, где создадите учётные данные администратора.${PLAIN}"
     echo -e "------------------------------------------------"
 
     local yn
-    read_trimmed yn "确认现在部署 妙妙屋订阅管理 吗？(y/n): "
+    read_trimmed yn "Подтвердить развёртывание 妙妙屋? (y/n): "
     if is_yes "$yn"; then
         mkdir -p "$install_dir"/{data,subscribes,rule_templates}
         cd "$install_dir" || return
@@ -15718,33 +15709,33 @@ services:
       retries: 3
 EOF
 
-        echo -e "${CYAN}▶ 正在拉取镜像并启动 妙妙屋 容器...${PLAIN}"
+        echo -e "${CYAN}▶ Загрузка образа и запуск контейнера 妙妙屋...${PLAIN}"
         $DOCKER_COMPOSE_CMD up -d
 
         local access_host
         access_host="$mmw_bind_addr"
-        [[ "$mmw_bind_addr" == "0.0.0.0" || "$mmw_bind_addr" == "::" ]] && access_host=$(curl -s4 --max-time 3 icanhazip.com 2>/dev/null || echo "您的服务器IP")
+        [[ "$mmw_bind_addr" == "0.0.0.0" || "$mmw_bind_addr" == "::" ]] && access_host=$(curl -s4 --max-time 3 icanhazip.com 2>/dev/null || echo "IP вашего сервера")
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}✅ 妙妙屋订阅管理部署完成！${PLAIN}"
-        echo -e "本地访问地址：${BOLD}http://${access_host}:${mmw_port}${PLAIN}"
-        echo -e "账号密码：${YELLOW}无默认账号密码，首次打开页面创建管理员账号。${PLAIN}"
-        echo -e "配置文件：${CYAN}${install_dir}/docker-compose.yml${PLAIN}"
+        echo -e "${GREEN}✅ Развёртывание 妙妙屋 завершено!${PLAIN}"
+        echo -e "Локальный адрес: ${BOLD}http://${access_host}:${mmw_port}${PLAIN}"
+        echo -e "Учётные данные: ${YELLOW}нет предустановленных учётных данных, создайте администратора при первом открытии.${PLAIN}"
+        echo -e "Файл конфигурации: ${CYAN}${install_dir}/docker-compose.yml${PLAIN}"
         print_public_https_reverse_proxy_hint
-        echo -e "${YELLOW}请定期备份 ${install_dir}/data、subscribes、rule_templates。${PLAIN}"
+        echo -e "${YELLOW}Регулярно делайте резервные копии ${install_dir}/data, subscribes, rule_templates.${PLAIN}"
     else
-        echo -e "${BLUE}已安全取消部署。${PLAIN}"
+        echo -e "${BLUE}Развёртывание безопасно отменено.${PLAIN}"
     fi
 
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 func_substore() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}安装 Sub-Store (Docker Compose / HTTP-META)${PLAIN}"
+    echo -e "${BOLD}Установка Sub-Store (Docker Compose / HTTP-META)${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
 
-    ensure_docker_compose_ready || { read -n 1 -s -r -p "按任意键返回..."; return; }
+    ensure_docker_compose_ready || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
 
     local install_dir="/opt/sub-store"
     local backend_port="3001"
@@ -15752,34 +15743,34 @@ func_substore() {
     local backend_path="/$(generate_random_secret | cut -c1-48)"
 
     while true; do
-        backend_port=$(ask_with_default "Sub-Store 后端 API 端口" "$backend_port")
+        backend_port=$(ask_with_default "Порт API бэкенда Sub-Store" "$backend_port")
         if is_valid_port "$backend_port"; then break; fi
-        echo -e "${RED}❌ 端口无效，请输入 1-65535 之间的数字。${PLAIN}"
+        echo -e "${RED}❌ Неверный порт, введите 1-65535.${PLAIN}"
     done
 
     while true; do
-        meta_port=$(ask_with_default "HTTP-META 本地端口" "$meta_port")
+        meta_port=$(ask_with_default "Локальный порт HTTP-META" "$meta_port")
         if is_valid_port "$meta_port"; then break; fi
-        echo -e "${RED}❌ 端口无效，请输入 1-65535 之间的数字。${PLAIN}"
+        echo -e "${RED}❌ Неверный порт, введите 1-65535.${PLAIN}"
     done
 
-    backend_path=$(ask_with_default "前端访问后端路径（建议保留随机路径）" "$backend_path")
+    backend_path=$(ask_with_default "Путь к бэкенду для фронтенда (рекомендуется оставить случайный)" "$backend_path")
     if [[ "$backend_path" != /* ]]; then
         backend_path="/${backend_path}"
     fi
 
-    echo -e "${YELLOW}部署目录：${CYAN}${install_dir}${PLAIN}"
-    echo -e "${YELLOW}Sub-Store 后端：${CYAN}127.0.0.1:${backend_port}${PLAIN}"
-    echo -e "${YELLOW}HTTP-META：${CYAN}127.0.0.1:${meta_port}${PLAIN}"
-    echo -e "${YELLOW}前端后端路径：${CYAN}${backend_path}${PLAIN}"
-    echo -e "${YELLOW}默认使用 host 网络并绑定 127.0.0.1。${PLAIN}"
+    echo -e "${YELLOW}Каталог развёртывания: ${CYAN}${install_dir}${PLAIN}"
+    echo -e "${YELLOW}Бэкенд Sub-Store: ${CYAN}127.0.0.1:${backend_port}${PLAIN}"
+    echo -e "${YELLOW}HTTP-META: ${CYAN}127.0.0.1:${meta_port}${PLAIN}"
+    echo -e "${YELLOW}Путь бэкенда для фронтенда: ${CYAN}${backend_path}${PLAIN}"
+    echo -e "${YELLOW}По умолчанию используется host-сеть и привязка к 127.0.0.1.${PLAIN}"
     print_public_https_reverse_proxy_hint
-    echo -e "${YELLOW}账号密码说明：当前 Sub-Store 部署不使用登录账号密码。${PLAIN}"
-    echo -e "${YELLOW}请保存随机后端路径；如对公网开放，请在反代侧额外加认证。${PLAIN}"
+    echo -e "${YELLOW}Пояснение по учётным данным: Sub-Store не использует учётные данные для входа.${PLAIN}"
+    echo -e "${YELLOW}Сохраните случайный путь бэкенда; если открываете наружу, добавьте аутентификацию на уровне прокси.${PLAIN}"
     echo -e "------------------------------------------------"
 
     local yn
-    read_trimmed yn "确认现在部署 Sub-Store 吗？(y/n): "
+    read_trimmed yn "Подтвердить развёртывание Sub-Store? (y/n): "
     if is_yes "$yn"; then
         mkdir -p "$install_dir/data"
         cd "$install_dir" || return
@@ -15804,60 +15795,60 @@ services:
       - ./data:/opt/app/data
 EOF
 
-        echo -e "${CYAN}▶ 正在拉取镜像并启动 Sub-Store 容器...${PLAIN}"
+        echo -e "${CYAN}▶ Загрузка образа и запуск контейнера Sub-Store...${PLAIN}"
         $DOCKER_COMPOSE_CMD up -d
 
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}✅ Sub-Store 部署完成！${PLAIN}"
-        echo -e "本地后端地址：${BOLD}http://127.0.0.1:${backend_port}${backend_path}${PLAIN}"
-        echo -e "HTTP-META 地址：${BOLD}http://127.0.0.1:${meta_port}${PLAIN}"
-        echo -e "账号密码：${YELLOW}无默认登录账号密码，请妥善保存上面的随机后端路径。${PLAIN}"
-        echo -e "配置文件：${CYAN}${install_dir}/docker-compose.yml${PLAIN}"
+        echo -e "${GREEN}✅ Развёртывание Sub-Store завершено!${PLAIN}"
+        echo -e "Локальный бэкенд: ${BOLD}http://127.0.0.1:${backend_port}${backend_path}${PLAIN}"
+        echo -e "HTTP-META: ${BOLD}http://127.0.0.1:${meta_port}${PLAIN}"
+        echo -e "Учётные данные: ${YELLOW}нет учётных данных, сохраните случайный путь бэкенда.${PLAIN}"
+        echo -e "Файл конфигурации: ${CYAN}${install_dir}/docker-compose.yml${PLAIN}"
         print_public_https_reverse_proxy_hint
-        echo -e "${YELLOW}请定期备份 ${install_dir}/data。${PLAIN}"
+        echo -e "${YELLOW}Регулярно делайте резервные копии ${install_dir}/data.${PLAIN}"
     else
-        echo -e "${BLUE}已安全取消部署。${PLAIN}"
+        echo -e "${BLUE}Развёртывание безопасно отменено.${PLAIN}"
     fi
 
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 func_dockge() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}安装 Dockge (Docker Compose 管理面板)${PLAIN}"
+    echo -e "${BOLD}Установка Dockge (панель управления Docker Compose)${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}Dockge 用来管理 compose.yaml stack，可创建、编辑、启动、停止、重启和更新镜像。${PLAIN}"
-    echo -e "${YELLOW}注意：Dockge 会挂载 Docker socket，建议只监听本地地址，再通过 Caddy/Nginx 反代访问。${PLAIN}"
+    echo -e "${YELLOW}Dockge используется для управления стеками compose, позволяет создавать, редактировать, запускать, останавливать, перезапускать и обновлять образы.${PLAIN}"
+    echo -e "${YELLOW}Внимание: Dockge монтирует Docker-сокет, рекомендуется слушать только локальный адрес и открывать доступ через Caddy/Nginx.${PLAIN}"
     echo -e "------------------------------------------------"
 
-    ensure_docker_compose_ready || { read -n 1 -s -r -p "按任意键返回..."; return; }
+    ensure_docker_compose_ready || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
 
     local install_dir="/opt/dockge"
     local stacks_dir="/opt/stacks"
     local dockge_bind_addr="127.0.0.1"
     local dockge_port="5001"
 
-    dockge_bind_addr=$(ask_with_default "Dockge 监听地址" "$dockge_bind_addr")
-    is_valid_listen_addr "$dockge_bind_addr" || { echo -e "${RED}❌ 监听地址无效。${PLAIN}"; read -n 1 -s -r -p "按任意键返回..."; return; }
+    dockge_bind_addr=$(ask_with_default "Адрес прослушивания Dockge" "$dockge_bind_addr")
+    is_valid_listen_addr "$dockge_bind_addr" || { echo -e "${RED}❌ Неверный адрес прослушивания.${PLAIN}"; read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
 
     while true; do
-        dockge_port=$(ask_with_default "Dockge 访问端口" "$dockge_port")
+        dockge_port=$(ask_with_default "Порт доступа Dockge" "$dockge_port")
         if is_valid_port "$dockge_port"; then break; fi
-        echo -e "${RED}❌ 端口无效，请输入 1-65535 之间的数字。${PLAIN}"
+        echo -e "${RED}❌ Неверный порт, введите 1-65535.${PLAIN}"
     done
-    warn_if_public_bind "Dockge 管理面板" "$dockge_bind_addr" "$dockge_port" || return 1
-    stacks_dir=$(ask_with_default "Dockge stacks 目录" "$stacks_dir")
+    warn_if_public_bind "Панель управления Dockge" "$dockge_bind_addr" "$dockge_port" || return 1
+    stacks_dir=$(ask_with_default "Каталог stacks Dockge" "$stacks_dir")
 
-    echo -e "${YELLOW}Dockge 目录：${CYAN}${install_dir}${PLAIN}"
-    echo -e "${YELLOW}Stacks 目录：${CYAN}${stacks_dir}${PLAIN}"
-    echo -e "${YELLOW}监听地址：${CYAN}${dockge_bind_addr}:${dockge_port}${PLAIN}"
-    echo -e "${YELLOW}账号密码说明：Dockge 不预设默认账号密码。${PLAIN}"
-    echo -e "${YELLOW}首次打开面板会进入初始化页，请在页面中创建管理员账号和密码。${PLAIN}"
+    echo -e "${YELLOW}Каталог Dockge: ${CYAN}${install_dir}${PLAIN}"
+    echo -e "${YELLOW}Каталог Stacks: ${CYAN}${stacks_dir}${PLAIN}"
+    echo -e "${YELLOW}Адрес прослушивания: ${CYAN}${dockge_bind_addr}:${dockge_port}${PLAIN}"
+    echo -e "${YELLOW}Пояснение по учётным данным: Dockge не имеет предустановленных учётных данных.${PLAIN}"
+    echo -e "${YELLOW}При первом открытии вы попадёте на страницу инициализации, где создадите учётные данные администратора.${PLAIN}"
     echo -e "------------------------------------------------"
 
     local yn
-    read_trimmed yn "确认现在部署 Dockge 吗？(y/n): "
+    read_trimmed yn "Подтвердить развёртывание Dockge? (y/n): "
     if is_yes "$yn"; then
         mkdir -p "$install_dir" "$stacks_dir"
         cd "$install_dir" || return
@@ -15878,33 +15869,33 @@ services:
       DOCKGE_STACKS_DIR: "${stacks_dir}"
 EOF
 
-        echo -e "${CYAN}▶ 正在拉取镜像并启动 Dockge...${PLAIN}"
+        echo -e "${CYAN}▶ Загрузка образа и запуск Dockge...${PLAIN}"
         $DOCKER_COMPOSE_CMD up -d
 
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}✅ Dockge 部署完成！${PLAIN}"
-        echo -e "访问地址：${BOLD}http://${dockge_bind_addr}:${dockge_port}${PLAIN}"
-        echo -e "Stacks 目录：${CYAN}${stacks_dir}${PLAIN}"
-        echo -e "账号密码：${YELLOW}无默认账号密码，首次打开页面创建管理员账号。${PLAIN}"
-        echo -e "${YELLOW}已有 compose 项目可返回部署菜单选择 [10] 迁移到 Dockge 后，在 Dockge 里扫描 stacks 目录。${PLAIN}"
+        echo -e "${GREEN}✅ Развёртывание Dockge завершено!${PLAIN}"
+        echo -e "Адрес доступа: ${BOLD}http://${dockge_bind_addr}:${dockge_port}${PLAIN}"
+        echo -e "Каталог Stacks: ${CYAN}${stacks_dir}${PLAIN}"
+        echo -e "Учётные данные: ${YELLOW}нет предустановленных учётных данных, создайте администратора при первом открытии.${PLAIN}"
+        echo -e "${YELLOW}Существующие проекты Compose можно перенести в Dockge через [10] в меню развёртывания, затем сканировать каталог stacks в Dockge.${PLAIN}"
     else
-        echo -e "${BLUE}已安全取消部署。${PLAIN}"
+        echo -e "${BLUE}Развёртывание безопасно отменено.${PLAIN}"
     fi
 
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 func_komari() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}安装 Komari 探针监控面板 (Docker Compose)${PLAIN}"
+    echo -e "${BOLD}Установка панели мониторинга Komari (Docker Compose)${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}Komari 用于服务器探针监控。默认只监听本地地址。${PLAIN}"
+    echo -e "${YELLOW}Komari предназначен для мониторинга серверов. По умолчанию слушает только локальный адрес.${PLAIN}"
     print_public_https_reverse_proxy_hint
-    echo -e "${YELLOW}如果探针客户端需要直连端口，可把监听地址改为 0.0.0.0，并确认云安全组已放行。${PLAIN}"
+    echo -e "${YELLOW}Если агентам нужен прямой доступ к порту, измените адрес прослушивания на 0.0.0.0 и убедитесь, что безопасная группа разрешает порт.${PLAIN}"
     echo -e "------------------------------------------------"
 
-    ensure_docker_compose_ready || { read -n 1 -s -r -p "按任意键返回..."; return; }
+    ensure_docker_compose_ready || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
 
     local install_dir="/opt/komari"
     local komari_bind_addr="127.0.0.1"
@@ -15914,52 +15905,52 @@ func_komari() {
     local admin_password=""
     local yn
 
-    komari_bind_addr=$(ask_with_default "Komari 监听地址" "$komari_bind_addr")
-    is_valid_listen_addr "$komari_bind_addr" || { echo -e "${RED}❌ 监听地址无效。${PLAIN}"; read -n 1 -s -r -p "按任意键返回..."; return; }
+    komari_bind_addr=$(ask_with_default "Адрес прослушивания Komari" "$komari_bind_addr")
+    is_valid_listen_addr "$komari_bind_addr" || { echo -e "${RED}❌ Неверный адрес прослушивания.${PLAIN}"; read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
 
     while true; do
-        komari_port=$(ask_with_default "Komari 访问端口" "$komari_port")
+        komari_port=$(ask_with_default "Порт доступа Komari" "$komari_port")
         if is_valid_port "$komari_port"; then break; fi
-        echo -e "${RED}❌ 端口无效，请输入 1-65535 之间的数字。${PLAIN}"
+        echo -e "${RED}❌ Неверный порт, введите 1-65535.${PLAIN}"
     done
-    warn_if_public_bind "Komari 探针监控面板" "$komari_bind_addr" "$komari_port" || return 1
+    warn_if_public_bind "Панель мониторинга Komari" "$komari_bind_addr" "$komari_port" || return 1
 
-    read_trimmed custom_admin "是否自定义初始管理员账号和密码？(y/n，默认 n): "
+    read_trimmed custom_admin "Задать собственные учётные данные администратора? (y/n, по умолчанию n): "
     if is_yes "$custom_admin"; then
         while true; do
-            read_trimmed admin_username "管理员用户名（默认 admin）: "
+            read_trimmed admin_username "Имя администратора (по умолчанию admin): "
             admin_username="${admin_username:-admin}"
             if [[ "$admin_username" =~ ^[A-Za-z0-9._-]{3,32}$ ]]; then
                 break
             fi
-            echo -e "${RED}❌ 用户名只能包含字母、数字、点、下划线和短横线，长度 3-32。${PLAIN}"
+            echo -e "${RED}❌ Имя может содержать только буквы, цифры, точки, подчёркивания и дефисы, длина 3-32.${PLAIN}"
         done
 
         while true; do
-            read_secret_trimmed admin_password "管理员密码（至少 8 位，留空自动生成）: "
+            read_secret_trimmed admin_password "Пароль администратора (не менее 8 символов, Enter для автоматической генерации): "
             if [[ -z "$admin_password" ]]; then
                 admin_password=$(generate_random_secret | cut -c1-24)
-                echo -e "${YELLOW}已自动生成管理员密码，部署完成后会显示一次，请及时保存。${PLAIN}"
+                echo -e "${YELLOW}Сгенерирован автоматический пароль администратора, сохраните его.${PLAIN}"
                 break
             fi
             if [[ ${#admin_password} -ge 8 ]]; then
                 break
             fi
-            echo -e "${RED}❌ 密码至少需要 8 位。${PLAIN}"
+            echo -e "${RED}❌ Пароль должен быть не менее 8 символов.${PLAIN}"
         done
     fi
 
-    echo -e "${YELLOW}部署目录：${CYAN}${install_dir}${PLAIN}"
-    echo -e "${YELLOW}数据目录：${CYAN}${install_dir}/data${PLAIN}"
-    echo -e "${YELLOW}监听地址：${CYAN}${komari_bind_addr}:${komari_port}${PLAIN}"
+    echo -e "${YELLOW}Каталог развёртывания: ${CYAN}${install_dir}${PLAIN}"
+    echo -e "${YELLOW}Каталог данных: ${CYAN}${install_dir}/data${PLAIN}"
+    echo -e "${YELLOW}Адрес прослушивания: ${CYAN}${komari_bind_addr}:${komari_port}${PLAIN}"
     if [[ -n "$admin_username" ]]; then
-        echo -e "${YELLOW}初始管理员：${CYAN}${admin_username}${PLAIN}"
+        echo -e "${YELLOW}Начальный администратор: ${CYAN}${admin_username}${PLAIN}"
     else
-        echo -e "${YELLOW}账号密码说明：未自定义时 Komari 会生成默认管理员账号。${PLAIN}"
-        echo -e "${YELLOW}初始管理员：${CYAN}使用 Komari 默认生成账号，请安装后查看容器日志${PLAIN}"
+        echo -e "${YELLOW}Пояснение по учётным данным: без кастомизации Komari сгенерирует учётные данные по умолчанию.${PLAIN}"
+        echo -e "${YELLOW}Начальный администратор: ${CYAN}используйте учётные данные, сгенерированные Komari; проверьте логи контейнера после установки${PLAIN}"
     fi
     echo -e "------------------------------------------------"
-    read_trimmed yn "确认现在部署 Komari 吗？(y/n): "
+    read_trimmed yn "Подтвердить развёртывание Komari? (y/n): "
     if is_yes "$yn"; then
         mkdir -p "$install_dir/data"
         cd "$install_dir" || return
@@ -15984,7 +15975,7 @@ EOF
 EOF
         else
             cat <<'EOF' >> docker-compose.yml
-      # 可选：如需自定义初始管理员账号，请停止容器后取消注释并填写。
+      # Опционально: для задания учётных данных администратора остановите контейнер, раскомментируйте и укажите.
       # ADMIN_USERNAME: admin
       # ADMIN_PASSWORD: yourpassword
 EOF
@@ -15994,44 +15985,44 @@ EOF
     restart: unless-stopped
 EOF
 
-        echo -e "${CYAN}▶ 正在拉取镜像并启动 Komari...${PLAIN}"
+        echo -e "${CYAN}▶ Загрузка образа и запуск Komari...${PLAIN}"
         $DOCKER_COMPOSE_CMD up -d
 
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}✅ Komari 部署完成！${PLAIN}"
-        echo -e "访问地址：${BOLD}http://${komari_bind_addr}:${komari_port}${PLAIN}"
-        echo -e "配置文件：${CYAN}${install_dir}/docker-compose.yml${PLAIN}"
+        echo -e "${GREEN}✅ Развёртывание Komari завершено!${PLAIN}"
+        echo -e "Адрес доступа: ${BOLD}http://${komari_bind_addr}:${komari_port}${PLAIN}"
+        echo -e "Файл конфигурации: ${CYAN}${install_dir}/docker-compose.yml${PLAIN}"
         if [[ -n "$admin_username" ]]; then
-            echo -e "管理员账号：${BOLD}${admin_username}${PLAIN}"
-            echo -e "管理员密码：${BOLD}${admin_password}${PLAIN}"
-            echo -e "${YELLOW}请及时保存密码，后续也可在 ${install_dir}/docker-compose.yml 中查看或修改。${PLAIN}"
+            echo -e "Администратор: ${BOLD}${admin_username}${PLAIN}"
+            echo -e "Пароль: ${BOLD}${admin_password}${PLAIN}"
+            echo -e "${YELLOW}Сохраните пароль, позже его можно изменить в ${install_dir}/docker-compose.yml.${PLAIN}"
         else
-            echo -e "${YELLOW}默认管理员账号请查看日志：${CYAN}$DOCKER_COMPOSE_CMD logs komari${PLAIN}"
+            echo -e "${YELLOW}Учётные данные администратора по умолчанию: ${CYAN}$DOCKER_COMPOSE_CMD logs komari${PLAIN}"
         fi
         print_public_https_reverse_proxy_hint
     else
-        echo -e "${BLUE}已安全取消部署。${PLAIN}"
+        echo -e "${BLUE}Развёртывание безопасно отменено.${PLAIN}"
     fi
 
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 # ---------------------------------------------------------
 # Module: subscription_compose_manage.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Managed subscription-tool update workflow.
+# Управление обновлением подписочных инструментов.
 
 update_compose_project() {
     local name="$1"
     local dir="$2"
 
     if [[ ! -d "$dir" || ! -f "$dir/docker-compose.yml" ]]; then
-        echo -e "${YELLOW}⚠️ 未找到 ${name} 的 Compose 配置：${dir}/docker-compose.yml，已跳过。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Конфигурация Compose для ${name} не найдена: ${dir}/docker-compose.yml, пропуск.${PLAIN}"
         return 1
     fi
 
-    echo -e "${CYAN}▶ 正在更新 ${name}...${PLAIN}"
+    echo -e "${CYAN}▶ Обновление ${name}...${PLAIN}"
     (
         cd "$dir" || exit 1
         $DOCKER_COMPOSE_CMD pull
@@ -16042,74 +16033,74 @@ update_compose_project() {
 func_update_subscription_tools() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}${YELLOW}UPD 更新订阅管理工具 (Docker Compose)${PLAIN}"
+    echo -e "${BOLD}${YELLOW}UPD Обновление инструментов подписок (Docker Compose)${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}这个菜单只更新订阅管理工具容器，不会更新 3x-ui / Sing-box / Xray。${PLAIN}"
+    echo -e "${YELLOW}Это меню обновляет только контейнеры инструментов подписок, не обновляет 3x-ui / Sing-box / Xray.${PLAIN}"
     echo -e "------------------------------------------------"
-    echo -e "${BOLD}${YELLOW}  1. UPD 更新 SublinkPro${PLAIN}       ${CYAN}(/opt/sublinkpro)${PLAIN}"
-    echo -e "${BOLD}${YELLOW}  2. UPD 更新 妙妙屋订阅管理${PLAIN}     ${CYAN}(/opt/miaomiaowu)${PLAIN}"
-    echo -e "${BOLD}${YELLOW}  3. UPD 更新 Sub-Store${PLAIN}        ${CYAN}(/opt/sub-store)${PLAIN}"
-    echo -e "${BOLD}${YELLOW}  4. UPD 全部更新${PLAIN}"
+    echo -e "${BOLD}${YELLOW}  1. UPD Обновить SublinkPro${PLAIN}       ${CYAN}(/opt/sublinkpro)${PLAIN}"
+    echo -e "${BOLD}${YELLOW}  2. UPD Обновить 妙妙屋${PLAIN}     ${CYAN}(/opt/miaomiaowu)${PLAIN}"
+    echo -e "${BOLD}${YELLOW}  3. UPD Обновить Sub-Store${PLAIN}        ${CYAN}(/opt/sub-store)${PLAIN}"
+    echo -e "${BOLD}${YELLOW}  4. UPD Обновить всё${PLAIN}"
     echo -e "------------------------------------------------"
-    echo -e "${RED}  0. 返回 / q 返回${PLAIN}"
+    echo -e "${RED}  0. Вернуться / q${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
 
     local choice
-    read_trimmed choice "请选择要更新的项目: "
+    read_trimmed choice "Выберите проект для обновления: "
     [[ "$choice" == "0" || "$choice" == "q" || "$choice" == "Q" ]] && return
 
-    ensure_docker_compose_ready || { read -n 1 -s -r -p "按任意键返回..."; return; }
+    ensure_docker_compose_ready || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
 
     case "$choice" in
         1) update_compose_project "SublinkPro" "/opt/sublinkpro" ;;
-        2) update_compose_project "妙妙屋订阅管理" "/opt/miaomiaowu" ;;
+        2) update_compose_project "妙妙屋" "/opt/miaomiaowu" ;;
         3) update_compose_project "Sub-Store" "/opt/sub-store" ;;
         4)
             update_compose_project "SublinkPro" "/opt/sublinkpro" || true
-            update_compose_project "妙妙屋订阅管理" "/opt/miaomiaowu" || true
+            update_compose_project "妙妙屋" "/opt/miaomiaowu" || true
             update_compose_project "Sub-Store" "/opt/sub-store" || true
             ;;
         *)
-            echo -e "${RED}❌ 无效选择！${PLAIN}"
-            read -n 1 -s -r -p "按任意键返回..."
+            echo -e "${RED}❌ Неверный выбор!${PLAIN}"
+            read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
             return
             ;;
     esac
 
     echo -e "------------------------------------------------"
-    echo -e "${GREEN}✅ 更新流程已执行完成。${PLAIN}"
+    echo -e "${GREEN}✅ Процесс обновления выполнен.${PLAIN}"
     local prune_confirm
-    read_trimmed prune_confirm "是否清理无标签旧镜像以释放磁盘空间？(y/n，默认 n): "
+    read_trimmed prune_confirm "Очистить непомеченные старые образы для освобождения места? (y/n, по умолчанию n): "
     if is_yes "$prune_confirm"; then
         docker image prune -f
     fi
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 # ---------------------------------------------------------
 # Module: subscription_service_menus.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Panel, node, subscription-tool, and compose service action menus.
+# Меню действий для панелей, узлов, подписок и Compose-сервисов.
 
 func_manage_sublinkpro() {
-    manage_compose_project "SublinkPro" "/opt/sublinkpro" "db / template / logs 会保存在部署目录中"
+    manage_compose_project "SublinkPro" "/opt/sublinkpro" "db / template / logs сохраняются в каталоге развёртывания"
 }
 
 func_manage_miaomiaowu() {
-    manage_compose_project "妙妙屋订阅管理" "/opt/miaomiaowu" "data / subscribes / rule_templates 会保存在部署目录中"
+    manage_compose_project "妙妙屋" "/opt/miaomiaowu" "data / subscribes / rule_templates сохраняются в каталоге развёртывания"
 }
 
 func_manage_substore() {
-    manage_compose_project "Sub-Store" "/opt/sub-store" "data 会保存在部署目录中"
+    manage_compose_project "Sub-Store" "/opt/sub-store" "data сохраняется в каталоге развёртывания"
 }
 
 func_manage_dockge() {
-    manage_compose_project "Dockge" "/opt/dockge" "Dockge 数据在 /opt/dockge/data；Stacks 默认在 /opt/stacks，不会随 Dockge 目录删除"
+    manage_compose_project "Dockge" "/opt/dockge" "Данные Dockge в /opt/dockge/data; Stacks по умолчанию в /opt/stacks, не удаляются при удалении Dockge"
 }
 
 func_manage_komari() {
-    manage_compose_project "Komari" "/opt/komari" "Komari 数据会保存在 /opt/komari/data"
+    manage_compose_project "Komari" "/opt/komari" "Данные Komari сохраняются в /opt/komari/data"
 }
 
 func_service_action_menu() {
@@ -16124,32 +16115,32 @@ func_service_action_menu() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "面板、节点与订阅工具 > ${title}"
+        print_breadcrumb "Панели, узлы и подписки > ${title}"
         echo -e "${BOLD}🧭 ${title}${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
         echo -e "${YELLOW}${usage}${PLAIN}"
         echo -e "------------------------------------------------"
         echo -e "${GREEN}  1. ${install_label}${PLAIN}"
         echo -e "${GREEN}  2. ${manage_label}${PLAIN}"
-        echo -e "${RED}  0. 返回上级菜单 / q 返回${PLAIN}"
+        echo -e "${RED}  0. Вернуться в предыдущее меню / q${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        read_trimmed choice "👉 请选择操作: "
+        read_trimmed choice "👉 Выберите действие: "
 
         case "$choice" in
             1) "$install_func" ;;
             2) "$manage_func" ;;
             0|q|Q) return ;;
-            *) echo -e "${RED}❌ 无效选择！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
 
 func_xpanel_menu() {
-    func_service_action_menu "3x-ui / x-ui 面板" "安装或进入官方菜单进行配置、更新、重置、卸载。" "安装 3x-ui 面板" func_xpanel "管理 / 卸载 3x-ui 面板" func_xpanel_manage
+    func_service_action_menu "3x-ui / x-ui панель" "Установка или вход в официальное меню для настройки, обновления, сброса, удаления." "Установка 3x-ui панели" func_xpanel "Управление / удаление 3x-ui панели" func_xpanel_manage
 }
 
 func_sui_menu() {
-    func_service_action_menu "S-UI 面板" "安装或进入 S-UI 官方菜单进行配置、更新、卸载。" "安装 S-UI 面板" func_sui_panel "管理 / 卸载 S-UI 面板" func_sui_manage
+    func_service_action_menu "S-UI панель" "Установка или вход в официальное меню S-UI для настройки, обновления, удаления." "Установка S-UI панели" func_sui_panel "Управление / удаление S-UI панели" func_sui_manage
 }
 
 func_singbox_menu() {
@@ -16158,54 +16149,54 @@ func_singbox_menu() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${BOLD}🧭 Sing-box 管理${PLAIN}"
+        echo -e "${BOLD}🧭 Управление Sing-box${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}可安装 Sing-box 一键脚本，也可进入已安装脚本的管理菜单。${PLAIN}"
+        echo -e "${YELLOW}Можно установить скрипт Sing-box, а также войти в меню управления уже установленного скрипта.${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}  1. 安装 Sing-box（233boy 一键脚本）${PLAIN}"
-        echo -e "${GREEN}  2. 管理 / 卸载 Sing-box${PLAIN}"
-        echo -e "${RED}  0. 返回上级菜单 / q 返回${PLAIN}"
+        echo -e "${GREEN}  1. Установка Sing-box (скрипт 233boy)${PLAIN}"
+        echo -e "${GREEN}  2. Управление / удаление Sing-box${PLAIN}"
+        echo -e "${RED}  0. Вернуться в предыдущее меню / q${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        read_trimmed choice "👉 请选择操作: "
+        read_trimmed choice "👉 Выберите действие: "
 
         case "$choice" in
             1) func_singbox_233boy ;;
             2) func_singbox_manage ;;
             0|q|Q) return ;;
-            *) echo -e "${RED}❌ 无效选择！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
 
 func_xray_menu() {
-    func_service_action_menu "Xray 管理" "安装或进入 233boy Xray 官方菜单进行配置、更新、卸载。" "安装 Xray（233boy 一键脚本）" func_xray_233boy "管理 / 卸载 Xray" func_xray_manage
+    func_service_action_menu "Управление Xray" "Установка или вход в официальное меню 233boy Xray для настройки, обновления, удаления." "Установка Xray (скрипт 233boy)" func_xray_233boy "Управление / удаление Xray" func_xray_manage
 }
 
 func_sublinkpro_menu() {
-    func_service_action_menu "SublinkPro 管理" "安装或管理 Docker Compose 部署的 SublinkPro。" "安装 SublinkPro" func_sublinkpro "管理 / 卸载 SublinkPro" func_manage_sublinkpro
+    func_service_action_menu "Управление SublinkPro" "Установка или управление Docker Compose развёртыванием SublinkPro." "Установка SublinkPro" func_sublinkpro "Управление / удаление SublinkPro" func_manage_sublinkpro
 }
 
 func_miaomiaowu_menu() {
-    func_service_action_menu "妙妙屋订阅管理" "安装或管理 Docker Compose 部署的妙妙屋订阅管理。" "安装 妙妙屋订阅管理" func_miaomiaowu "管理 / 卸载 妙妙屋" func_manage_miaomiaowu
+    func_service_action_menu "Управление 妙妙屋" "Установка или управление Docker Compose развёртыванием 妙妙屋." "Установка 妙妙屋" func_miaomiaowu "Управление / удаление 妙妙屋" func_manage_miaomiaowu
 }
 
 func_substore_menu() {
-    func_service_action_menu "Sub-Store 管理" "安装或管理 Docker Compose 部署的 Sub-Store。" "安装 Sub-Store" func_substore "管理 / 卸载 Sub-Store" func_manage_substore
+    func_service_action_menu "Управление Sub-Store" "Установка или управление Docker Compose развёртыванием Sub-Store." "Установка Sub-Store" func_substore "Управление / удаление Sub-Store" func_manage_substore
 }
 
 func_dockge_menu() {
-    func_service_action_menu "Dockge 管理" "安装或管理 Docker Compose 部署的 Dockge。" "安装 Dockge" func_dockge "管理 / 卸载 Dockge" func_manage_dockge
+    func_service_action_menu "Управление Dockge" "Установка или управление Docker Compose развёртыванием Dockge." "Установка Dockge" func_dockge "Управление / удаление Dockge" func_manage_dockge
 }
 
 func_komari_menu() {
-    func_service_action_menu "Komari 探针监控" "安装或管理 Docker Compose 部署的 Komari 探针监控面板。" "安装 Komari" func_komari "管理 / 卸载 Komari" func_manage_komari
+    func_service_action_menu "Управление Komari" "Установка или управление Docker Compose развёртыванием панели мониторинга Komari." "Установка Komari" func_komari "Управление / удаление Komari" func_manage_komari
 }
 
 # ---------------------------------------------------------
 # Module: dockge_migration.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Dockge migration discovery and migration workflows.
+# Обнаружение и миграция проектов в Dockge.
 
 is_dockge_migration_seen() {
     local needle="$1"
@@ -16257,114 +16248,114 @@ migrate_compose_project_to_dockge() {
 
     source_dir="${source_dir%/}"
     source_compose=$(find_compose_file "$source_dir") || {
-        echo -e "${RED}❌ 未找到 Compose 配置：${source_dir}${PLAIN}"
+        echo -e "${RED}❌ Конфигурация Compose не найдена: ${source_dir}${PLAIN}"
         return 1
     }
 
-    stack_name=$(ask_with_default "Dockge stack 名称" "$(basename "$source_dir")")
+    stack_name=$(ask_with_default "Имя стека Dockge" "$(basename "$source_dir")")
     if [[ ! "$stack_name" =~ ^[A-Za-z0-9_.-]+$ || "$stack_name" == "." || "$stack_name" == ".." ]]; then
-        echo -e "${RED}❌ stack 名称无效，只能使用字母、数字、点、下划线和短横线。${PLAIN}"
+        echo -e "${RED}❌ Неверное имя стека, разрешены только буквы, цифры, точки, подчёркивания и дефисы.${PLAIN}"
         return 1
     fi
 
     target_dir="${stacks_dir%/}/${stack_name}"
     if [[ "$source_dir" == "$target_dir" ]]; then
-        echo -e "${YELLOW}⚠️ ${source_dir} 已经在 Dockge stacks 目录内，已跳过。${PLAIN}"
+        echo -e "${YELLOW}⚠️ ${source_dir} уже находится в каталоге stacks Dockge, пропуск.${PLAIN}"
         return 0
     fi
     if [[ -e "$target_dir" ]]; then
-        echo -e "${RED}❌ 目标目录已存在：${target_dir}${PLAIN}"
-        echo -e "${YELLOW}请先在 Dockge 中确认是否已有同名 stack，或换一个 stack 名称。${PLAIN}"
+        echo -e "${RED}❌ Целевой каталог уже существует: ${target_dir}${PLAIN}"
+        echo -e "${YELLOW}Проверьте, есть ли уже такой стек в Dockge, или выберите другое имя.${PLAIN}"
         return 1
     fi
 
     echo -e "------------------------------------------------"
-    echo -e "${YELLOW}将迁移：${CYAN}${source_dir}${PLAIN}"
-    echo -e "${YELLOW}迁移到：${CYAN}${target_dir}${PLAIN}"
-    echo -e "${YELLOW}Compose：${CYAN}${source_compose}${PLAIN}"
-    echo -e "${YELLOW}说明：会移动整个项目目录，保留相对挂载的数据目录。${PLAIN}"
-    echo -e "${YELLOW}如果项目使用 Docker 命名卷，建议保持 stack 名称与原目录名一致。${PLAIN}"
-    confirm_risk_action "迁移 Compose 项目到 Dockge" \
-        "Compose 项目目录、容器停止/启动位置和 Dockge stack 路径" \
-        "把 ${target_dir} 手动移回 ${source_dir}，并用原 compose 文件重新启动" \
-        "确认项目没有绝对路径依赖，且已备份重要数据。" || { echo -e "${BLUE}已取消迁移 ${source_dir}。${PLAIN}"; return 0; }
+    echo -e "${YELLOW}Будет перенесён: ${CYAN}${source_dir}${PLAIN}"
+    echo -e "${YELLOW}В: ${CYAN}${target_dir}${PLAIN}"
+    echo -e "${YELLOW}Compose: ${CYAN}${source_compose}${PLAIN}"
+    echo -e "${YELLOW}Пояснение: весь каталог проекта будет перемещён, относительные смонтированные каталоги данных сохранятся.${PLAIN}"
+    echo -e "${YELLOW}Если проект использует именованные тома Docker, рекомендуется оставить имя стека таким же, как исходный каталог.${PLAIN}"
+    confirm_risk_action "Миграция Compose-проекта в Dockge" \
+        "Каталог Compose-проекта, остановка/запуск контейнеров и путь стека Dockge" \
+        "Вручную переместите ${target_dir} обратно в ${source_dir} и перезапустите с исходным compose-файлом" \
+        "Убедитесь, что проект не использует абсолютные пути, и важные данные зарезервированы." || { echo -e "${BLUE}Миграция ${source_dir} отменена.${PLAIN}"; return 0; }
 
-    read_trimmed restart_confirm "是否先停止旧容器并在新目录重新启动？(Y/n): "
+    read_trimmed restart_confirm "Сначала остановить старые контейнеры и перезапустить в новом каталоге? (Y/n): "
     if is_no "$restart_confirm"; then
         restart_stack="false"
     fi
 
     if [[ "$restart_stack" == "true" ]]; then
-        echo -e "${CYAN}▶ 正在停止旧目录中的 Compose 项目...${PLAIN}"
+        echo -e "${CYAN}▶ Остановка Compose-проекта в старом каталоге...${PLAIN}"
         ( cd "$source_dir" && $DOCKER_COMPOSE_CMD down ) || {
-            echo -e "${RED}❌ 停止旧项目失败，已中止迁移。${PLAIN}"
+            echo -e "${RED}❌ Остановка старого проекта не удалась, миграция прервана.${PLAIN}"
             return 1
         }
     fi
 
     mkdir -p "$stacks_dir" || return 1
     mv "$source_dir" "$target_dir" || {
-        echo -e "${RED}❌ 移动目录失败：${source_dir} -> ${target_dir}${PLAIN}"
+        echo -e "${RED}❌ Перемещение каталога не удалось: ${source_dir} -> ${target_dir}${PLAIN}"
         return 1
     }
 
     compose_name=$(basename "$source_compose")
     if [[ "$compose_name" == docker-compose.y* && ! -f "${target_dir}/compose.yaml" ]]; then
         mv "${target_dir}/${compose_name}" "${target_dir}/compose.yaml" || {
-            echo -e "${RED}❌ 重命名 Compose 文件失败，请手动检查：${target_dir}${PLAIN}"
+            echo -e "${RED}❌ Переименование файла Compose не удалось, проверьте вручную: ${target_dir}${PLAIN}"
             return 1
         }
     fi
 
     if [[ "$restart_stack" == "true" ]]; then
-        echo -e "${CYAN}▶ 正在新目录中重新启动 Compose 项目...${PLAIN}"
+        echo -e "${CYAN}▶ Перезапуск Compose-проекта в новом каталоге...${PLAIN}"
         ( cd "$target_dir" && $DOCKER_COMPOSE_CMD up -d ) || {
-            echo -e "${RED}❌ 新目录启动失败，请手动检查：${target_dir}${PLAIN}"
+            echo -e "${RED}❌ Запуск в новом каталоге не удался, проверьте вручную: ${target_dir}${PLAIN}"
             return 1
         }
     fi
 
-    echo -e "${GREEN}✅ 已迁移到 Dockge stacks：${target_dir}${PLAIN}"
-    echo -e "${YELLOW}请在 Dockge 页面里扫描/刷新 stacks 目录后接管。${PLAIN}"
+    echo -e "${GREEN}✅ Проект перенесён в стеки Dockge: ${target_dir}${PLAIN}"
+    echo -e "${YELLOW}Обновите/отсканируйте каталог stacks в интерфейсе Dockge для управления.${PLAIN}"
 }
 
 func_migrate_compose_to_dockge() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}迁移已有 Compose 项目到 Dockge${PLAIN}"
+    echo -e "${BOLD}Перенос существующих Compose-проектов в Dockge${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}适合 Dockge 后安装的场景：把已有 docker-compose.yml / compose.yaml 项目移动到 Dockge stacks 目录。${PLAIN}"
-    echo -e "${YELLOW}建议先确认相关服务可以短暂停机，并已做好重要数据备份。${PLAIN}"
+    echo -e "${YELLOW}Подходит для случая, когда Dockge установлен позже: переносит существующие проекты docker-compose.yml / compose.yaml в каталог stacks Dockge.${PLAIN}"
+    echo -e "${YELLOW}Рекомендуется убедиться, что службы могут быть ненадолго остановлены, и сделана резервная копия важных данных.${PLAIN}"
     echo -e "------------------------------------------------"
 
-    ensure_docker_compose_ready || { read -n 1 -s -r -p "按任意键返回..."; return; }
+    ensure_docker_compose_ready || { read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
 
     local stacks_dir="/opt/stacks"
     local choice custom_dir i
-    stacks_dir=$(ask_with_default "Dockge stacks 目录" "$stacks_dir")
-    mkdir -p "$stacks_dir" || { echo -e "${RED}❌ 无法创建 stacks 目录：${stacks_dir}${PLAIN}"; read -n 1 -s -r -p "按任意键返回..."; return; }
+    stacks_dir=$(ask_with_default "Каталог stacks Dockge" "$stacks_dir")
+    mkdir -p "$stacks_dir" || { echo -e "${RED}❌ Не удалось создать каталог stacks: ${stacks_dir}${PLAIN}"; read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return; }
 
     discover_dockge_migration_candidates "$stacks_dir"
 
     if [[ "${#DOCKGE_MIGRATION_DIRS[@]}" -gt 0 ]]; then
-        echo -e "${GREEN}检测到以下可迁移 Compose 项目：${PLAIN}"
+        echo -e "${GREEN}Обнаружены следующие проекты Compose для переноса:${PLAIN}"
         for i in "${!DOCKGE_MIGRATION_DIRS[@]}"; do
             echo -e "${GREEN}  $((i + 1)). ${DOCKGE_MIGRATION_NAMES[$i]}${PLAIN} ${CYAN}(${DOCKGE_MIGRATION_DIRS[$i]})${PLAIN}"
         done
-        echo -e "${BOLD}${YELLOW}  a. 迁移全部检测到的项目${PLAIN}"
+        echo -e "${BOLD}${YELLOW}  a. Перенести все обнаруженные проекты${PLAIN}"
     else
-        echo -e "${YELLOW}⚠️ 未在 /opt 下检测到常见 Compose 项目。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Не обнаружено обычных Compose-проектов в /opt.${PLAIN}"
     fi
-    echo -e "${CYAN}  c. 手动输入项目目录${PLAIN}"
-    echo -e "${RED}  0. 返回${PLAIN}"
+    echo -e "${CYAN}  c. Ввести каталог проекта вручную${PLAIN}"
+    echo -e "${RED}  0. Вернуться${PLAIN}"
     echo -e "------------------------------------------------"
 
-    read_trimmed choice "请选择要迁移的项目: "
+    read_trimmed choice "Выберите проект для переноса: "
     case "$choice" in
         0) return ;;
         a|A)
             if [[ "${#DOCKGE_MIGRATION_DIRS[@]}" -eq 0 ]]; then
-                echo -e "${YELLOW}⚠️ 没有可自动迁移的项目。${PLAIN}"
+                echo -e "${YELLOW}⚠️ Нет проектов для автоматического переноса.${PLAIN}"
             else
                 for i in "${!DOCKGE_MIGRATION_DIRS[@]}"; do
                     migrate_compose_project_to_dockge "${DOCKGE_MIGRATION_DIRS[$i]}" "$stacks_dir" || true
@@ -16373,84 +16364,84 @@ func_migrate_compose_to_dockge() {
             fi
             ;;
         c|C)
-            read_trimmed custom_dir "请输入已有 Compose 项目目录: "
+            read_trimmed custom_dir "Введите каталог существующего Compose-проекта: "
             migrate_compose_project_to_dockge "$custom_dir" "$stacks_dir"
             ;;
         *)
             if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#DOCKGE_MIGRATION_DIRS[@]} )); then
                 migrate_compose_project_to_dockge "${DOCKGE_MIGRATION_DIRS[$((choice - 1))]}" "$stacks_dir"
             else
-                echo -e "${RED}❌ 无效选择！${PLAIN}"
+                echo -e "${RED}❌ Неверный выбор!${PLAIN}"
             fi
             ;;
     esac
 
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 # ---------------------------------------------------------
-# 18. 面板救砖/重置 SSL (兼容新版 3x-ui 证书字段)
+# 18. Восстановление панели / сброс SSL (совместимость с новыми 3x-ui)
 # ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # Module: panel_rescue.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Panel rescue and SSL reset workflows.
+# Восстановление панели и сброс SSL.
 
 func_rescue_panel() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🚑 面板 SSL 修复${PLAIN}"
+    echo -e "${BOLD}🚑 Восстановление SSL панели${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}用途：清空 3x-ui 面板证书路径，让 Caddy 可以按 HTTP 反代本机面板。${PLAIN}"
-    echo -e "更推荐在 3x-ui 面板里手动进入：面板设置 -> 常规 -> 证书，把证书路径和私钥路径清空后保存重启。"
-    echo -e "本功能只作为打不开面板时的救急方案，会尝试清空常见证书字段：webCertFile/webKeyFile/CertFile/KeyFile 等。"
+    echo -e "${YELLOW}Назначение: очистить пути сертификатов 3x-ui, чтобы Caddy мог проксировать панель по HTTP.${PLAIN}"
+    echo -e "Рекомендуется вручную в панели 3x-ui: Настройки панели -> Общие -> Сертификаты, очистить пути и перезапустить."
+    echo -e "Эта функция предназначена как аварийное решение, если панель не открывается; попытается очистить распространённые поля: webCertFile/webKeyFile/CertFile/KeyFile и т.д."
     echo -e "------------------------------------------------"
     
     local yn
-    read_trimmed yn "❓ 确定要清空面板证书路径并尝试退回 HTTP 吗？(y/n): "
+    read_trimmed yn "❓ Очистить пути сертификатов панели и попытаться вернуться к HTTP? (y/n): "
     if is_yes "$yn"; then
         local xui_bin
         xui_bin=$(detect_xui_command 2>/dev/null || true)
         if [[ -n "$xui_bin" ]]; then
-            echo -e "${CYAN}当前 3x-ui 证书状态：${PLAIN}"
+            echo -e "${CYAN}Текущее состояние сертификатов 3x-ui:${PLAIN}"
             "$xui_bin" setting -getCert true 2>/dev/null || true
             echo -e "------------------------------------------------"
         fi
         clear_xui_cert_settings_for_single_443 || true
         echo -e "------------------------------------------------"
         if [[ -n "$xui_bin" ]]; then
-            echo -e "${CYAN}清理后的 3x-ui 证书状态：${PLAIN}"
+            echo -e "${CYAN}Состояние сертификатов 3x-ui после очистки:${PLAIN}"
             "$xui_bin" setting -getCert true 2>/dev/null || true
             echo -e "------------------------------------------------"
         fi
-        echo -e "${GREEN}✅ 已尝试清空证书路径。${PLAIN}"
-        echo -e "${YELLOW}请用本机测试确认协议：curl -I http://127.0.0.1:面板端口/你的面板路径/${PLAIN}"
-        echo -e "${YELLOW}如果 HTTP 仍不通，请先进入 3x-ui 官方菜单或面板设置确认常规证书、订阅证书路径都已清空并重启面板。${PLAIN}"
+        echo -e "${GREEN}✅ Попытка очистки путей сертификатов выполнена.${PLAIN}"
+        echo -e "${YELLOW}Проверьте локально: curl -I http://127.0.0.1:порт_панели/путь_панели/${PLAIN}"
+        echo -e "${YELLOW}Если HTTP всё ещё не работает, войдите в официальное меню 3x-ui или настройки панели и убедитесь, что пути сертификатов и подписок очищены, затем перезапустите панель.${PLAIN}"
     else
-        echo -e "${BLUE}已取消操作。${PLAIN}"
+        echo -e "${BLUE}Операция отменена.${PLAIN}"
     fi
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 # ---------------------------------------------------------
-# 新增功能：网络端口占用可视化排查与进程查杀 (底层调用优化版)
+# Новая функция: визуальное отображение занятости портов и завершение процессов
 # ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # Module: server_maintenance.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Port process release and server reboot workflows.
+# Освобождение портов и перезагрузка сервера.
 
 func_port_kill() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${BOLD}🔍 网络端口占用排查与进程释放${PLAIN}"
+        echo -e "${BOLD}🔍 Проверка занятости портов и освобождение процессов${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}当前系统中正在监听的活动端口列表：${PLAIN}"
+        echo -e "${YELLOW}Список активных прослушиваемых портов:${PLAIN}"
         echo -e "------------------------------------------------"
-        printf "%-10s %-15s %-20s\n" "协议" "端口" "关联进程 (PID)"
+        printf "%-10s %-15s %-20s\n" "Протокол" "Порт" "Процесс (PID)"
         
         ss -tulnp | grep -E 'LISTEN|UNCONN' | while read -r line; do
             local proto=$(echo "$line" | awk '{print $1}')
@@ -16460,7 +16451,7 @@ func_port_kill() {
             
             local proc_info=""
             if [[ -z "$proc" || -z "$pid" ]]; then
-                proc_info="系统底层 / 无权限读取"
+                proc_info="Системный / нет прав"
             else
                 proc_info="$proc (PID: $pid)"
             fi
@@ -16468,12 +16459,12 @@ func_port_kill() {
         done | sort -n -k2 | uniq
         
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}👉 指南：找到您想释放的冲突端口，输入它即可强杀对应进程。${PLAIN}"
-        echo -e "${RED}⚠️ 高危：请勿随意终止 sshd (通常为 22) 的端口，否则会断网失联！${PLAIN}"
+        echo -e "${GREEN}👉 Найдите конфликтующий порт и введите его для принудительного завершения процесса.${PLAIN}"
+        echo -e "${RED}⚠️ Не завершайте процесс sshd (обычно порт 22), иначе потеряете связь!${PLAIN}"
         echo -e "------------------------------------------------"
         
         local p_choice
-        read_trimmed p_choice "❓ 请输入要强杀释放的端口号 (输入 0 返回主菜单): "
+        read_trimmed p_choice "❓ Введите порт для принудительного завершения (0 для возврата в главное меню): "
         
         if [[ "$p_choice" == "0" ]]; then break; fi
         
@@ -16481,31 +16472,31 @@ func_port_kill() {
             local ssh_match
             ssh_match=$(ss -tulnp 2>/dev/null | awk -v port="$p_choice" '$5 ~ ":" port "$" && $0 ~ /(sshd|ssh)/ {print}')
             if [[ -n "$ssh_match" || "$p_choice" == "22" ]]; then
-                echo -e "${RED}❌ 检测到你选择的是 SSH 相关端口或默认 SSH 端口，为避免失联，已拒绝强杀。${PLAIN}"
+                echo -e "${RED}❌ Обнаружен SSH-порт, завершение отклонено во избежание потери связи.${PLAIN}"
                 sleep 2
                 continue
             fi
-            confirm_danger "强杀占用端口 ${p_choice} 的进程" "会对 TCP/UDP ${p_choice} 占用进程发送 SIGKILL，相关服务会立即中断。" "如果杀错服务，需要手动重启对应 systemd 服务或容器。" || {
-                echo -e "${BLUE}已取消强杀操作。${PLAIN}"
+            confirm_danger "Принудительно завершить процесс, занимающий порт ${p_choice}" "Будет отправлен SIGKILL процессу, использующему TCP/UDP ${p_choice}, служба будет немедленно прервана." "Если процесс завершён ошибочно, потребуется вручную перезапустить соответствующую systemd-службу или контейнер." || {
+                echo -e "${BLUE}Завершение отменено.${PLAIN}"
                 sleep 1
                 continue
             }
-            echo -e "${CYAN}▶ 正在调用底层系统命令强杀端口 $p_choice ...${PLAIN}"
+            echo -e "${CYAN}▶ Принудительное завершение процесса на порту $p_choice ...${PLAIN}"
             
-            # [依赖前置检查]: 确保存在 fuser 工具
+            # Установка fuser, если отсутствует
             if ! command -v fuser >/dev/null 2>&1; then
                 install_pkg psmisc
             fi
             
-            # [极简实现]: 一行代码杀掉占用该 TCP/UDP 端口的所有进程
+            # Однострочное завершение всех процессов, использующих TCP/UDP порт
             if fuser -k -9 -n tcp "$p_choice" >/dev/null 2>&1 || fuser -k -9 -n udp "$p_choice" >/dev/null 2>&1; then
-                echo -e "${GREEN}✅ 目标进程已被系统底层强制回收 (SIGKILL)。端口已释放！${PLAIN}"
+                echo -e "${GREEN}✅ Процесс принудительно завершён (SIGKILL). Порт освобождён!${PLAIN}"
             else
-                echo -e "${BLUE}ℹ️ 未发现任何可被终止的进程占用该端口，或权限不足。${PLAIN}"
+                echo -e "${BLUE}ℹ️ Не найдено процессов для завершения на этом порту или недостаточно прав.${PLAIN}"
             fi
             sleep 2
         else
-            echo -e "${RED}❌ 输入无效！请输入纯数字端口号。${PLAIN}"
+            echo -e "${RED}❌ Неверный ввод! Введите числовой порт.${PLAIN}"
             sleep 1
         fi
     done
@@ -16514,24 +16505,24 @@ func_port_kill() {
 func_reboot_server() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🔁 重启服务器${PLAIN}"
+    echo -e "${BOLD}🔁 Перезагрузка сервера${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    confirm_danger "立即重启服务器" "当前 SSH 会话会断开，所有运行中的服务会短暂中断。" "请确认云厂商控制台可用，并确保关键配置已经保存。" || {
-        echo -e "${BLUE}已取消重启操作。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+    confirm_danger "Немедленная перезагрузка сервера" "Текущая SSH-сессия будет разорвана, все работающие службы временно прервутся." "Убедитесь, что консоль облачного провайдера доступна и важные конфигурации сохранены." || {
+        echo -e "${BLUE}Перезагрузка отменена.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     }
     reboot
 }
 # ---------------------------------------------------------
-# 19. 脚本热更新
+# 19. Горячее обновление скрипта
 # ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # Module: updater.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Script update cache, version comparison, notice, and hot-update workflows.
+# Кеш обновлений, сравнение версий, уведомления и горячее обновление.
 
 fetch_latest_script_version() {
     local line version
@@ -16646,20 +16637,20 @@ check_script_update_status() {
     if latest=$(fetch_latest_script_version) && latest_sha256=$(fetch_latest_script_sha256); then
         if version_is_newer "$latest" "$SCRIPT_VERSION"; then
             status="available"
-            message="发现新版本 ${latest}"
+            message="Доступна новая версия ${latest}"
         elif [[ -n "$current_sha256" && "$current_sha256" != "$latest_sha256" ]]; then
             status="available"
-            message="检测到同版本内容更新"
+            message="Обнаружено обновление содержимого той же версии"
         else
             status="current"
-            message="当前脚本内容已是最新"
+            message="Скрипт уже актуален"
         fi
         write_script_update_cache "$status" "$latest" "$latest_sha256" "$message"
         printf '%s|%s\n' "$status" "$latest"
         return 0
     fi
 
-    write_script_update_cache "error" "unknown" "unknown" "无法检查更新"
+    write_script_update_cache "error" "unknown" "unknown" "Не удалось проверить обновления"
     printf 'error|unknown\n'
 }
 
@@ -16671,13 +16662,13 @@ print_auto_update_notice() {
     case "$status" in
         available)
             if [[ "$latest" == "$SCRIPT_VERSION" ]]; then
-                echo -e " ${BOLD}${YELLOW}更新提示:${PLAIN} 检测到 ${CYAN}${latest}${PLAIN} 的内容更新，输入 ${YELLOW}u${PLAIN} 可更新当前脚本。"
+                echo -e " ${BOLD}${YELLOW}Обновление:${PLAIN} обнаружено обновление содержимого ${CYAN}${latest}${PLAIN}, введите ${YELLOW}u${PLAIN} для обновления."
             else
-                echo -e " ${BOLD}${YELLOW}更新提示:${PLAIN} 检测到 ${CYAN}${latest}${PLAIN}，输入 ${YELLOW}u${PLAIN} 可更新当前脚本。"
+                echo -e " ${BOLD}${YELLOW}Обновление:${PLAIN} обнаружена версия ${CYAN}${latest}${PLAIN}, введите ${YELLOW}u${PLAIN} для обновления."
             fi
             ;;
         current)
-            echo -e " ${BLUE}更新状态:${PLAIN} 当前 ${SCRIPT_VERSION}，脚本内容已是最新。"
+            echo -e " ${BLUE}Статус обновления:${PLAIN} текущая ${SCRIPT_VERSION}, скрипт актуален."
             ;;
     esac
 }
@@ -16686,36 +16677,36 @@ func_update_script() {
     clear
     local tmp_file
     tmp_file=$(mktemp /tmp/cy_update.XXXXXX.sh) || {
-        echo -e "${RED}❌ 临时文件创建失败，更新已取消。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ Не удалось создать временный файл, обновление отменено.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return 1
     }
-    echo -e "${CYAN}👉 正在从 GitHub 源地址拉取最新版本...${PLAIN}"
+    echo -e "${CYAN}👉 Загрузка последней версии с GitHub...${PLAIN}"
     if download_verified_update_script "$tmp_file" \
         && grep -q "func_sni_stack_quick_menu" "$tmp_file" 2>/dev/null \
         && grep -q "main_menu" "$tmp_file" 2>/dev/null \
         && ! grep -Eq '^[[:space:]]*(source|\.)[[:space:]]+.*src/' "$tmp_file" 2>/dev/null \
-        && copy_shortcut_candidate "$tmp_file" /usr/local/bin/cy "已验证更新脚本"; then
+        && copy_shortcut_candidate "$tmp_file" /usr/local/bin/cy "Проверенный обновлённый скрипт"; then
         rm -f "$tmp_file" "$SCRIPT_UPDATE_CACHE"
-        echo -e "${GREEN}✅ 更新下载并覆盖完成！正在重启面板...${PLAIN}"
+        echo -e "${GREEN}✅ Обновление загружено и установлено! Перезапуск панели...${PLAIN}"
         sleep 1
         exec bash /usr/local/bin/cy
     else
         rm -f "$tmp_file"
-        echo -e "${RED}❌ 更新失败：下载、脚本标识、语法或 sha256 校验未全部通过。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ Ошибка обновления: загрузка, проверка подписи, синтаксис или sha256 не пройдены.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
     fi
 }
 
 # ---------------------------------------------------------
-# 20. 一键运维预检
+# 20. Предварительная проверка перед развёртыванием
 # ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # Module: preflight.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Deployment preflight checks and issue diagnostic bundle generation.
+# Предварительные проверки перед развёртыванием и генерация диагностических отчётов.
 
 preflight_install_missing_commands() {
     local missing=("$@")
@@ -16741,7 +16732,7 @@ preflight_install_missing_commands() {
         return 0
     fi
 
-    echo -e "${CYAN}▶ 正在安装缺失基础命令: ${missing[*]}${PLAIN}"
+    echo -e "${CYAN}▶ Установка недостающих базовых команд: ${missing[*]}${PLAIN}"
     install_pkg "${pkgs[@]}"
 }
 
@@ -16772,7 +16763,7 @@ preflight_missing_minimal_compat_items() {
 
 preflight_enable_ntp() {
     local ntp_sync
-    echo -e "${CYAN}▶ 正在尝试开启系统 NTP 时间同步...${PLAIN}"
+    echo -e "${CYAN}▶ Попытка включить синхронизацию времени NTP...${PLAIN}"
 
     if is_debian; then
         install_pkg chrony
@@ -16794,9 +16785,9 @@ preflight_enable_ntp() {
     sleep 2
     ntp_sync=$(timedatectl show -p NTPSynchronized --value 2>/dev/null)
     if [[ "$ntp_sync" == "yes" ]]; then
-        echo -e "${GREEN}✅ NTP 时间同步已恢复。${PLAIN}"
+        echo -e "${GREEN}✅ Синхронизация времени NTP восстановлена.${PLAIN}"
     else
-        echo -e "${YELLOW}⚠️ NTP 仍未同步，下面是诊断信息：${PLAIN}"
+        echo -e "${YELLOW}⚠️ NTP всё ещё не синхронизирован, диагностика:${PLAIN}"
         timedatectl status 2>/dev/null || true
         chronyc tracking 2>/dev/null || true
         chronyc sources -v 2>/dev/null || true
@@ -16807,92 +16798,92 @@ preflight_enable_ntp() {
 func_preflight_check() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧪 一键运维预检 (网络/系统/资源/包管理/精简系统兼容)${PLAIN}"
+    echo -e "${BOLD}🧪 Предварительная проверка (сеть/система/ресурсы/пакеты/совместимость)${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
 
     local ok_count=0
     local warn_count=0
     local err_count=0
 
-    echo -e "${YELLOW}▶ [1/9] 检查系统运行状态...${PLAIN}"
+    echo -e "${YELLOW}▶ [1/9] Проверка состояния системы...${PLAIN}"
     local sys_state
     sys_state=$(systemctl is-system-running 2>/dev/null)
     sys_state=${sys_state:-unknown}
     if [[ "$sys_state" == "running" ]]; then
-        echo -e "${GREEN}✅ systemd 状态正常: $sys_state${PLAIN}"
+        echo -e "${GREEN}✅ systemd состояние нормальное: $sys_state${PLAIN}"
         ((ok_count++))
     elif [[ "$sys_state" == "degraded" ]]; then
-        echo -e "${YELLOW}⚠️ systemd 状态降级: $sys_state${PLAIN}"
+        echo -e "${YELLOW}⚠️ systemd состояние деградировано: $sys_state${PLAIN}"
         systemctl --failed --no-legend --no-pager 2>/dev/null | awk 'NF {print "   - " $1 " (" $2 ")"}' | head -n 8
         ((warn_count++))
     else
-        echo -e "${RED}❌ systemd 状态异常: $sys_state${PLAIN}"
+        echo -e "${RED}❌ systemd состояние аномальное: $sys_state${PLAIN}"
         ((err_count++))
     fi
 
-    echo -e "${YELLOW}▶ [2/9] 检查公网连通性...${PLAIN}"
+    echo -e "${YELLOW}▶ [2/9] Проверка публичной сети...${PLAIN}"
     local ipv4
     ipv4=$(curl -s4 --max-time 3 icanhazip.com 2>/dev/null)
     if [[ -n "$ipv4" ]]; then
-        echo -e "${GREEN}✅ IPv4 连通正常: ${ipv4}${PLAIN}"
+        echo -e "${GREEN}✅ IPv4 доступен: ${ipv4}${PLAIN}"
         ((ok_count++))
     else
-        echo -e "${YELLOW}⚠️ 未检测到公网 IPv4，可能为纯 IPv6 或网络受限${PLAIN}"
+        echo -e "${YELLOW}⚠️ Публичный IPv4 не обнаружен, возможно, только IPv6 или сеть ограничена${PLAIN}"
         ((warn_count++))
     fi
 
-    echo -e "${YELLOW}▶ [3/9] 检查 DNS 解析能力...${PLAIN}"
+    echo -e "${YELLOW}▶ [3/9] Проверка DNS...${PLAIN}"
     if getent ahosts raw.githubusercontent.com >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ DNS 解析正常 (raw.githubusercontent.com)${PLAIN}"
+        echo -e "${GREEN}✅ DNS работает (raw.githubusercontent.com)${PLAIN}"
         ((ok_count++))
     else
-        echo -e "${RED}❌ DNS 解析失败，后续远程脚本可能无法下载${PLAIN}"
+        echo -e "${RED}❌ DNS не работает, удалённые скрипты могут не загружаться${PLAIN}"
         ((err_count++))
     fi
 
-    echo -e "${YELLOW}▶ [4/9] 检查时间同步状态...${PLAIN}"
+    echo -e "${YELLOW}▶ [4/9] Проверка синхронизации времени...${PLAIN}"
     local ntp_sync
     local can_fix_ntp=false
     ntp_sync=$(timedatectl show -p NTPSynchronized --value 2>/dev/null)
     if [[ "$ntp_sync" == "yes" ]]; then
-        echo -e "${GREEN}✅ NTP 时间同步正常${PLAIN}"
+        echo -e "${GREEN}✅ NTP синхронизирован${PLAIN}"
         ((ok_count++))
     else
-        echo -e "${YELLOW}⚠️ NTP 未同步，可能影响证书签发与仓库校验${PLAIN}"
+        echo -e "${YELLOW}⚠️ NTP не синхронизирован, может повлиять на сертификаты и проверку репозиториев${PLAIN}"
         can_fix_ntp=true
         ((warn_count++))
     fi
 
-    echo -e "${YELLOW}▶ [5/9] 检查磁盘空间...${PLAIN}"
+    echo -e "${YELLOW}▶ [5/9] Проверка дискового пространства...${PLAIN}"
     local root_use
     root_use=$(df -P / | awk 'NR==2 {gsub("%", "", $5); print $5}')
     if [[ -n "$root_use" && "$root_use" -lt 80 ]]; then
-        echo -e "${GREEN}✅ 根分区使用率健康: ${root_use}%${PLAIN}"
+        echo -e "${GREEN}✅ Использование корневого раздела здоровое: ${root_use}%${PLAIN}"
         ((ok_count++))
     elif [[ -n "$root_use" && "$root_use" -lt 90 ]]; then
-        echo -e "${YELLOW}⚠️ 根分区使用率偏高: ${root_use}%${PLAIN}"
+        echo -e "${YELLOW}⚠️ Использование корневого раздела высокое: ${root_use}%${PLAIN}"
         ((warn_count++))
     else
-        echo -e "${RED}❌ 根分区使用率危险: ${root_use:-未知}%${PLAIN}"
+        echo -e "${RED}❌ Использование корневого раздела критическое: ${root_use:-неизвестно}%${PLAIN}"
         ((err_count++))
     fi
 
-    echo -e "${YELLOW}▶ [6/9] 检查可用内存...${PLAIN}"
+    echo -e "${YELLOW}▶ [6/9] Проверка доступной памяти...${PLAIN}"
     local mem_avail
     mem_avail=$(free -m | awk '/^Mem:/ {print $7}')
     [[ -z "$mem_avail" ]] && mem_avail=$(free -m | awk '/^Mem:/ {print $4}')
     if [[ -n "$mem_avail" && "$mem_avail" -ge 300 ]]; then
-        echo -e "${GREEN}✅ 可用内存充足: ${mem_avail}MB${PLAIN}"
+        echo -e "${GREEN}✅ Доступной памяти достаточно: ${mem_avail} МБ${PLAIN}"
         ((ok_count++))
     elif [[ -n "$mem_avail" && "$mem_avail" -ge 150 ]]; then
-        echo -e "${YELLOW}⚠️ 可用内存偏低: ${mem_avail}MB${PLAIN}"
+        echo -e "${YELLOW}⚠️ Доступной памяти мало: ${mem_avail} МБ${PLAIN}"
         ((warn_count++))
     else
-        echo -e "${RED}❌ 可用内存过低: ${mem_avail:-未知}MB${PLAIN}"
+        echo -e "${RED}❌ Доступной памяти критически мало: ${mem_avail:-неизвестно} МБ${PLAIN}"
         ((err_count++))
     fi
 
-    echo -e "${YELLOW}▶ [7/9] 检查包管理器占用...${PLAIN}"
+    echo -e "${YELLOW}▶ [7/9] Проверка занятости менеджера пакетов...${PLAIN}"
     local pkg_busy=false
     if is_debian; then
         pgrep -x apt >/dev/null 2>&1 && pkg_busy=true
@@ -16905,74 +16896,74 @@ func_preflight_check() {
     fi
 
     if $pkg_busy; then
-        echo -e "${YELLOW}⚠️ 检测到包管理器正在运行，建议稍后再安装软件${PLAIN}"
+        echo -e "${YELLOW}⚠️ Менеджер пакетов занят, рекомендуется подождать перед установкой${PLAIN}"
         ((warn_count++))
     else
-        echo -e "${GREEN}✅ 包管理器空闲，可安全执行安装任务${PLAIN}"
+        echo -e "${GREEN}✅ Менеджер пакетов свободен${PLAIN}"
         ((ok_count++))
     fi
 
-    echo -e "${YELLOW}▶ [8/9] 检查关键命令可用性...${PLAIN}"
+    echo -e "${YELLOW}▶ [8/9] Проверка наличия критических команд...${PLAIN}"
     local cmd_miss=()
     command -v curl >/dev/null 2>&1 || cmd_miss+=("curl")
     command -v wget >/dev/null 2>&1 || cmd_miss+=("wget")
     command -v sudo >/dev/null 2>&1 || cmd_miss+=("sudo")
     command -v ss >/dev/null 2>&1 || cmd_miss+=("ss")
     if [[ ${#cmd_miss[@]} -eq 0 ]]; then
-        echo -e "${GREEN}✅ 关键命令齐全${PLAIN}"
+        echo -e "${GREEN}✅ Критические команды присутствуют${PLAIN}"
         ((ok_count++))
     else
-        echo -e "${RED}❌ 缺少关键命令: ${cmd_miss[*]}${PLAIN}"
+        echo -e "${RED}❌ Отсутствуют команды: ${cmd_miss[*]}${PLAIN}"
         ((err_count++))
     fi
 
-    echo -e "${YELLOW}▶ [9/9] 检查精简系统兼容组件...${PLAIN}"
+    echo -e "${YELLOW}▶ [9/9] Проверка минимальных совместимых компонентов...${PLAIN}"
     local minimal_miss=()
     mapfile -t minimal_miss < <(preflight_missing_minimal_compat_items)
     if [[ ${#minimal_miss[@]} -eq 0 ]]; then
-        echo -e "${GREEN}✅ 精简系统兼容组件齐全${PLAIN}"
+        echo -e "${GREEN}✅ Минимальные совместимые компоненты в порядке${PLAIN}"
         ((ok_count++))
     else
-        echo -e "${YELLOW}⚠️ 检测到精简系统缺少组件/服务:${PLAIN}"
+        echo -e "${YELLOW}⚠️ Обнаружены отсутствующие компоненты/службы:${PLAIN}"
         printf '  - %s\n' "${minimal_miss[@]}"
         ((warn_count++))
     fi
 
     echo -e "------------------------------------------------"
-    echo -e "${CYAN}📌 预检汇总: ${GREEN}${ok_count} 正常${PLAIN} / ${YELLOW}${warn_count} 警告${PLAIN} / ${RED}${err_count} 异常${PLAIN}"
+    echo -e "${CYAN}📌 Итог предпроверки: ${GREEN}${ok_count} OK${PLAIN} / ${YELLOW}${warn_count} предупреждений${PLAIN} / ${RED}${err_count} ошибок${PLAIN}"
     if [[ "$err_count" -gt 0 ]]; then
-        echo -e "${RED}⚠️ 建议先修复异常项，再进行环境部署和系统改造。${PLAIN}"
+        echo -e "${RED}⚠️ Рекомендуется сначала исправить ошибки перед развёртыванием и модификацией системы.${PLAIN}"
     elif [[ "$warn_count" -gt 0 ]]; then
-        echo -e "${YELLOW}💡 当前可继续操作，但建议先处理警告项以提升稳定性。${PLAIN}"
+        echo -e "${YELLOW}💡 Можно продолжать, но рекомендуется обработать предупреждения для повышения стабильности.${PLAIN}"
     else
-        echo -e "${GREEN}🎉 当前环境健康，可直接进行后续部署。${PLAIN}"
+        echo -e "${GREEN}🎉 Среда здорова, можно приступать к развёртыванию.${PLAIN}"
     fi
 
     if ! $pkg_busy && { $can_fix_ntp || [[ ${#cmd_miss[@]} -gt 0 ]] || [[ ${#minimal_miss[@]} -gt 0 ]]; }; then
         local fix_confirm rerun_confirm
         echo -e "------------------------------------------------"
-        echo -e "${CYAN}🛠️ 可自动处理的简单问题:${PLAIN}"
-        $can_fix_ntp && echo -e "  - 开启 NTP 时间同步"
-        [[ ${#cmd_miss[@]} -gt 0 ]] && echo -e "  - 安装缺失基础命令: ${cmd_miss[*]}"
-        [[ ${#minimal_miss[@]} -gt 0 ]] && echo -e "  - 补齐精简系统兼容组件"
-        read_trimmed fix_confirm "是否现在自动修复这些简单问题？(y/N): "
+        echo -e "${CYAN}🛠️ Автоматически исправляемые простые проблемы:${PLAIN}"
+        $can_fix_ntp && echo -e "  - Включить синхронизацию NTP"
+        [[ ${#cmd_miss[@]} -gt 0 ]] && echo -e "  - Установить недостающие базовые команды: ${cmd_miss[*]}"
+        [[ ${#minimal_miss[@]} -gt 0 ]] && echo -e "  - Дополнить минимальные совместимые компоненты"
+        read_trimmed fix_confirm "Исправить эти простые проблемы сейчас? (y/N): "
         if is_yes "$fix_confirm"; then
             [[ ${#minimal_miss[@]} -gt 0 ]] && ensure_minimal_system_compat
             $can_fix_ntp && preflight_enable_ntp
             [[ ${#cmd_miss[@]} -gt 0 ]] && preflight_install_missing_commands "${cmd_miss[@]}"
-            echo -e "${GREEN}✅ 简单修复已执行。${PLAIN}"
-            read_trimmed rerun_confirm "是否立即重新体检？(y/N): "
+            echo -e "${GREEN}✅ Простые исправления выполнены.${PLAIN}"
+            read_trimmed rerun_confirm "Повторить предпроверку сейчас? (y/N): "
             if is_yes "$rerun_confirm"; then
                 func_preflight_check
                 return $?
             fi
         fi
     elif $pkg_busy; then
-        echo -e "${YELLOW}ℹ️ 包管理器正在运行，本次跳过自动安装类修复。${PLAIN}"
+        echo -e "${YELLOW}ℹ️ Менеджер пакетов занят, автоматическая установка пропущена.${PLAIN}"
     fi
 
     if [[ "${VPSO_BEGINNER_FLOW:-0}" != "1" ]]; then
-        read -n 1 -s -r -p "按任意键返回..."
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
     fi
     if [[ "$err_count" -gt 0 ]]; then
         return 1
@@ -16981,7 +16972,7 @@ func_preflight_check() {
 }
 
 # ---------------------------------------------------------
-# 21. 配置备份与回滚中心
+# 21. Центр резервного копирования и отката
 # ---------------------------------------------------------
 
 
@@ -16991,18 +16982,18 @@ func_preflight_check() {
 
 
 # ---------------------------------------------------------
-# 22. 服务健康总览
+# 22. Общий обзор состояния служб
 # ---------------------------------------------------------
 service_state_for_issue() {
     local svc="$1"
     if service_unit_exists "$svc"; then
         if systemctl is-active --quiet "$svc"; then
-            echo "运行中"
+            echo "Запущен"
         else
-            echo "已安装/未运行"
+            echo "Установлен/не запущен"
         fi
     else
-        echo "未检测到"
+        echo "Не обнаружен"
     fi
 }
 
@@ -17011,7 +17002,7 @@ recent_journal_for_issue() {
     if service_unit_exists "$svc"; then
         journalctl -u "$svc" -n 8 --no-pager 2>/dev/null | redact_sensitive_output
     else
-        echo "未检测到 ${svc} 服务"
+        echo "Служба ${svc} не обнаружена"
     fi
 }
 
@@ -17019,7 +17010,7 @@ print_443_issue_connlimit_summary() {
     local marker runtime_rules saved_rules rules locations rule_count
 
     if ! declare -F port_connlimit_comment >/dev/null || ! declare -F port_connlimit_runtime_rule_fingerprints >/dev/null || ! declare -F port_connlimit_known_saved_rule_fingerprints >/dev/null; then
-        echo "- 443 connlimit: 未接入检测 helper"
+        echo "- 443 connlimit: вспомогательная функция не подключена"
         return 0
     fi
 
@@ -17029,30 +17020,30 @@ print_443_issue_connlimit_summary() {
     rules=$(printf '%s\n%s\n' "$runtime_rules" "$saved_rules" | grep -F "$marker" || true)
 
     if [[ -z "$rules" ]]; then
-        echo "- 443 connlimit: 未检测到本脚本添加的公网 443 规则"
+        echo "- 443 connlimit: правила для публичного 443, добавленные скриптом, не обнаружены"
         return 0
     fi
 
     locations=""
-    [[ -n "$runtime_rules" ]] && locations="运行时"
-    [[ -n "$saved_rules" ]] && locations="${locations:+${locations},}持久化文件"
+    [[ -n "$runtime_rules" ]] && locations="в памяти"
+    [[ -n "$saved_rules" ]] && locations="${locations:+${locations},}в сохранённых файлах"
     rule_count=$(printf '%s\n' "$rules" | grep -c . || true)
 
-    echo "- 443 connlimit: 检测到本脚本添加的公网 443 connlimit 规则 (${marker})"
-    echo "  位置: ${locations:-未知}; 匹配条数: ${rule_count}"
-    echo "  提示: 该规则影响整个公网 443 入口，不能精确到某个 SNI、Xray/3x-ui 入站、UUID 或用户"
+    echo "- 443 connlimit: обнаружены правила connlimit для публичного 443, добавленные скриптом (${marker})"
+    echo "  Расположение: ${locations:-неизвестно}; количество: ${rule_count}"
+    echo "  Примечание: это ограничение действует на весь публичный 443, не может быть точным для конкретного SNI, Xray/3x-ui входящего, UUID или пользователя"
 }
 
 print_443_single_entry_issue_summary() {
     local env_file="/etc/vps-optimize/sni-stack.env"
     local web_backend web_label xray_backend panel_backend sub_backend listener_consistency
 
-    echo "443 单入口摘要:"
+    echo "Сводка единого входа 443:"
     if ! load_sni_stack_env >/dev/null 2>&1; then
         detect_current_entry_status
-        echo "- 配置文件: 未检测到 ${env_file}"
+        echo "- Файл конфигурации: не обнаружен ${env_file}"
         echo "- ENTRY_MODE: ${ENTRY_STATUS_MODE:-not-configured}"
-        echo "- 公网 443 监听归属: ${ENTRY_STATUS_LISTENER_DISPLAY:-未知} (${ENTRY_STATUS_LISTENER_PROCESS:-unknown})"
+        echo "- Публичный 443 слушается: ${ENTRY_STATUS_LISTENER_DISPLAY:-неизвестно} (${ENTRY_STATUS_LISTENER_PROCESS:-unknown})"
         print_443_issue_connlimit_summary
         return 0
     fi
@@ -17064,57 +17055,57 @@ print_443_single_entry_issue_summary() {
     panel_backend=$(format_hostport "$PANEL_LISTEN_ADDR" "$PANEL_LISTEN_PORT")
     sub_backend=$(format_hostport "$SUB_LISTEN_ADDR" "$SUB_LISTEN_PORT")
     if [[ "$ENTRY_STATUS_CONSISTENT" == "yes" ]]; then
-        listener_consistency="一致"
+        listener_consistency="согласовано"
     else
-        listener_consistency="不一致"
+        listener_consistency="не согласовано"
     fi
 
-    echo "- 配置文件: ${env_file}"
+    echo "- Файл конфигурации: ${env_file}"
     echo "- ENTRY_MODE: ${ENTRY_STATUS_MODE}"
-    echo "- 公网 443 监听归属: ${ENTRY_STATUS_LISTENER_DISPLAY} (${ENTRY_STATUS_LISTENER_PROCESS}); 与 ENTRY_MODE ${listener_consistency}"
-    echo "- Caddy/Web 本地后端: ${web_label} ${web_backend}"
-    echo "- Xray 本地后端: ${xray_backend}"
-    echo "- 面板路径: https://${PANEL_DOMAIN}${PANEL_WEB_PATH} -> ${panel_backend}"
-    echo "- 订阅路径: 普通 ${SUB_URI_PATH}, Clash/Mihomo ${CLASH_URI_PATH} -> ${sub_backend}"
-    echo "- 扩展路由: Web ${#SITE_DOMAINS[@]} 个, TCP/SNI ${#TCP_ROUTE_SNIS[@]} 个, Xray 入站 ${#XRAY_SNI_ROUTE_SNIS[@]} 个"
+    echo "- Публичный 443 слушается: ${ENTRY_STATUS_LISTENER_DISPLAY} (${ENTRY_STATUS_LISTENER_PROCESS}); с ENTRY_MODE ${listener_consistency}"
+    echo "- Локальный бэкенд Caddy/Web: ${web_label} ${web_backend}"
+    echo "- Локальный бэкенд Xray: ${xray_backend}"
+    echo "- Путь панели: https://${PANEL_DOMAIN}${PANEL_WEB_PATH} -> ${panel_backend}"
+    echo "- Пути подписок: обычная ${SUB_URI_PATH}, Clash/Mihomo ${CLASH_URI_PATH} -> ${sub_backend}"
+    echo "- Дополнительная маршрутизация: Web ${#SITE_DOMAINS[@]}, TCP/SNI ${#TCP_ROUTE_SNIS[@]}, Xray-входящих ${#XRAY_SNI_ROUTE_SNIS[@]}"
     print_443_issue_connlimit_summary
 }
 
 generate_issue_diagnostics() {
     local os_desc kernel arch now script_path firewall_status latest_backups log_path
-    os_desc="未知"
+    os_desc="неизвестно"
     if [[ -r /etc/os-release ]]; then
         # shellcheck disable=SC1091
         . /etc/os-release
         os_desc="${PRETTY_NAME:-${ID:-unknown} ${VERSION_ID:-}}"
     fi
-    kernel=$(uname -r 2>/dev/null || echo "未知")
-    arch=$(uname -m 2>/dev/null || echo "未知")
+    kernel=$(uname -r 2>/dev/null || echo "неизвестно")
+    arch=$(uname -m 2>/dev/null || echo "неизвестно")
     now=$(date -Is 2>/dev/null || date)
     script_path=$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")
 
     if command -v ufw >/dev/null 2>&1; then
         firewall_status=$(ufw status 2>/dev/null | head -n 5 | tr '\n' '; ')
     elif command -v firewall-cmd >/dev/null 2>&1; then
-        firewall_status=$(firewall-cmd --state 2>/dev/null || echo "firewalld 未运行")
+        firewall_status=$(firewall-cmd --state 2>/dev/null || echo "firewalld не запущен")
     else
-        firewall_status="未检测到 ufw/firewalld"
+        firewall_status="ufw/firewalld не обнаружены"
     fi
 
     latest_backups=$(find /etc/vps-optimize/backups -maxdepth 3 -type f -o -type d 2>/dev/null | sort -r | head -n 10)
-    [[ -z "$latest_backups" ]] && latest_backups="未检测到"
+    [[ -z "$latest_backups" ]] && latest_backups="не обнаружены"
 
     log_path=$(find /var/log /tmp /etc/vps-optimize -maxdepth 3 -type f \( -iname '*vps*optimize*.log' -o -iname '*cy*.log' \) 2>/dev/null | sort -r | head -n 5)
-    [[ -z "$log_path" ]] && log_path="未检测到"
+    [[ -z "$log_path" ]] && log_path="не обнаружены"
 
     echo ""
-    echo "===== VPS-Optimize 反馈诊断信息 ====="
-    echo "系统版本: ${os_desc}"
-    echo "内核版本: ${kernel}"
-    echo "CPU 架构: ${arch}"
-    echo "脚本版本: ${SCRIPT_VERSION}"
-    echo "脚本路径: ${script_path}"
-    echo "当前时间: ${now}"
+    echo "===== Диагностическая информация VPS-Optimize ====="
+    echo "Версия ОС: ${os_desc}"
+    echo "Версия ядра: ${kernel}"
+    echo "Архитектура CPU: ${arch}"
+    echo "Версия скрипта: ${SCRIPT_VERSION}"
+    echo "Путь к скрипту: ${script_path}"
+    echo "Текущее время: ${now}"
     echo ""
     print_443_single_entry_issue_summary
     echo ""
@@ -17122,40 +17113,40 @@ generate_issue_diagnostics() {
         print_traffic_guard_diagnostic_summary 5 yes
         echo ""
     fi
-    echo "关键服务状态:"
+    echo "Состояние ключевых служб:"
     for svc in nginx caddy docker xray sing-box; do
         echo "- ${svc}: $(service_state_for_issue "$svc")"
     done
-    echo "- 3x-ui 面板: $(xui_panel_state_for_issue)"
+    echo "- Панель 3x-ui: $(xui_panel_state_for_issue)"
     echo ""
-    echo "监听端口摘要:"
-    ss -tulnp 2>/dev/null | sed -E 's/users:\(\("[^"]+",pid=[0-9]+,fd=[0-9]+\)\)/users:(process-redacted)/g' | head -n 30 || echo "未检测到 ss 输出"
+    echo "Сводка прослушиваемых портов:"
+    ss -tulnp 2>/dev/null | sed -E 's/users:\(\("[^"]+",pid=[0-9]+,fd=[0-9]+\)\)/users:(process-redacted)/g' | head -n 30 || echo "ss не дал вывода"
     echo ""
-    echo "443 占用情况:"
-    ss -tulnp 2>/dev/null | grep -E '(:443[[:space:]]|:443$)' || echo "未检测到 443 监听"
+    echo "Занятость порта 443:"
+    ss -tulnp 2>/dev/null | grep -E '(:443[[:space:]]|:443$)' || echo "Порт 443 не слушается"
     echo ""
-    echo "防火墙状态:"
+    echo "Состояние брандмауэра:"
     echo "${firewall_status}"
     echo ""
-    echo "最近 Nginx 错误日志摘要:"
+    echo "Последние ошибки Nginx:"
     recent_journal_for_issue nginx
     echo ""
-    echo "最近 Caddy 错误日志摘要:"
+    echo "Последние ошибки Caddy:"
     recent_journal_for_issue caddy
     echo ""
-    echo "最近脚本日志路径:"
+    echo "Последние логи скрипта:"
     echo "${log_path}"
     echo ""
-    echo "最近备份列表:"
+    echo "Последние резервные копии:"
     echo "${latest_backups}"
-    echo "===== 诊断信息结束，请提交前再次检查是否有敏感信息 ====="
+    echo "===== Конец диагностики, перед отправкой проверьте конфиденциальные данные ====="
 }
 
 # ---------------------------------------------------------
 # Module: health_dashboard.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Service health dashboard and runtime issue summaries.
+# Панель состояния служб и сводки проблем выполнения.
 
 print_log_capacity_group() {
     local label="$1"
@@ -17174,21 +17165,21 @@ print_log_capacity_group() {
     done < <(compgen -G "$pattern" 2>/dev/null | sort || true)
 
     if (( count == 0 )); then
-        echo "- ${label}: 未发现日志文件"
+        echo "- ${label}: файлы логов не обнаружены"
         return 0
     fi
 
-    echo "- ${label}: ${count} 个文件，总量 $(format_bytes "$total")；最大 $(format_bytes "$largest_size") ${largest_file}"
+    echo "- ${label}: ${count} файлов, общий объём $(format_bytes "$total"); наибольший $(format_bytes "$largest_size") ${largest_file}"
 }
 
 print_log_capacity_summary() {
-    echo -e "${CYAN}🧾 日志容量摘要${PLAIN}"
+    echo -e "${CYAN}🧾 Сводка по объёму логов${PLAIN}"
     print_log_capacity_group "/var/log/vps-optimize/*" "/var/log/vps-optimize/*"
     print_log_capacity_group "/var/log/vpso-mux*" "/var/log/vpso-mux*"
     print_log_capacity_group "/var/log/vps-traffic-guard.log" "/var/log/vps-traffic-guard.log*"
-    echo "- Bash 日志默认超过 $(format_bytes "$VPSO_DEFAULT_LOG_MAX_BYTES") 后保留 ${VPSO_DEFAULT_LOG_ROTATE_KEEP} 份轮转副本；systemd journal 仍按系统策略输出。"
-    echo "- 本页只汇总容量；不会轮转或重开已经被长期进程打开的日志 fd。"
-    echo "- daemon 直写文件时，请配合 systemd/journal、服务重载/重启，或可重开文件的日志实现。"
+    echo "- Логи Bash по умолчанию ротируются при превышении $(format_bytes "$VPSO_DEFAULT_LOG_MAX_BYTES") с сохранением ${VPSO_DEFAULT_LOG_ROTATE_KEEP} копий; journald всё ещё выводит по системной политике."
+    echo "- На этой странице только сводка; ротация не выполняется для уже открытых лог-файлов долго работающих процессов."
+    echo "- Для демонов, пишущих напрямую в файлы, используйте systemd/journal, перезагрузку/рестарт службы или код, умеющий переоткрывать файлы."
 }
 
 vpso_permission_mode() {
@@ -17202,17 +17193,17 @@ vpso_permission_recommendation() {
     lower=$(printf '%s' "$file" | tr '[:upper:]' '[:lower:]')
 
     if [[ -x "$file" && ! -d "$file" ]]; then
-        printf '755|可执行文件'
+        printf '755|исполняемый файл'
     elif [[ "$lower" == *.json ]]; then
-        printf '644/640|普通状态 JSON'
+        printf '644/640|обычный JSON состояния'
     elif [[ "$lower" =~ (token|secret|private|key|subscription|subscribe|whitelist|sni-stack|xray|caddy|vpso-mux) ]]; then
-        printf '600|可能包含 token、secret、私钥、订阅源或白名单'
+        printf '600|может содержать токен, секрет, приватный ключ, источник подписки или белый список'
     elif [[ "$file" == /etc/vps-optimize/*.conf || "$file" == /etc/vps-optimize/*.yaml ]]; then
-        printf '600|配置文件'
+        printf '600|конфигурационный файл'
     elif [[ "$file" == /var/log/* ]]; then
-        printf '640/644|日志文件'
+        printf '640/644|лог-файл'
     else
-        printf '644/640|普通状态文件'
+        printf '644/640|обычный файл состояния'
     fi
 }
 
@@ -17253,13 +17244,13 @@ check_vpso_file_permissions() {
     local checked=0 warnings=0 fixed=0 file mode rec expected reason target_mode
 
     if [[ "$action" == "fix" ]]; then
-        confirm_risk_action "修复 VPS-Optimize 文件权限" \
-            "/etc/vps-optimize、/var/lib/vps-optimize、/var/log/vps-optimize 下权限过宽或不符合建议的文件" \
-            "如某个服务因此无法读取文件，可根据本页输出手动 chmod 回原权限，或从备份恢复配置文件" \
-            "修复前建议确认当前服务状态；本操作不会批量删除文件。" || return 1
+        confirm_risk_action "Исправить права на файлы VPS-Optimize" \
+            "Файлы в /etc/vps-optimize, /var/lib/vps-optimize, /var/log/vps-optimize, у которых права слишком широкие или не соответствуют рекомендации" \
+            "Если какая-то служба не может прочитать файл, можно вручную вернуть права по выводу или восстановить из резервной копии" \
+            "Перед исправлением рекомендуется проверить состояние служб; эта операция не удаляет файлы массово." || return 1
     fi
 
-    echo -e "${CYAN}🔒 配置与状态文件权限体检${PLAIN}"
+    echo -e "${CYAN}🔒 Проверка прав на конфигурационные и файлы состояния${PLAIN}"
     while IFS= read -r file; do
         [[ -e "$file" && ! -d "$file" ]] || continue
         checked=$((checked + 1))
@@ -17268,26 +17259,26 @@ check_vpso_file_permissions() {
         expected="${rec%%|*}"
         reason="${rec#*|}"
         if vpso_permission_matches "$mode" "$expected"; then
-            echo "- OK   ${file} mode=${mode} (${reason}; 建议 ${expected})"
+            echo "- OK   ${file} mode=${mode} (${reason}; рекомендуется ${expected})"
             continue
         fi
         warnings=$((warnings + 1))
-        echo "- WARN ${file} mode=${mode} (${reason}; 建议 ${expected})"
+        echo "- WARN ${file} mode=${mode} (${reason}; рекомендуется ${expected})"
         if [[ "$action" == "fix" ]]; then
             target_mode=$(vpso_permission_fix_mode "$expected")
             if [[ -n "$target_mode" ]] && chmod "$target_mode" "$file" 2>/dev/null; then
                 fixed=$((fixed + 1))
-                echo "       已修复为 ${target_mode}"
+                echo "       исправлено на ${target_mode}"
             else
-                echo "       未能自动修复，请手动检查权限。"
+                echo "       не удалось автоматически исправить, проверьте вручную."
             fi
         fi
     done < <(collect_vpso_permission_files)
 
     if (( checked == 0 )); then
-        echo "- 未发现待检查文件。"
+        echo "- Файлы для проверки не найдены."
     else
-        echo "- 已检查 ${checked} 个文件；发现 ${warnings} 个需要关注；本次修复 ${fixed} 个。"
+        echo "- Проверено ${checked} файлов; обнаружено ${warnings} требующих внимания; исправлено ${fixed}."
     fi
 }
 
@@ -17302,8 +17293,8 @@ HEALTH_RECOVERY_UNITS=(
     "8|Xray|xray.service"
     "9|Sing-box|sing-box.service"
     "10|S-UI|s-ui.service"
-    "11|TCP Peek 分流器|vpso-mux.service"
-    "12|流量保护检查器|vps-traffic-guard.service"
+    "11|TCP Peek разделитель|vpso-mux.service"
+    "12|Проверка защиты трафика|vps-traffic-guard.service"
 )
 
 health_unit_exists() {
@@ -17317,13 +17308,13 @@ health_unit_exists() {
 health_unit_status_label() {
     local unit="$1"
     if ! health_unit_exists "$unit"; then
-        printf '%b' "${BLUE}未安装${PLAIN}"
+        printf '%b' "${BLUE}Не установлен${PLAIN}"
     elif systemctl is-active --quiet "$unit"; then
-        printf '%b' "${GREEN}运行中${PLAIN}"
+        printf '%b' "${GREEN}Запущен${PLAIN}"
     elif systemctl is-failed --quiet "$unit"; then
-        printf '%b' "${RED}失败${PLAIN}"
+        printf '%b' "${RED}Ошибка${PLAIN}"
     else
-        printf '%b' "${YELLOW}未运行${PLAIN}"
+        printf '%b' "${YELLOW}Не запущен${PLAIN}"
     fi
 }
 
@@ -17344,7 +17335,7 @@ print_failed_systemd_units() {
         count=$((count + 1))
         echo "  - ${line}"
     done < <(systemctl --failed --no-legend --no-pager 2>/dev/null | awk 'NF {print $1 " " $2 " " $3 " " $4}' | head -n 12)
-    (( count > 0 )) || echo "  - 未发现失败单元"
+    (( count > 0 )) || echo "  - Не обнаружено ошибочных юнитов"
 }
 
 collect_failed_service_units() {
@@ -17356,17 +17347,17 @@ health_restart_unit() {
     local unit="$2"
 
     if ! health_unit_exists "$unit"; then
-        echo -e "${YELLOW}⚠️ 未检测到 ${unit}，跳过。${PLAIN}"
+        echo -e "${YELLOW}⚠️ ${unit} не обнаружен, пропуск.${PLAIN}"
         return 1
     fi
 
     systemctl reset-failed "$unit" >/dev/null 2>&1 || true
     if systemctl restart "$unit" >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ ${label} 已重启：${unit}${PLAIN}"
+        echo -e "${GREEN}✅ ${label} перезапущен: ${unit}${PLAIN}"
         return 0
     fi
 
-    echo -e "${RED}❌ ${label} 重启失败：${unit}${PLAIN}"
+    echo -e "${RED}❌ ${label} не удалось перезапустить: ${unit}${PLAIN}"
     journalctl -u "$unit" -n 20 --no-pager 2>/dev/null || true
     return 1
 }
@@ -17377,16 +17368,16 @@ health_restart_selected_unit() {
     for item in "${HEALTH_RECOVERY_UNITS[@]}"; do
         IFS='|' read -r number label unit <<< "$item"
         if [[ "$selected" == "$number" ]]; then
-            confirm_risk_action "重启 ${label}" \
-                "${unit} 服务进程" \
-                "查看 journalctl -u ${unit} 日志，修正配置后重新启动" \
-                "该服务会短暂中断；不要关闭当前 SSH 会话。" || return 1
+            confirm_risk_action "Перезапустить ${label}" \
+                "Служба ${unit}" \
+                "Проверьте journalctl -u ${unit}, исправьте конфигурацию и перезапустите вручную" \
+                "Служба будет временно прервана; не закрывайте текущую SSH-сессию." || return 1
             health_restart_unit "$label" "$unit"
             return
         fi
     done
 
-    echo -e "${RED}❌ 无效选择。${PLAIN}"
+    echo -e "${RED}❌ Неверный выбор.${PLAIN}"
     return 1
 }
 
@@ -17396,21 +17387,21 @@ health_restart_failed_services() {
 
     mapfile -t failed_units < <(collect_failed_service_units)
     if [[ ${#failed_units[@]} -eq 0 ]]; then
-        echo -e "${GREEN}未发现失败服务。${PLAIN}"
+        echo -e "${GREEN}Ошибочных служб не обнаружено.${PLAIN}"
         return 0
     fi
 
-    echo -e "${CYAN}将尝试重启以下失败服务：${PLAIN}"
+    echo -e "${CYAN}Будут перезапущены следующие ошибочные службы:${PLAIN}"
     printf '  - %s\n' "${failed_units[@]}"
-    confirm_risk_action "重启失败的 systemd 服务" \
-        "当前处于失败状态的服务单元" \
-        "查看对应 journalctl 日志，修正配置后单独重启失败服务" \
-        "会跳过 ssh/sshd，其他服务会短暂中断。" || return 1
+    confirm_risk_action "Перезапустить ошибочные systemd-службы" \
+        "Службы, находящиеся в состоянии ошибки" \
+        "Проверьте соответствующий journalctl, исправьте конфигурацию и перезапустите вручную" \
+        "ssh/sshd будут пропущены, остальные службы временно прервутся." || return 1
 
     for unit in "${failed_units[@]}"; do
         case "$unit" in
             ssh.service|sshd.service)
-                echo -e "${YELLOW}⚠️ 跳过 ${unit}，避免影响当前 SSH 会话。${PLAIN}"
+                echo -e "${YELLOW}⚠️ ${unit} пропущен, чтобы не разорвать текущую SSH-сессию.${PLAIN}"
                 skipped=$((skipped + 1))
                 continue
                 ;;
@@ -17424,14 +17415,14 @@ health_restart_failed_services() {
     done
 
     systemctl reset-failed >/dev/null 2>&1 || true
-    echo -e "${CYAN}处理结果：成功 ${ok}，失败 ${fail}，跳过 ${skipped}。${PLAIN}"
+    echo -e "${CYAN}Результат: успешно ${ok}, ошибок ${fail}, пропущено ${skipped}.${PLAIN}"
 }
 
 health_reset_failed_state() {
     if systemctl reset-failed >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ 已执行 systemctl reset-failed。${PLAIN}"
+        echo -e "${GREEN}✅ Выполнен systemctl reset-failed.${PLAIN}"
     else
-        echo -e "${RED}❌ reset-failed 执行失败。${PLAIN}"
+        echo -e "${RED}❌ Не удалось выполнить reset-failed.${PLAIN}"
         return 1
     fi
 }
@@ -17445,35 +17436,35 @@ health_enable_auto_restart_for_unit() {
         [[ "$selected" == "$number" ]] || continue
 
         if [[ "$unit" != *.service ]]; then
-            echo -e "${YELLOW}⚠️ ${unit} 不是服务单元，跳过自动重启配置。${PLAIN}"
+            echo -e "${YELLOW}⚠️ ${unit} не является служебным юнитом, настройка автоматического перезапуска пропущена.${PLAIN}"
             return 1
         fi
         if ! health_unit_exists "$unit"; then
-            echo -e "${YELLOW}⚠️ 未检测到 ${unit}，跳过。${PLAIN}"
+            echo -e "${YELLOW}⚠️ ${unit} не обнаружен, пропуск.${PLAIN}"
             return 1
         fi
 
-        confirm_risk_action "启用 ${label} 失败自动重启" \
+        confirm_risk_action "Включить автоматический перезапуск для ${label}" \
             "/etc/systemd/system/${unit}.d/10-vps-optimize-restart.conf" \
-            "删除该 drop-in 后执行 systemctl daemon-reload" \
-            "服务崩溃后 systemd 会自动拉起；配置错误仍需要查看日志修复。" || return 1
+            "Удалите этот drop-in и выполните systemctl daemon-reload" \
+            "При сбое systemd автоматически перезапустит службу; ошибки конфигурации всё равно требуют просмотра логов." || return 1
 
         dropin_dir="/etc/systemd/system/${unit}.d"
         dropin_file="${dropin_dir}/10-vps-optimize-restart.conf"
-        mkdir -p "$dropin_dir" || { echo -e "${RED}❌ 创建 drop-in 目录失败。${PLAIN}"; return 1; }
+        mkdir -p "$dropin_dir" || { echo -e "${RED}❌ Не удалось создать drop-in каталог.${PLAIN}"; return 1; }
         cat > "$dropin_file" <<'EOF'
 [Service]
 Restart=on-failure
 RestartSec=5s
 EOF
-        systemctl daemon-reload >/dev/null 2>&1 || { echo -e "${RED}❌ systemctl daemon-reload 失败。${PLAIN}"; return 1; }
+        systemctl daemon-reload >/dev/null 2>&1 || { echo -e "${RED}❌ Не удалось выполнить systemctl daemon-reload.${PLAIN}"; return 1; }
         systemctl enable "$unit" >/dev/null 2>&1 || true
-        echo -e "${GREEN}✅ 已启用自动重启：${dropin_file}${PLAIN}"
+        echo -e "${GREEN}✅ Автоматический перезапуск включён: ${dropin_file}${PLAIN}"
         health_restart_unit "$label" "$unit" || true
         return
     done
 
-    echo -e "${RED}❌ 无效选择。${PLAIN}"
+    echo -e "${RED}❌ Неверный выбор.${PLAIN}"
     return 1
 }
 
@@ -17483,29 +17474,29 @@ health_show_failed_unit_logs() {
 
     mapfile -t failed_units < <(collect_failed_service_units)
     if [[ ${#failed_units[@]} -gt 0 ]]; then
-        echo -e "${CYAN}失败服务：${PLAIN}"
+        echo -e "${CYAN}Ошибочные службы:${PLAIN}"
         for i in "${!failed_units[@]}"; do
             echo -e "${GREEN} $((i + 1)). ${failed_units[$i]}${PLAIN}"
         done
-        echo " 0. 输入其他服务名"
-        read_trimmed choice "请选择编号，或直接输入服务名: "
+        echo " 0. Ввести другое имя службы"
+        read_trimmed choice "Выберите номер или введите имя службы: "
         if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#failed_units[@]} )); then
             unit="${failed_units[$((choice - 1))]}"
         elif [[ "$choice" == "0" ]]; then
-            read_trimmed unit "请输入服务名（例如 caddy.service）: "
+            read_trimmed unit "Введите имя службы (например caddy.service): "
         elif [[ "$choice" =~ ^[0-9]+$ ]]; then
-            echo -e "${RED}❌ 编号无效。${PLAIN}"
+            echo -e "${RED}❌ Неверный номер.${PLAIN}"
             return 1
         else
             unit="$choice"
         fi
     else
-        read_trimmed unit "请输入服务名（例如 caddy.service）: "
+        read_trimmed unit "Введите имя службы (например caddy.service): "
     fi
     [[ -n "$unit" ]] || return 0
     [[ "$unit" == *.service || "$unit" == *.timer || "$unit" == *.socket ]] || unit="${unit}.service"
     if ! health_unit_exists "$unit"; then
-        echo -e "${YELLOW}⚠️ 未检测到 ${unit}。${PLAIN}"
+        echo -e "${YELLOW}⚠️ ${unit} не обнаружен.${PLAIN}"
         return 1
     fi
     journalctl -u "$unit" -n 80 --no-pager 2>/dev/null || true
@@ -17517,31 +17508,31 @@ func_health_service_recovery_menu() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "诊断/健康检查 > 服务恢复"
-        echo -e "${BOLD}🧰 服务重启与自动拉起${PLAIN}"
+        print_breadcrumb "Диагностика/здоровье > Восстановление служб"
+        echo -e "${BOLD}🧰 Перезапуск служб и автоматический подъём${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${CYAN}失败单元：${PLAIN}"
+        echo -e "${CYAN}Ошибочные юниты:${PLAIN}"
         print_failed_systemd_units
         echo -e "------------------------------------------------"
-        echo -e "${BOLD}${BLUE}常用服务${PLAIN}"
+        echo -e "${BOLD}${BLUE}Часто используемые службы${PLAIN}"
         local item number label unit
         for item in "${HEALTH_RECOVERY_UNITS[@]}"; do
             IFS='|' read -r number label unit <<< "$item"
             echo -e "${GREEN} ${number}. ${label}${PLAIN} [${unit}] $(health_unit_status_label "$unit")"
         done
         echo -e "------------------------------------------------"
-        echo -e "${GREEN} r. 重启一个常用服务${PLAIN}"
-        echo -e "${GREEN} f. 重启失败服务${PLAIN}"
-        echo -e "${GREEN} a. 为常用服务启用失败自动重启${PLAIN}"
-        echo -e "${GREEN} x. 清除已恢复的失败状态${PLAIN}"
-        echo -e "${GREEN} l. 查看服务日志${PLAIN}"
-        echo -e "${RED} 0. 返回上级菜单 / q 返回${PLAIN}"
+        echo -e "${GREEN} r. Перезапустить одну службу${PLAIN}"
+        echo -e "${GREEN} f. Перезапустить ошибочные службы${PLAIN}"
+        echo -e "${GREEN} a. Включить автоматический перезапуск для службы${PLAIN}"
+        echo -e "${GREEN} x. Сбросить флаги ошибок${PLAIN}"
+        echo -e "${GREEN} l. Просмотреть логи службы${PLAIN}"
+        echo -e "${RED} 0. Вернуться в предыдущее меню / q${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
-        read_trimmed choice "👉 请选择操作: "
+        read_trimmed choice "👉 Выберите действие: "
         case "$choice" in
             r|R)
-                read_trimmed choice "请输入要重启的服务编号: "
+                read_trimmed choice "Введите номер службы для перезапуска: "
                 health_restart_selected_unit "$choice"
                 pause_return
                 ;;
@@ -17550,7 +17541,7 @@ func_health_service_recovery_menu() {
                 pause_return
                 ;;
             a|A)
-                read_trimmed choice "请输入要启用自动重启的服务编号: "
+                read_trimmed choice "Введите номер службы для включения автоперезапуска: "
                 health_enable_auto_restart_for_unit "$choice"
                 pause_return
                 ;;
@@ -17563,7 +17554,7 @@ func_health_service_recovery_menu() {
                 pause_return
                 ;;
             0|q|Q) return ;;
-            *) echo -e "${RED}❌ 无效选择。${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор.${PLAIN}"; sleep 1 ;;
         esac
     done
 }
@@ -17571,54 +17562,54 @@ func_health_service_recovery_menu() {
 func_health_dashboard() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    print_breadcrumb "诊断/健康检查"
-    echo -e "${BOLD}📈 服务健康总览${PLAIN}"
+    print_breadcrumb "Диагностика/здоровье"
+    echo -e "${BOLD}📈 Общий обзор состояния служб${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
 
-    local ssh_state="${RED}未运行${PLAIN}"
+    local ssh_state="${RED}Не запущен${PLAIN}"
     if systemctl is-active --quiet sshd || systemctl is-active --quiet ssh; then
-        ssh_state="${GREEN}运行中${PLAIN}"
+        ssh_state="${GREEN}Запущен${PLAIN}"
     fi
 
-    local caddy_state="${RED}未安装/未运行${PLAIN}"
+    local caddy_state="${RED}Не установлен/не запущен${PLAIN}"
     if command -v caddy >/dev/null 2>&1; then
         if systemctl is-active --quiet caddy; then
-            caddy_state="${GREEN}运行中${PLAIN}"
+            caddy_state="${GREEN}Запущен${PLAIN}"
         else
-            caddy_state="${YELLOW}已安装但未运行${PLAIN}"
+            caddy_state="${YELLOW}Установлен, но не запущен${PLAIN}"
         fi
     fi
 
-    local docker_state="${RED}未安装/未运行${PLAIN}"
+    local docker_state="${RED}Не установлен/не запущен${PLAIN}"
     if command -v docker >/dev/null 2>&1; then
         if systemctl is-active --quiet docker; then
-            docker_state="${GREEN}运行中${PLAIN}"
+            docker_state="${GREEN}Запущен${PLAIN}"
         else
-            docker_state="${YELLOW}已安装但未运行${PLAIN}"
+            docker_state="${YELLOW}Установлен, но не запущен${PLAIN}"
         fi
     fi
 
-    local f2b_state="${RED}未安装${PLAIN}"
+    local f2b_state="${RED}Не установлен${PLAIN}"
     if command -v fail2ban-server >/dev/null 2>&1; then
         if systemctl is-active --quiet fail2ban; then
-            f2b_state="${GREEN}运行中${PLAIN}"
+            f2b_state="${GREEN}Запущен${PLAIN}"
         else
-            f2b_state="${YELLOW}已安装但未运行${PLAIN}"
+            f2b_state="${YELLOW}Установлен, но не запущен${PLAIN}"
         fi
     fi
 
-    local fw_state="${RED}未启用${PLAIN}"
+    local fw_state="${RED}Не включён${PLAIN}"
     if is_debian; then
         if ufw status 2>/dev/null | grep -qwi active; then
-            fw_state="${GREEN}UFW 运行中${PLAIN}"
+            fw_state="${GREEN}UFW запущен${PLAIN}"
         else
-            fw_state="${YELLOW}UFW 未启用${PLAIN}"
+            fw_state="${YELLOW}UFW не включён${PLAIN}"
         fi
     else
         if systemctl is-active --quiet firewalld; then
-            fw_state="${GREEN}Firewalld 运行中${PLAIN}"
+            fw_state="${GREEN}Firewalld запущен${PLAIN}"
         else
-            fw_state="${YELLOW}Firewalld 未启用${PLAIN}"
+            fw_state="${YELLOW}Firewalld не включён${PLAIN}"
         fi
     fi
 
@@ -17633,13 +17624,13 @@ func_health_dashboard() {
     system_state=$(systemctl is-system-running 2>/dev/null || true)
     [[ -z "$system_state" ]] && system_state="unknown"
 
-    echo -e "SSH 服务状态       : [ $ssh_state ]  监听端口: ${CYAN}${current_p}${PLAIN}"
-    echo -e "Caddy 服务状态     : [ $caddy_state ]"
-    echo -e "Docker 服务状态    : [ $docker_state ]"
-    echo -e "Fail2ban 服务状态  : [ $f2b_state ]"
-    echo -e "防火墙服务状态      : [ $fw_state ]"
-    echo -e "systemd 整体状态    : [ $(health_system_state_label "$system_state") ]"
-    echo -e "失败 systemd 单元数 : ${YELLOW}${failed_units}${PLAIN}"
+    echo -e "SSH служба        : [ $ssh_state ]   порт: ${CYAN}${current_p}${PLAIN}"
+    echo -e "Caddy служба      : [ $caddy_state ]"
+    echo -e "Docker служба     : [ $docker_state ]"
+    echo -e "Fail2ban служба   : [ $f2b_state ]"
+    echo -e "Брандмауэр        : [ $fw_state ]"
+    echo -e "Общее состояние systemd : [ $(health_system_state_label "$system_state") ]"
+    echo -e "Ошибочных юнитов systemd : ${YELLOW}${failed_units}${PLAIN}"
     echo -e "------------------------------------------------"
     print_project_runtime_overview
     echo -e "------------------------------------------------"
@@ -17650,7 +17641,7 @@ func_health_dashboard() {
         echo -e "------------------------------------------------"
     fi
 
-    echo -e "${CYAN}🔌 当前监听端口 Top 12${PLAIN}"
+    echo -e "${CYAN}🔌 Топ 12 прослушиваемых портов${PLAIN}"
     ss -tuln 2>/dev/null | grep -E 'LISTEN|UNCONN' | awk '{print $5}' | awk -F: '{print $NF}' | grep -E '^[0-9]+$' | sort -nu | head -n 12 | tr '\n' ' '
     echo ""
 
@@ -17673,17 +17664,17 @@ func_health_dashboard() {
             fi
         done < <(find "$cert_root" -type f -name "*.crt" 2>/dev/null)
 
-        echo -e "${CYAN}🔐 证书健康摘要${PLAIN}"
+        echo -e "${CYAN}🔐 Сводка по сертификатам${PLAIN}"
         if [[ "$cert_total" -eq 0 ]]; then
-            echo -e "${BLUE}ℹ️ 未检索到可分析证书文件。${PLAIN}"
+            echo -e "${BLUE}ℹ️ Не найдено файлов сертификатов для анализа.${PLAIN}"
         else
-            echo -e "证书总数: ${GREEN}${cert_total}${PLAIN} | 15天内到期: ${YELLOW}${cert_warn}${PLAIN}"
+            echo -e "Всего сертификатов: ${GREEN}${cert_total}${PLAIN} | Истекают в течение 15 дней: ${YELLOW}${cert_warn}${PLAIN}"
         fi
     fi
 
     echo -e "------------------------------------------------"
-    echo -e "${YELLOW}💡 若失败单元 > 0，可进入 s 服务恢复处理。${PLAIN}"
-    echo -e "${CYAN}输入 s 服务恢复，输入 d 生成反馈诊断信息，输入 p 查看权限体检，输入 P 修复权限，输入 ? 查看帮助，其他任意键返回。${PLAIN}"
+    echo -e "${YELLOW}💡 Если ошибочных юнитов > 0, можно войти в s для восстановления служб.${PLAIN}"
+    echo -e "${CYAN}Введите s для восстановления служб, d для генерации диагностики, p для проверки прав, P для исправления прав, ? для справки, любая другая клавиша для возврата.${PLAIN}"
     local health_choice
     read -n 1 -s -r health_choice
     echo ""
@@ -17700,7 +17691,7 @@ func_health_dashboard() {
 # Module: dns_optimize.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# DNS resolver profile optimization workflows.
+# Оптимизация профилей DNS-резолверов.
 
 dns_write_static_resolv_conf() {
     local v4_servers="$1"
@@ -17712,8 +17703,8 @@ dns_write_static_resolv_conf() {
     fi
 
     {
-        echo "# Generated by VPS-Optimize DNS optimization"
-        echo "# Updated: $(date -Is 2>/dev/null || date)"
+        echo "# Сгенерировано VPS-Optimize оптимизация DNS"
+        echo "# Обновлено: $(date -Is 2>/dev/null || date)"
         for server in $v4_servers; do
             echo "nameserver $server"
         done
@@ -17730,10 +17721,10 @@ dns_apply_profile() {
     local v6_servers="$3"
     local backup_dir all_servers resolved_active resolv_target
 
-    confirm_risk_action "更改系统 DNS 为 ${profile_name}" \
-        "/etc/resolv.conf 和 systemd-resolved DNS 配置" \
-        "进入本菜单选择 [5] 恢复最近一次 DNS 备份，或手动恢复 ${DNS_OPTIMIZE_BACKUP_DIR}" \
-        "DNS 写错会导致域名解析失败；当前 SSH 连接通常不会立即断开。" || return 1
+    confirm_risk_action "Изменить системный DNS на ${profile_name}" \
+        "/etc/resolv.conf и конфигурацию systemd-resolved" \
+        "Вернитесь в это меню и выберите [5] для восстановления последней DNS-резервной копии, или восстановите вручную из ${DNS_OPTIMIZE_BACKUP_DIR}" \
+        "Ошибка в DNS может привести к сбоям разрешения имён; текущая SSH-сессия обычно не прерывается сразу." || return 1
 
     backup_dir=$(dns_backup_current_config)
     all_servers="${v4_servers} ${v6_servers}"
@@ -17750,7 +17741,7 @@ dns_apply_profile() {
             echo "DNS=${all_servers}"
             echo "FallbackDNS="
         } > "$DNS_OPTIMIZE_RESOLVED_DROPIN"
-        systemctl restart systemd-resolved >/dev/null 2>&1 || echo -e "${YELLOW}⚠️ systemd-resolved 重启失败，已继续写入静态 resolv.conf。${PLAIN}"
+        systemctl restart systemd-resolved >/dev/null 2>&1 || echo -e "${YELLOW}⚠️ Не удалось перезапустить systemd-resolved, продолжено с записью статического resolv.conf.${PLAIN}"
 
         resolv_target=$(readlink -f /etc/resolv.conf 2>/dev/null || true)
         if [[ "$resolv_target" != /run/systemd/resolve/* ]]; then
@@ -17760,15 +17751,15 @@ dns_apply_profile() {
         dns_write_static_resolv_conf "$v4_servers" "$v6_servers" || return 1
     fi
 
-    echo -e "${GREEN}✅ DNS 已切换为 ${profile_name}${PLAIN}"
+    echo -e "${GREEN}✅ DNS переключён на ${profile_name}${PLAIN}"
     echo -e "IPv4 DNS: ${CYAN}${v4_servers}${PLAIN}"
     echo -e "IPv6 DNS: ${CYAN}${v6_servers}${PLAIN}"
-    echo -e "${YELLOW}已备份旧配置：${backup_dir}${PLAIN}"
+    echo -e "${YELLOW}Резервная копия старой конфигурации: ${backup_dir}${PLAIN}"
 
     if getent hosts raw.githubusercontent.com >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ DNS 解析测试通过。${PLAIN}"
+        echo -e "${GREEN}✅ Проверка DNS пройдена.${PLAIN}"
     else
-        echo -e "${YELLOW}⚠️ DNS 解析测试未通过，请检查网络、IPv6 可用性或 DNS 服务器连通性。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Проверка DNS не пройдена, проверьте сеть, доступность IPv6 или DNS-серверов.${PLAIN}"
     fi
 }
 
@@ -17777,46 +17768,46 @@ func_dns_optimize() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "网络/内核优化 > DNS 更改优化"
-        echo -e "${BOLD}DNS 更改优化${PLAIN}"
+        print_breadcrumb "Сеть/оптимизация ядра > Оптимизация DNS"
+        echo -e "${BOLD}Оптимизация DNS${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}国内默认：IPv4 223.5.5.5 / 119.29.29.29，IPv6 2400:3200::1 / 2402:4e00::${PLAIN}"
-        echo -e "${YELLOW}国外默认：IPv4 1.1.1.1 / 8.8.8.8，IPv6 2606:4700:4700::1111 / 2001:4860:4860::8888${PLAIN}"
+        echo -e "${YELLOW}Китайские по умолчанию: IPv4 223.5.5.5 / 119.29.29.29, IPv6 2400:3200::1 / 2402:4e00::${PLAIN}"
+        echo -e "${YELLOW}Международные по умолчанию: IPv4 1.1.1.1 / 8.8.8.8, IPv6 2606:4700:4700::1111 / 2001:4860:4860::8888${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}  1. 使用国内 DNS${PLAIN}       ${YELLOW}(阿里 DNS + DNSPod)${PLAIN}"
-        echo -e "${GREEN}  2. 使用国外 DNS${PLAIN}       ${YELLOW}(Cloudflare + Google)${PLAIN}"
-        echo -e "${GREEN}  3. 自定义 DNS${PLAIN}         ${YELLOW}(分别输入 IPv4 / IPv6)${PLAIN}"
-        echo -e "${GREEN}  4. 查看当前 DNS${PLAIN}"
-        echo -e "${GREEN}  5. 恢复最近一次 DNS 备份${PLAIN}"
+        echo -e "${GREEN}  1. Использовать китайские DNS${PLAIN}       ${YELLOW}(Alibaba DNS + DNSPod)${PLAIN}"
+        echo -e "${GREEN}  2. Использовать международные DNS${PLAIN}       ${YELLOW}(Cloudflare + Google)${PLAIN}"
+        echo -e "${GREEN}  3. Пользовательские DNS${PLAIN}         ${YELLOW}(ввести IPv4 и IPv6 отдельно)${PLAIN}"
+        echo -e "${GREEN}  4. Просмотр текущего DNS${PLAIN}"
+        echo -e "${GREEN}  5. Восстановить последнюю DNS-резервную копию${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BLUE}  0. 返回上一级菜单 / q 返回${PLAIN}"
+        echo -e "${BLUE}  0. Вернуться в предыдущее меню / q${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local choice v4_servers v6_servers raw_v4 raw_v6
-        read_trimmed choice "👉 请选择操作: "
+        read_trimmed choice "👉 Выберите действие: "
         case "$choice" in
             1)
-                dns_apply_profile "国内 DNS" "223.5.5.5 119.29.29.29" "2400:3200::1 2402:4e00::"
+                dns_apply_profile "Китайские DNS" "223.5.5.5 119.29.29.29" "2400:3200::1 2402:4e00::"
                 pause_return
                 ;;
             2)
-                dns_apply_profile "国外 DNS" "1.1.1.1 8.8.8.8" "2606:4700:4700::1111 2001:4860:4860::8888"
+                dns_apply_profile "Международные DNS" "1.1.1.1 8.8.8.8" "2606:4700:4700::1111 2001:4860:4860::8888"
                 pause_return
                 ;;
             3)
-                read_trimmed raw_v4 "请输入 IPv4 DNS（用逗号或空格分隔）: "
-                read_trimmed raw_v6 "请输入 IPv6 DNS（用逗号或空格分隔）: "
+                read_trimmed raw_v4 "Введите IPv4 DNS (через запятую или пробел): "
+                read_trimmed raw_v6 "Введите IPv6 DNS (через запятую или пробел): "
                 v4_servers=$(dns_normalize_servers 4 "$raw_v4") || {
-                    echo -e "${RED}❌ IPv4 DNS 格式无效。${PLAIN}"
+                    echo -e "${RED}❌ Неверный формат IPv4 DNS.${PLAIN}"
                     pause_return
                     continue
                 }
                 v6_servers=$(dns_normalize_servers 6 "$raw_v6") || {
-                    echo -e "${RED}❌ IPv6 DNS 格式无效。${PLAIN}"
+                    echo -e "${RED}❌ Неверный формат IPv6 DNS.${PLAIN}"
                     pause_return
                     continue
                 }
-                dns_apply_profile "自定义 DNS" "$v4_servers" "$v6_servers"
+                dns_apply_profile "Пользовательские DNS" "$v4_servers" "$v6_servers"
                 pause_return
                 ;;
             4)
@@ -17830,20 +17821,20 @@ func_dns_optimize() {
                 ;;
             5) dns_restore_latest_backup; pause_return ;;
             0|q|Q) break ;;
-            *) echo -e "${RED}❌ 无效选择！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
 
 # ---------------------------------------------------------
-# 23. 流量达量关机保护
+# 23. Защита от превышения трафика
 # ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # Module: traffic_guard.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Traffic quota accounting, guard checker installation, and quota protection menus.
+# Учёт трафика, установка проверяющего скрипта и меню защиты от превышения.
 
 traffic_guard_human_bytes() {
     local bytes="${1:-0}"
@@ -17949,19 +17940,19 @@ traffic_guard_valid_iface() {
 
 traffic_guard_mode_label() {
     case "$1" in
-        tx) echo "出站 TX 计费" ;;
-        rx) echo "入站 RX 计费" ;;
-        total) echo "出入总量 RX+TX" ;;
-        max) echo "任一方向达量" ;;
+        tx) echo "Исходящий TX" ;;
+        rx) echo "Входящий RX" ;;
+        total) echo "Общий RX+TX" ;;
+        max) echo "Любое направление" ;;
         *) echo "$1" ;;
     esac
 }
 
 traffic_guard_action_label() {
     case "$1" in
-        poweroff) echo "立即关机" ;;
-        ssh-only) echo "仅保留 SSH，封锁其余公网业务流量" ;;
-        log) echo "只写日志" ;;
+        poweroff) echo "Немедленное выключение" ;;
+        ssh-only) echo "Оставить только SSH, остальной трафик заблокирован" ;;
+        log) echo "Только запись в лог" ;;
         *) echo "$1" ;;
     esac
 }
@@ -17991,7 +17982,7 @@ traffic_guard_detect_ssh_port() {
     [[ -z "${_extra:-}" ]] || current_port=""
 
     mapfile -t ssh_ports < <(ss -tlnp 2>/dev/null | awk '/sshd/ {addr=$4; sub(/^.*:/, "", addr); if (addr ~ /^[0-9]+$/) print addr}' | sort -nu)
-    if (( ${#ssh_ports[@]} > 0 )); then
+    if (( ${#ssh_ports[@]} -gt 0 )); then
         traffic_guard_select_ssh_port "$current_port" "${ssh_ports[@]}"
         return $?
     fi
@@ -18246,11 +18237,11 @@ traffic_guard_report_checker_install_failure() {
     local file="${2:-$TRAFFIC_GUARD_CHECKER}"
     local first_line_hex
     first_line_hex=$(traffic_guard_checker_first_line_hex "$file" 2>/dev/null || echo "unreadable")
-    echo -e "${RED}❌ Traffic Guard 检查器写入失败：${reason}${PLAIN}"
-    echo -e "${YELLOW}检查器路径：${TRAFFIC_GUARD_CHECKER}${PLAIN}"
-    echo -e "${YELLOW}待检查文件：${file}${PLAIN}"
-    echo -e "${YELLOW}首行实际字节：${first_line_hex:-empty}${PLAIN}"
-    echo -e "${YELLOW}日志路径：${TRAFFIC_GUARD_LOG}${PLAIN}"
+    echo -e "${RED}❌ Не удалось установить проверяющий скрипт Traffic Guard: ${reason}${PLAIN}"
+    echo -e "${YELLOW}Путь к проверяющему скрипту: ${TRAFFIC_GUARD_CHECKER}${PLAIN}"
+    echo -e "${YELLOW}Файл для проверки: ${file}${PLAIN}"
+    echo -e "${YELLOW}Фактические байты первой строки: ${first_line_hex:-empty}${PLAIN}"
+    echo -e "${YELLOW}Путь к логу: ${TRAFFIC_GUARD_LOG}${PLAIN}"
     traffic_guard_admin_log "checker install failed: ${reason}; file=${file}; first_line_hex=${first_line_hex:-empty}"
 }
 
@@ -18271,7 +18262,7 @@ traffic_guard_install_checker_once() {
     local first_line write_rc tmp_checker
     mkdir -p "$(dirname "$TRAFFIC_GUARD_CHECKER")" "$TRAFFIC_GUARD_STATE_DIR" "$(dirname "$TRAFFIC_GUARD_CONFIG")" || return 1
     tmp_checker=$(mktemp "${TRAFFIC_GUARD_CHECKER}.tmp.XXXXXX") || {
-        traffic_guard_mark_checker_install_failure "io" "无法创建临时检查器文件" "$TRAFFIC_GUARD_CHECKER"
+        traffic_guard_mark_checker_install_failure "io" "не удалось создать временный проверяющий файл" "$TRAFFIC_GUARD_CHECKER"
         return 1
     }
     cat > "$tmp_checker" <<'GUARD_SCRIPT'
@@ -18770,33 +18761,33 @@ exit 0
 GUARD_SCRIPT
     write_rc=$?
     if (( write_rc != 0 )); then
-        traffic_guard_mark_checker_install_failure "io" "无法写入临时检查器文件" "$tmp_checker"
+        traffic_guard_mark_checker_install_failure "io" "не удалось записать временный проверяющий файл" "$tmp_checker"
         rm -f "$tmp_checker" 2>/dev/null || true
         return 1
     fi
     if ! traffic_guard_normalize_generated_checker "$tmp_checker"; then
-        traffic_guard_mark_checker_install_failure "generated-content" "无法规范化检查器换行或文件头" "$tmp_checker"
+        traffic_guard_mark_checker_install_failure "generated-content" "не удалось нормализовать переносы или заголовок файла" "$tmp_checker"
         return 1
     fi
     IFS= read -r first_line < "$tmp_checker" || first_line=""
     if [[ "${first_line%$'\r'}" != "#!/usr/bin/env bash" ]]; then
-        traffic_guard_mark_checker_install_failure "generated-content" "首行必须是 #!/usr/bin/env bash" "$tmp_checker"
+        traffic_guard_mark_checker_install_failure "generated-content" "первая строка должна быть #!/usr/bin/env bash" "$tmp_checker"
         return 1
     fi
     if LC_ALL=C grep -q $'\r' "$tmp_checker"; then
-        traffic_guard_mark_checker_install_failure "generated-content" "检测到 CRLF/回车字符" "$tmp_checker"
+        traffic_guard_mark_checker_install_failure "generated-content" "обнаружены символы CRLF/перевода каретки" "$tmp_checker"
         return 1
     fi
     if ! bash -n "$tmp_checker"; then
-        traffic_guard_mark_checker_install_failure "generated-content" "Bash 语法检查未通过" "$tmp_checker"
+        traffic_guard_mark_checker_install_failure "generated-content" "синтаксическая проверка Bash не пройдена" "$tmp_checker"
         return 1
     fi
     if ! chmod 700 "$tmp_checker"; then
-        traffic_guard_mark_checker_install_failure "io" "权限设置失败：无法 chmod 700" "$tmp_checker"
+        traffic_guard_mark_checker_install_failure "io" "не удалось установить права chmod 700" "$tmp_checker"
         return 1
     fi
     if ! mv -f "$tmp_checker" "$TRAFFIC_GUARD_CHECKER"; then
-        traffic_guard_mark_checker_install_failure "io" "无法替换 ${TRAFFIC_GUARD_CHECKER}" "$tmp_checker"
+        traffic_guard_mark_checker_install_failure "io" "не удалось заменить ${TRAFFIC_GUARD_CHECKER}" "$tmp_checker"
         return 1
     fi
     traffic_guard_admin_log "checker installed: ${TRAFFIC_GUARD_CHECKER}"
@@ -18811,7 +18802,7 @@ install_traffic_guard_checker() {
             return 0
         fi
         if [[ "$attempt" == "1" ]] && traffic_guard_checker_install_failure_is_generated; then
-            echo -e "${YELLOW}⚠️ 检查器生成内容异常，正在安全重装一次...${PLAIN}"
+            echo -e "${YELLOW}⚠️ Содержимое проверяющего скрипта некорректно, безопасная повторная установка...${PLAIN}"
             traffic_guard_admin_log "retry checker install once after generated content validation failure"
             continue
         fi
@@ -18831,7 +18822,7 @@ traffic_guard_state_epoch() {
 }
 
 traffic_guard_print_timer_failure_context() {
-    echo -e "${YELLOW}▶ Traffic Guard 检查器/Timer 诊断上下文${PLAIN}"
+    echo -e "${YELLOW}▶ Диагностический контекст сбоя проверяющего скрипта/Timer Traffic Guard${PLAIN}"
     echo -e "checker : ${TRAFFIC_GUARD_CHECKER}"
     ls -l "$TRAFFIC_GUARD_CHECKER" 2>/dev/null || true
     echo -e "config  : ${TRAFFIC_GUARD_CONFIG}"
@@ -18843,15 +18834,15 @@ traffic_guard_print_timer_failure_context() {
     systemctl list-timers --all vps-traffic-guard.timer --no-pager 2>/dev/null || true
     echo -e "${YELLOW}▶ systemd service:${PLAIN}"
     systemctl status vps-traffic-guard.service --no-pager -l 2>/dev/null || true
-    echo -e "${YELLOW}▶ 最近 journal:${PLAIN}"
+    echo -e "${YELLOW}▶ Последние журналы:${PLAIN}"
     journalctl -u vps-traffic-guard.service -u vps-traffic-guard.timer -n 80 --no-pager 2>/dev/null || true
-    echo -e "${YELLOW}▶ 最近脚本日志:${PLAIN}"
+    echo -e "${YELLOW}▶ Последние логи скрипта:${PLAIN}"
     traffic_guard_recent_log_summary 20
 }
 
 traffic_guard_install_checker_or_report() {
     install_traffic_guard_checker && return 0
-    echo -e "${RED}❌ 安装检查脚本失败。下面是可直接排查的上下文：${PLAIN}"
+    echo -e "${RED}❌ Не удалось установить проверяющий скрипт. Ниже контекст для диагностики:${PLAIN}"
     traffic_guard_print_timer_failure_context
     return 1
 }
@@ -18862,7 +18853,7 @@ traffic_guard_run_checker_once() {
     runner="direct"
 
     if [[ ! -x "$TRAFFIC_GUARD_CHECKER" ]]; then
-        echo -e "${RED}❌ 检查器不存在或不可执行：${TRAFFIC_GUARD_CHECKER}${PLAIN}"
+        echo -e "${RED}❌ Проверяющий скрипт не существует или неисполняем: ${TRAFFIC_GUARD_CHECKER}${PLAIN}"
         return 1
     fi
 
@@ -18876,22 +18867,22 @@ traffic_guard_run_checker_once() {
     reset_traffic_guard_failed_state
 
     if (( rc != 0 )); then
-        echo -e "${RED}❌ 已尝试通过 ${runner} 运行检查器，但执行失败 rc=${rc}。${PLAIN}"
+        echo -e "${RED}❌ Попытка запуска проверяющего скрипта через ${runner} не удалась, rc=${rc}.${PLAIN}"
         return 1
     fi
 
     after_epoch=$(traffic_guard_state_epoch)
     age=$(traffic_guard_state_age_seconds 2>/dev/null || echo "")
     if [[ "$age" =~ ^[0-9]+$ && "$age" -le 120 ]]; then
-        echo -e "${GREEN}✅ 检查器已立即运行，状态文件已刷新。${PLAIN}"
+        echo -e "${GREEN}✅ Проверяющий скрипт сразу выполнен, файл состояния обновлён.${PLAIN}"
         return 0
     fi
     if [[ "$after_epoch" =~ ^[0-9]+$ && "$before_epoch" =~ ^[0-9]+$ && "$after_epoch" -gt "$before_epoch" ]]; then
-        echo -e "${GREEN}✅ 检查器已立即运行，状态时间已推进。${PLAIN}"
+        echo -e "${GREEN}✅ Проверяющий скрипт сразу выполнен, время состояния обновлено.${PLAIN}"
         return 0
     fi
 
-    echo -e "${RED}❌ 检查器执行结束但状态文件没有刷新。${PLAIN}"
+    echo -e "${RED}❌ Проверяющий скрипт выполнен, но файл состояния не обновлён.${PLAIN}"
     return 1
 }
 
@@ -19134,7 +19125,7 @@ traffic_guard_recent_log_summary() {
     (( lines > 0 )) || lines=5
 
     if [[ ! -r "$TRAFFIC_GUARD_LOG" ]]; then
-        echo "暂无日志"
+        echo "Логов пока нет"
         return 0
     fi
 
@@ -19165,73 +19156,73 @@ print_traffic_guard_diagnostic_summary() {
     [[ -r "$TRAFFIC_GUARD_LOG" ]] && has_log="yes" || has_log="no"
 
     if [[ "$has_config" == "no" && "$has_state" == "no" && "$has_log" == "no" && "$timer_active" != "active" && "$timer_enabled" == "disabled" ]]; then
-        [[ "$show_unconfigured" == "yes" ]] && echo "流量达量保护摘要: 未配置"
+        [[ "$show_unconfigured" == "yes" ]] && echo "Сводка защиты от превышения трафика: не настроена"
         return 0
     fi
 
-    echo "流量达量保护摘要:"
+    echo "Сводка защиты от превышения трафика:"
     echo "- timer: vps-traffic-guard.timer active=${timer_active}; enabled=${timer_enabled}"
-    config_status="不可读或不存在"
-    state_status="不可读或不存在"
-    log_status="不可读或不存在"
-    [[ "$has_config" == "yes" ]] && config_status="存在"
-    [[ "$has_state" == "yes" ]] && state_status="存在"
-    [[ "$has_log" == "yes" ]] && log_status="存在"
-    echo "- 配置文件: ${TRAFFIC_GUARD_CONFIG} (${config_status})"
-    echo "- 状态文件: ${state_file} (${state_status})"
-    echo "- 日志文件: ${TRAFFIC_GUARD_LOG} (${log_status})"
+    config_status="не читается или отсутствует"
+    state_status="не читается или отсутствует"
+    log_status="не читается или отсутствует"
+    [[ "$has_config" == "yes" ]] && config_status="существует"
+    [[ "$has_state" == "yes" ]] && state_status="существует"
+    [[ "$has_log" == "yes" ]] && log_status="существует"
+    echo "- Файл конфигурации: ${TRAFFIC_GUARD_CONFIG} (${config_status})"
+    echo "- Файл состояния: ${state_file} (${state_status})"
+    echo "- Файл лога: ${TRAFFIC_GUARD_LOG} (${log_status})"
 
     if [[ "$has_config" != "yes" ]]; then
-        echo "- 当前配置: 未配置或不可读"
+        echo "- Текущая конфигурация: не настроена или не читается"
     else
         # shellcheck disable=SC1090
         . "$TRAFFIC_GUARD_CONFIG"
         limit="${LIMIT_BYTES:-0}"
         if read -r usage live_rx live_tx < <(traffic_guard_live_usage_from_state 2>/dev/null); then
-            source_usage="实时估算"
+            source_usage="текущая оценка"
         else
             usage=$(traffic_guard_usage_from_state 2>/dev/null || echo 0)
             live_rx=""
             live_tx=""
-            source_usage="上次状态"
+            source_usage="последнее состояние"
         fi
         [[ "$usage" =~ ^[0-9]+$ ]] || usage=0
         [[ "$limit" =~ ^[0-9]+$ ]] || limit=0
         if (( limit > 0 )); then
             pct=$(awk -v u="$usage" -v l="$limit" 'BEGIN { printf "%.2f", (u/l)*100 }')
             mode_label=$(traffic_guard_mode_label "${MODE:-tx}")
-            echo "- 当前配置: ENABLED=${ENABLED:-0}; 模式=${mode_label}; 动作=$(traffic_guard_action_label "${ACTION:-poweroff}"); 检查间隔=${CHECK_INTERVAL:-60}s"
+            echo "- Текущая конфигурация: ENABLED=${ENABLED:-0}; режим=${mode_label}; действие=$(traffic_guard_action_label "${ACTION:-poweroff}"); интервал=${CHECK_INTERVAL:-60}s"
             echo "- ${source_usage}: $(traffic_guard_human_bytes "$usage") / $(traffic_guard_human_bytes "$limit") (${pct}%)"
         else
-            echo "- 当前配置: ENABLED=${ENABLED:-0}; 模式=$(traffic_guard_mode_label "${MODE:-tx}"); 阈值未设置或无效"
+            echo "- Текущая конфигурация: ENABLED=${ENABLED:-0}; режим=$(traffic_guard_mode_label "${MODE:-tx}"); порог не установлен или недействителен"
         fi
         if [[ "$live_rx" =~ ^[0-9]+$ && "$live_tx" =~ ^[0-9]+$ ]]; then
-            echo "- 方向估算: RX $(traffic_guard_human_bytes "$live_rx") / TX $(traffic_guard_human_bytes "$live_tx")"
+            echo "- Оценка по направлениям: RX $(traffic_guard_human_bytes "$live_rx") / TX $(traffic_guard_human_bytes "$live_tx")"
         fi
     fi
 
     if [[ "$has_state" == "yes" ]]; then
-        last_checked=$(traffic_guard_state_last_checked_at 2>/dev/null || echo "未知")
+        last_checked=$(traffic_guard_state_last_checked_at 2>/dev/null || echo "неизвестно")
         state_age=$(traffic_guard_state_age_seconds 2>/dev/null || echo "")
         stale_threshold=$(traffic_guard_stale_threshold_seconds)
         if [[ "$state_age" =~ ^[0-9]+$ ]]; then
-            echo "- 最近检查: ${last_checked} (${state_age}s 前; 超时阈值 ${stale_threshold}s)"
+            echo "- Последняя проверка: ${last_checked} (${state_age}s назад; порог устаревания ${stale_threshold}s)"
             if (( state_age > stale_threshold )); then
                 if [[ "$timer_active" == "active" ]]; then
-                    echo "- 异常提示: 最近检查超时，timer active 但状态文件已超过 ${state_age}s 未刷新，请查看日志或使用菜单 [10] -> [5] -> [6] 修复 timer"
+                    echo "- Аномалия: последняя проверка устарела, состояние не обновлялось ${state_age}s, хотя timer active, проверьте логи или используйте меню [10] -> [5] -> [6] для исправления timer"
                 else
-                    echo "- 异常提示: 最近检查超时，状态文件已超过 ${state_age}s 未刷新，timer 当前为 ${timer_active}"
+                    echo "- Аномалия: последняя проверка устарела, состояние не обновлялось ${state_age}s, timer в состоянии ${timer_active}"
                 fi
             fi
         else
-            echo "- 最近检查: ${last_checked}"
+            echo "- Последняя проверка: ${last_checked}"
         fi
     else
-        echo "- 最近检查: 状态文件尚未生成"
+        echo "- Последняя проверка: файл состояния ещё не создан"
     fi
 
     if (( log_lines > 0 )); then
-        echo "- 最近 vps-traffic-guard 日志:"
+        echo "- Последние логи vps-traffic-guard:"
         traffic_guard_recent_log_summary "$log_lines" | sed 's/^/  /'
     fi
 }
@@ -19239,13 +19230,13 @@ print_traffic_guard_diagnostic_summary() {
 show_traffic_guard_status() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    print_breadcrumb "网络/内核优化 > 流量达量保护"
-    echo -e "${BOLD}🧯 流量达量保护状态${PLAIN}"
+    print_breadcrumb "Сеть/оптимизация ядра > Защита от превышения трафика"
+    echo -e "${BOLD}🧯 Статус защиты от превышения трафика${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
 
     if ! load_traffic_guard_config; then
-        echo -e "${YELLOW}当前未配置流量达量保护。${PLAIN}"
-        echo -e "${BLUE}建议先选择 [1] 配置，避免 VPS 被刷流量产生超额账单。${PLAIN}"
+        echo -e "${YELLOW}Защита от превышения трафика не настроена.${PLAIN}"
+        echo -e "${BLUE}Рекомендуется сначала выбрать [1] для настройки, чтобы избежать превышения лимита и больших счетов.${PLAIN}"
         return 0
     fi
 
@@ -19269,67 +19260,67 @@ show_traffic_guard_status() {
     fi
     cycle_key=$(traffic_guard_current_cycle_key "${CYCLE_DAY:-1}")
 
-    echo -e "开关状态 : ${GREEN}${ENABLED:-0}${PLAIN}  timer: ${timer_state}/${service_state}"
-    echo -e "监控网卡 : ${CYAN}${IFACE:-未知}${PLAIN}"
-    echo -e "计费模式 : ${CYAN}$(traffic_guard_mode_label "${MODE:-tx}")${PLAIN}"
-    echo -e "本周期   : ${CYAN}${cycle_key}${PLAIN} 起，配置为每月 ${CYCLE_DAY:-1} 日重置（短月份按最后一天）"
-    echo -e "阈值     : ${YELLOW}${LIMIT_GB:-未知}GB${PLAIN} ($(traffic_guard_human_bytes "$limit"))"
-    echo -e "达量动作 : ${RED}$(traffic_guard_action_label "${ACTION:-poweroff}")${PLAIN}"
+    echo -e "Статус включения : ${GREEN}${ENABLED:-0}${PLAIN}  timer: ${timer_state}/${service_state}"
+    echo -e "Мониторинг интерфейса : ${CYAN}${IFACE:-неизвестно}${PLAIN}"
+    echo -e "Режим учёта : ${CYAN}$(traffic_guard_mode_label "${MODE:-tx}")${PLAIN}"
+    echo -e "Текущий период : ${CYAN}${cycle_key}${PLAIN} (сброс ${CYCLE_DAY:-1}-го числа каждого месяца, в коротких месяцах — последний день)"
+    echo -e "Порог : ${YELLOW}${LIMIT_GB:-неизвестно} ГБ${PLAIN} ($(traffic_guard_human_bytes "$limit"))"
+    echo -e "Действие при превышении : ${RED}$(traffic_guard_action_label "${ACTION:-poweroff}")${PLAIN}"
     if [[ "${ACTION:-}" == "ssh-only" ]]; then
-        echo -e "保留 SSH : ${CYAN}${SSH_PORT:-未知}/tcp${PLAIN}；下个重置周期会自动移除临时封锁规则"
+        echo -e "Оставить SSH : ${CYAN}${SSH_PORT:-неизвестно}/tcp${PLAIN}; в следующем периоде блокировка будет автоматически снята"
     fi
-    echo -e "本周期已用 : ${GREEN}$(traffic_guard_human_bytes "$usage")${PLAIN} / ${pct}%（按基线和初始已用实时估算）"
+    echo -e "Использовано в текущем периоде : ${GREEN}$(traffic_guard_human_bytes "$usage")${PLAIN} / ${pct}% (оценка по базе и начальному использованию)"
     if [[ "$state_usage" =~ ^[0-9]+$ && "$state_usage" != "$usage" ]]; then
-        echo -e "状态记录 : ${YELLOW}$(traffic_guard_human_bytes "$state_usage")${PLAIN}（上次检查写入）"
+        echo -e "Запись состояния : ${YELLOW}$(traffic_guard_human_bytes "$state_usage")${PLAIN} (записано при последней проверке)"
     fi
     if [[ "$live_rx" =~ ^[0-9]+$ && "$live_tx" =~ ^[0-9]+$ ]]; then
-        echo -e "本周期方向 : RX ${CYAN}$(traffic_guard_human_bytes "$live_rx")${PLAIN} / TX ${CYAN}$(traffic_guard_human_bytes "$live_tx")${PLAIN}（已减基线并包含初始已用）"
+        echo -e "По направлениям в текущем периоде : RX ${CYAN}$(traffic_guard_human_bytes "$live_rx")${PLAIN} / TX ${CYAN}$(traffic_guard_human_bytes "$live_tx")${PLAIN} (с учётом базы и начального использования)"
     fi
-    echo -e "预警线   : ${WARN_PERCENT:-90}%  动作: ${ACTION:-poweroff}"
+    echo -e "Уровень предупреждения : ${WARN_PERCENT:-90}%   Действие: ${ACTION:-poweroff}"
     if traffic_guard_valid_iface "${IFACE:-}"; then
         mapfile -t current_stats < <(traffic_guard_read_stats "$IFACE")
         current_rx="${current_stats[0]:-0}"
         current_tx="${current_stats[1]:-0}"
-        echo -e "网卡原始计数 : RX ${CYAN}$(traffic_guard_human_bytes "$current_rx")${PLAIN} / TX ${CYAN}$(traffic_guard_human_bytes "$current_tx")${PLAIN}（自开机累计，不等于本周期已用）"
-        echo -e "${BLUE}说明：保护触发只看“本周期已用”；原始计数只用于计算差量，开机久时可能明显更大。${PLAIN}"
+        echo -e "Сырые счётчики интерфейса : RX ${CYAN}$(traffic_guard_human_bytes "$current_rx")${PLAIN} / TX ${CYAN}$(traffic_guard_human_bytes "$current_tx")${PLAIN} (накоплено с запуска, НЕ равно использованию в текущем периоде)"
+        echo -e "${BLUE}Пояснение: срабатывание защиты оценивается только по "использованию в текущем периоде"; сырые счётчики используются для вычисления разницы и могут быть значительно больше при долгом времени работы.${PLAIN}"
     fi
-    echo -e "配置文件 : ${CYAN}${TRAFFIC_GUARD_CONFIG}${PLAIN}"
-    echo -e "日志文件 : ${CYAN}${TRAFFIC_GUARD_LOG}${PLAIN}"
+    echo -e "Файл конфигурации : ${CYAN}${TRAFFIC_GUARD_CONFIG}${PLAIN}"
+    echo -e "Файл лога : ${CYAN}${TRAFFIC_GUARD_LOG}${PLAIN}"
 
     state_file="${TRAFFIC_GUARD_STATE_DIR}/state"
     if [[ -r "$state_file" ]]; then
-        last_checked=$(traffic_guard_state_last_checked_at 2>/dev/null || echo "未知")
-        echo -e "最近检查 : ${CYAN}${last_checked}${PLAIN}"
+        last_checked=$(traffic_guard_state_last_checked_at 2>/dev/null || echo "неизвестно")
+        echo -e "Последняя проверка : ${CYAN}${last_checked}${PLAIN}"
         state_age=$(traffic_guard_state_age_seconds 2>/dev/null || echo "")
         stale_threshold=$(traffic_guard_stale_threshold_seconds)
         if [[ "$state_age" =~ ^[0-9]+$ && "$state_age" -gt "$stale_threshold" ]]; then
-            echo -e "${RED}异常提示 : 最近检查已超过 ${state_age}s，timer 显示 active 也不能代表检查器真的在刷新。请用本菜单 [7] 立即同步/验证；如失败再用 [6] 重装 timer。${PLAIN}"
+            echo -e "${RED}Аномалия : последняя проверка была более ${state_age} секунд назад, даже если timer показывает active — это не гарантирует, что проверяющий скрипт действительно обновляет состояние. Используйте пункт [7] для немедленной синхронизации/проверки; если не удаётся — [6] для переустановки timer.${PLAIN}"
         fi
     else
-        echo -e "${YELLOW}尚未生成状态文件，timer 首次运行后会自动初始化基线。${PLAIN}"
+        echo -e "${YELLOW}Файл состояния ещё не создан, после первого запуска timer создаст базовую линию.${PLAIN}"
     fi
 }
 
 sync_traffic_guard_now() {
     load_traffic_guard_config || {
-        echo -e "${YELLOW}尚未配置流量达量保护。${PLAIN}"
+        echo -e "${YELLOW}Защита от превышения трафика не настроена.${PLAIN}"
         pause_return
         return 1
     }
 
     if [[ "${ACTION:-poweroff}" == "poweroff" ]]; then
-        confirm_danger "立即运行一次流量保护检查器" \
-            "会立刻读取 ${IFACE:-当前网卡} 流量并刷新 ${TRAFFIC_GUARD_STATE_DIR}/state；如果已经超过阈值，会按当前配置执行 poweroff。" \
-            "如只是 timer 未刷新，可在同步失败后查看诊断上下文并重新修复 timer；如阈值配置错误，请先停用或重设基线。" \
-            "当前低于阈值时这是最直接的同步方式；接近阈值时请先确认云厂商后台流量。" || return 1
+        confirm_danger "Немедленный запуск проверяющего скрипта трафика" \
+            "Будет считан трафик ${IFACE:-текущего интерфейса} и обновлён ${TRAFFIC_GUARD_STATE_DIR}/state; если порог превышен, будет выполнено действие в соответствии с конфигурацией (например, выключение)." \
+            "Если просто timer не обновлял состояние, после сбоя синхронизации можно посмотреть диагностику и переустановить timer; если порог настроен неверно, сначала отключите защиту или сбросьте базовую линию." \
+            "Если текущее использование ниже порога — это самый прямой способ синхронизации; при приближении к порогу сначала проверьте статистику в панели облачного провайдера." || return 1
     else
-        confirm_risk_action "立即运行一次流量保护检查器" \
-            "会立刻读取 ${IFACE:-当前网卡} 流量并刷新 ${TRAFFIC_GUARD_STATE_DIR}/state。" \
-            "同步失败时查看诊断上下文，或重新修复 timer。" \
-            "当前 ACTION=${ACTION:-log}，达到阈值时只按配置动作执行。" || return 1
+        confirm_risk_action "Немедленный запуск проверяющего скрипта трафика" \
+            "Будет считан трафик ${IFACE:-текущего интерфейса} и обновлён ${TRAFFIC_GUARD_STATE_DIR}/state." \
+            "При сбое синхронизации посмотрите диагностику или переустановите timer." \
+            "Текущее действие: ${ACTION:-log}, при достижении порога будет выполнено только соответствующее действие." || return 1
     fi
 
-    echo -e "${CYAN}▶ 正在立即运行 vps-traffic-guard-check 并验证状态刷新...${PLAIN}"
+    echo -e "${CYAN}▶ Немедленный запуск vps-traffic-guard-check и проверка обновления состояния...${PLAIN}"
     if traffic_guard_run_checker_once; then
         show_traffic_guard_status
         return 0
@@ -19341,54 +19332,54 @@ sync_traffic_guard_now() {
 configure_traffic_guard() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    print_breadcrumb "网络/内核优化 > 配置流量达量保护"
-    echo -e "${BOLD}🧯 配置流量达量保护${PLAIN}"
+    print_breadcrumb "Сеть/оптимизация ядра > Настройка защиты от превышения трафика"
+    echo -e "${BOLD}🧯 Настройка защиты от превышения трафика${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}用途：定时读取网卡流量，达到阈值后自动关机，避免超额流量产生账单。${PLAIN}"
-    echo -e "${YELLOW}注意：脚本只能按本机网卡计数估算，云厂商后台统计可能有延迟或口径差异，请留安全余量。${PLAIN}"
+    echo -e "${YELLOW}Назначение: периодическое чтение трафика интерфейса, при достижении порога — автоматическое выключение для предотвращения превышения лимита и больших счетов.${PLAIN}"
+    echo -e "${YELLOW}Внимание: скрипт оценивает трафик по счётчикам локального интерфейса; статистика облачного провайдера может иметь задержки или отличаться, оставляйте запас.${PLAIN}"
     echo -e "------------------------------------------------"
 
     local default_iface iface limit_gb limit_bytes initial_used_gb initial_used_bytes
     local cycle_day cycle_default_day warn_percent action_choice action mode_choice mode interval ssh_port=""
     local current_stats current_rx current_tx detected_used_bytes detected_used_gb existing_used_bytes
     default_iface=$(traffic_guard_detect_iface)
-    iface=$(ask_with_default "监控网卡（自动推荐活跃公网网卡）" "${default_iface:-eth0}")
+    iface=$(ask_with_default "Мониторинг интерфейса (автоматически определяется активный публичный интерфейс)" "${default_iface:-eth0}")
     if ! traffic_guard_valid_iface "$iface"; then
-        echo -e "${RED}❌ 网卡 ${iface} 不存在或无法读取统计数据。${PLAIN}"
+        echo -e "${RED}❌ Интерфейс ${iface} не существует или не удаётся прочитать статистику.${PLAIN}"
         pause_return
         return 1
     fi
     mapfile -t current_stats < <(traffic_guard_read_stats "$iface")
     current_rx="${current_stats[0]:-0}"
     current_tx="${current_stats[1]:-0}"
-    echo -e "${GREEN}✅ 已选择网卡：${iface}${PLAIN}"
-    echo -e "当前网卡原始计数（自开机累计，仅用于建立基线）：RX ${CYAN}$(traffic_guard_human_bytes "$current_rx")${PLAIN} / TX ${CYAN}$(traffic_guard_human_bytes "$current_tx")${PLAIN}"
-    echo -e "${YELLOW}说明：系统只能读取本机网卡计数；配置后会从当前计数建立基线，云厂商账单口径可能不同，请优先参考云后台并留余量。${PLAIN}"
+    echo -e "${GREEN}✅ Выбран интерфейс: ${iface}${PLAIN}"
+    echo -e "Текущие сырые счётчики интерфейса (накоплены с запуска, используются только для построения базовой линии): RX ${CYAN}$(traffic_guard_human_bytes "$current_rx")${PLAIN} / TX ${CYAN}$(traffic_guard_human_bytes "$current_tx")${PLAIN}"
+    echo -e "${YELLOW}Пояснение: система может читать только локальные счётчики; после настройки будет построена базовая линия от текущих значений. Статистика облачного провайдера может отличаться, ориентируйтесь на панель провайдера и оставляйте запас.${PLAIN}"
 
     while true; do
-        limit_gb=$(ask_with_default "本周期流量阈值 GB（建议填套餐的 80%-95%）" "900")
+        limit_gb=$(ask_with_default "Порог трафика за период в ГБ (рекомендуется 80%-95% от лимита тарифа)" "900")
         if limit_bytes=$(traffic_guard_gb_to_bytes "$limit_gb" 2>/dev/null); then
             break
         fi
-        echo -e "${RED}❌ 阈值无效，请输入大于 0 的数字，例如 900 或 0.5。${PLAIN}"
+        echo -e "${RED}❌ Неверный порог, введите число >0, например 900 или 0.5.${PLAIN}"
     done
 
     while true; do
         cycle_default_day=$(date +%d)
         cycle_default_day=$((10#$cycle_default_day))
-        cycle_day=$(ask_with_default "每月套餐/账单重置日 1-31（短月份自动按最后一天）" "$cycle_default_day")
+        cycle_day=$(ask_with_default "День сброса периода 1-31 (в коротких месяцах — последний день)" "$cycle_default_day")
         if [[ "$cycle_day" =~ ^[0-9]+$ ]] && (( 10#$cycle_day >= 1 && 10#$cycle_day <= 31 )); then
             break
         fi
-        echo -e "${RED}❌ 重置日只支持 1-31。${PLAIN}"
+        echo -e "${RED}❌ День сброса должен быть 1-31.${PLAIN}"
     done
 
-    echo -e "计费模式："
-    echo -e "  1. 出站 TX 计费"
-    echo -e "  2. 出入总量 RX+TX"
-    echo -e "  3. 任一方向达量"
-    echo -e "  4. 入站 RX 计费"
-    read_trimmed mode_choice "请选择计费模式 (默认 1): "
+    echo -e "Режим учёта:"
+    echo -e "  1. Исходящий TX"
+    echo -e "  2. Общий RX+TX"
+    echo -e "  3. Любое направление"
+    echo -e "  4. Входящий RX"
+    read_trimmed mode_choice "Выберите режим учёта (по умолчанию 1): "
     case "${mode_choice:-1}" in
         2) mode="total" ;;
         3) mode="max" ;;
@@ -19400,46 +19391,46 @@ configure_traffic_guard() {
     detected_used_gb=$(traffic_guard_bytes_to_gb "$detected_used_bytes")
     existing_used_bytes=$(traffic_guard_existing_state_usage "$iface" "$mode" "$cycle_day" 2>/dev/null || true)
     if [[ "$existing_used_bytes" =~ ^[0-9]+$ && "$existing_used_bytes" != "$detected_used_bytes" ]]; then
-        echo -e "检测到已有保护状态已用：${YELLOW}$(traffic_guard_human_bytes "$existing_used_bytes")${PLAIN}"
-        echo -e "${YELLOW}本次重新配置默认按当前网卡原始计数估算，启用后会重置基线，避免旧状态误导。${PLAIN}"
+        echo -e "Обнаружено существующее состояние защиты: ${YELLOW}$(traffic_guard_human_bytes "$existing_used_bytes")${PLAIN}"
+        echo -e "${YELLOW}При повторной настройке по умолчанию используется оценка на основе текущих сырых счётчиков; базовая линия будет сброшена, чтобы не вводить в заблуждение.${PLAIN}"
     fi
-    echo -e "默认初始已用按当前网卡原始计数和计费模式估算：${CYAN}$(traffic_guard_human_bytes "$detected_used_bytes")${PLAIN}（默认可直接回车）"
-    echo -e "${YELLOW}如果云厂商后台显示不同，请手动覆盖这里的 GB 数值。${PLAIN}"
+    echo -e "Начальное использование по умолчанию оценивается по текущим счётчикам и выбранному режиму: ${CYAN}$(traffic_guard_human_bytes "$detected_used_bytes")${PLAIN} (можно просто нажать Enter)"
+    echo -e "${YELLOW}Если в панели провайдера отображается другая цифра, вручную укажите значение в ГБ.${PLAIN}"
     while true; do
-        initial_used_gb=$(ask_with_default "本周期已用流量 GB" "$detected_used_gb")
+        initial_used_gb=$(ask_with_default "Использовано в текущем периоде (ГБ)" "$detected_used_gb")
         if initial_used_bytes=$(traffic_guard_gb_to_bytes_zero_ok "$initial_used_gb" 2>/dev/null); then
             break
         fi
-        echo -e "${RED}❌ 已用流量无效，请输入不小于 0 的数字。${PLAIN}"
+        echo -e "${RED}❌ Неверное использование, введите число >=0.${PLAIN}"
     done
 
     while true; do
-        warn_percent=$(ask_with_default "预警百分比 1-99" "90")
+        warn_percent=$(ask_with_default "Процент предупреждения 1-99" "90")
         if [[ "$warn_percent" =~ ^[0-9]+$ ]] && (( 10#$warn_percent >= 1 && 10#$warn_percent <= 99 )); then
             break
         fi
-        echo -e "${RED}❌ 预警百分比无效。${PLAIN}"
+        echo -e "${RED}❌ Неверный процент предупреждения.${PLAIN}"
     done
 
-    interval=$(ask_with_default "检查间隔秒数（最低 30，默认 60）" "60")
+    interval=$(ask_with_default "Интервал проверки в секундах (минимум 30, по умолчанию 60)" "60")
     if ! [[ "$interval" =~ ^[0-9]+$ ]] || (( 10#$interval < 30 )); then
         interval=60
     fi
 
-    echo -e "触发动作："
-    echo -e "  1. 立即关机 ${YELLOW}(防止继续产生流量费用)${PLAIN}"
-    echo -e "  2. 仅保留 SSH 端口 ${YELLOW}(封锁其他公网业务流量，到重置日自动恢复)${PLAIN}"
-    echo -e "  3. 只写日志 ${YELLOW}(测试配置，不关机)${PLAIN}"
-    read_trimmed action_choice "请选择触发动作 (默认 1): "
+    echo -e "Действие при срабатывании:"
+    echo -e "  1. Немедленное выключение ${YELLOW}(предотвращение дальнейшего трафика)${PLAIN}"
+    echo -e "  2. Оставить только SSH порт ${YELLOW}(заблокировать остальной публичный трафик, автоматическое восстановление в день сброса)${PLAIN}"
+    echo -e "  3. Только запись в лог ${YELLOW}(тестовый режим)${PLAIN}"
+    read_trimmed action_choice "Выберите действие (по умолчанию 1): "
     case "${action_choice:-1}" in
         2)
             traffic_guard_ssh_only_firewall_supported || {
-                echo -e "${RED}❌ 缺少 iptables，或启用 IPv6 时缺少 ip6tables，无法安全启用仅保留 SSH 模式。${PLAIN}"
+                echo -e "${RED}❌ Отсутствует iptables, или при включённом IPv6 отсутствует ip6tables, невозможно безопасно включить режим "только SSH".${PLAIN}"
                 pause_return
                 return 1
             }
             ssh_port=$(traffic_guard_detect_ssh_port) || {
-                echo -e "${RED}❌ 未检测到唯一可用的 SSH 监听端口，无法安全启用仅保留 SSH 模式。${PLAIN}"
+                echo -e "${RED}❌ Не удалось определить уникальный прослушиваемый SSH-порт, невозможно безопасно включить режим "только SSH".${PLAIN}"
                 pause_return
                 return 1
             }
@@ -19450,33 +19441,33 @@ configure_traffic_guard() {
     esac
 
     echo -e "------------------------------------------------"
-    echo -e "网卡：${CYAN}${iface}${PLAIN}"
-    echo -e "阈值：${YELLOW}${limit_gb}GB${PLAIN}，本周期初始已用：${initial_used_gb}GB"
-    echo -e "模式：${CYAN}$(traffic_guard_mode_label "$mode")${PLAIN}"
-    echo -e "周期：每月 ${cycle_day} 日重置（短月份按最后一天）；检查间隔：${interval}s；预警：${warn_percent}%"
-    echo -e "动作：${RED}$(traffic_guard_action_label "$action")${PLAIN}"
-    [[ "$action" == "ssh-only" ]] && echo -e "保留 SSH：${CYAN}${ssh_port}/tcp${PLAIN}；其余公网业务流量会被临时封锁，必要网络控制流量仍保留。"
+    echo -e "Интерфейс: ${CYAN}${iface}${PLAIN}"
+    echo -e "Порог: ${YELLOW}${limit_gb}ГБ${PLAIN}, начальное использование в периоде: ${initial_used_gb}ГБ"
+    echo -e "Режим: ${CYAN}$(traffic_guard_mode_label "$mode")${PLAIN}"
+    echo -e "Период: сброс ${cycle_day}-го числа каждого месяца (в коротких месяцах последний день); интервал: ${interval}с; предупреждение: ${warn_percent}%"
+    echo -e "Действие: ${RED}$(traffic_guard_action_label "$action")${PLAIN}"
+    [[ "$action" == "ssh-only" ]] && echo -e "Оставляется SSH: ${CYAN}${ssh_port}/tcp${PLAIN}; остальной публичный трафик временно блокируется, необходимый управляющий сетевой трафик сохраняется."
 
     if [[ "$action" == "poweroff" ]]; then
-        confirm_danger "启用流量达量自动关机" \
-            "安装 vps-traffic-guard systemd timer；达到阈值会执行 systemctl poweroff。" \
-            "从云厂商控制台手动开机；开机后进入本菜单调整阈值、重置基线或停用保护。" \
-            "建议阈值低于套餐上限，并确认云厂商后台流量口径。" || return 1
+        confirm_danger "Включить автоматическое выключение при превышении трафика" \
+            "Установка systemd timer vps-traffic-guard; при достижении порога выполняется systemctl poweroff." \
+            "Вручную включите сервер через консоль провайдера; после включения настройте порог, сбросьте базовую линию или отключите защиту в этом меню." \
+            "Рекомендуется устанавливать порог ниже лимита тарифа и проверять статистику в панели провайдера." || return 1
     elif [[ "$action" == "ssh-only" ]]; then
-        confirm_danger "启用达量后仅保留 SSH" \
-            "达到阈值后，保留 ${ssh_port}/tcp 的 SSH 和必要网络控制流量；其他公网业务流量会被临时封锁。" \
-            "下个账单重置日自动解除封锁；也可在本菜单重置基线或停用保护来立即解除。" \
-            "SSH 端口必须保持可用；云厂商安全组和 SSH 服务异常仍可能导致无法登录。" || return 1
+        confirm_danger "Включить режим "только SSH" при превышении" \
+            "При достижении порога оставляется только SSH-порт ${ssh_port}/tcp и необходимый управляющий трафик; остальной публичный трафик блокируется." \
+            "Блокировка автоматически снимается в день сброса тарифа; также можно сбросить базовую линию или отключить защиту в этом меню для немедленного снятия." \
+            "SSH-порт должен быть доступен; если группа безопасности облака или служба SSH недоступны, вход может быть невозможен." || return 1
     fi
 
     traffic_guard_restore_ssh_only_firewall || {
-        echo -e "${RED}❌ 无法解除上一周期的仅保留 SSH 封锁规则，已取消重新配置。${PLAIN}"
+        echo -e "${RED}❌ Не удалось снять блокировку "только SSH" с предыдущего периода, переконфигурация отменена.${PLAIN}"
         pause_return
         return 1
     }
 
     write_traffic_guard_config "$iface" "$mode" "$limit_gb" "$limit_bytes" "$cycle_day" "$warn_percent" "$action" "$initial_used_gb" "$initial_used_bytes" "$interval" "$ssh_port" || {
-        echo -e "${RED}❌ 写入配置失败。${PLAIN}"
+        echo -e "${RED}❌ Ошибка записи конфигурации.${PLAIN}"
         pause_return
         return 1
     }
@@ -19485,20 +19476,20 @@ configure_traffic_guard() {
         return 1
     }
     traffic_guard_write_state_baseline "$iface" "$cycle_day" "$initial_used_bytes" "$mode" || {
-        echo -e "${RED}❌ 写入流量保护基线失败。${PLAIN}"
+        echo -e "${RED}❌ Ошибка записи базовой линии защиты трафика.${PLAIN}"
         pause_return
         return 1
     }
     install_traffic_guard_units "$interval" || {
-        echo -e "${RED}❌ 启用 systemd timer 失败，请检查 systemd 状态。${PLAIN}"
+        echo -e "${RED}❌ Ошибка включения systemd timer, проверьте состояние systemd.${PLAIN}"
         pause_return
         return 1
     }
 
     /usr/bin/env bash "$TRAFFIC_GUARD_CHECKER" >/dev/null 2>&1 || true
     reset_traffic_guard_failed_state
-    echo -e "${GREEN}✅ 流量达量保护已启用。${PLAIN}"
-    echo -e "${YELLOW}状态可在本菜单 [2] 查看；日志：${TRAFFIC_GUARD_LOG}${PLAIN}"
+    echo -e "${GREEN}✅ Защита от превышения трафика включена.${PLAIN}"
+    echo -e "${YELLOW}Статус можно посмотреть в этом меню [2]; лог: ${TRAFFIC_GUARD_LOG}${PLAIN}"
     pause_return
 }
 
@@ -19506,7 +19497,7 @@ reset_traffic_guard_baseline() {
     local iface mode cycle_day initial_used_gb initial_used_bytes
     local detected_used_bytes detected_used_gb
     load_traffic_guard_config || {
-        echo -e "${YELLOW}尚未配置流量达量保护。${PLAIN}"
+        echo -e "${YELLOW}Защита от превышения трафика не настроена.${PLAIN}"
         pause_return
         return 1
     }
@@ -19514,43 +19505,43 @@ reset_traffic_guard_baseline() {
     mode="${MODE:-tx}"
     cycle_day="${CYCLE_DAY:-1}"
     traffic_guard_valid_iface "$iface" || {
-        echo -e "${RED}❌ 当前配置的网卡 ${iface} 不可读。${PLAIN}"
+        echo -e "${RED}❌ Настроенный интерфейс ${iface} не доступен для чтения.${PLAIN}"
         pause_return
         return 1
     }
     detected_used_bytes=$(traffic_guard_detect_initial_used_bytes "$iface" "$mode" "$cycle_day")
     detected_used_gb=$(traffic_guard_bytes_to_gb "$detected_used_bytes")
-    echo -e "默认初始已用按当前网卡原始计数和计费模式估算：${CYAN}$(traffic_guard_human_bytes "$detected_used_bytes")${PLAIN}"
-    initial_used_gb=$(ask_with_default "重置后本周期已用流量 GB" "$detected_used_gb")
+    echo -e "Начальное использование по умолчанию оценивается по текущим счётчикам и режиму: ${CYAN}$(traffic_guard_human_bytes "$detected_used_bytes")${PLAIN}"
+    initial_used_gb=$(ask_with_default "Использовано в текущем периоде после сброса (ГБ)" "$detected_used_gb")
     if ! initial_used_bytes=$(traffic_guard_gb_to_bytes_zero_ok "$initial_used_gb" 2>/dev/null); then
-        echo -e "${RED}❌ 已用流量无效。${PLAIN}"
+        echo -e "${RED}❌ Неверное использование.${PLAIN}"
         pause_return
         return 1
     fi
-    confirm_risk_action "重置流量保护基线" \
-        "本周期统计会从当前网卡计数重新开始，初始已用设置为 ${initial_used_gb}GB。" \
-        "重新进入本菜单再次重置基线，或参考云厂商后台手动修正已用流量。" \
-        "请只在账单周期开始、刚配置完成或确认云厂商统计后执行。" || return 1
+    confirm_risk_action "Сбросить базовую линию защиты трафика" \
+        "Статистика текущего периода будет пересчитана от текущих счётчиков, начальное использование установлено в ${initial_used_gb} ГБ." \
+        "Вернитесь в это меню и снова сбросьте базовую линию, или скорректируйте использование вручную по данным облачного провайдера." \
+        "Выполняйте только в начале периода биллинга, после настройки или при подтверждении статистики провайдера." || return 1
 
     traffic_guard_restore_ssh_only_firewall || {
-        echo -e "${RED}❌ 无法解除仅保留 SSH 封锁规则，未重置统计基线。${PLAIN}"
+        echo -e "${RED}❌ Не удалось снять блокировку "только SSH", статистика не сброшена.${PLAIN}"
         pause_return
         return 1
     }
     traffic_guard_write_state_baseline "$iface" "$cycle_day" "$initial_used_bytes" "$mode" || {
-        echo -e "${RED}❌ 写入流量保护基线失败。${PLAIN}"
+        echo -e "${RED}❌ Ошибка записи базовой линии защиты трафика.${PLAIN}"
         pause_return
         return 1
     }
-    echo -e "${GREEN}✅ 已重置 ${iface} 的流量统计基线。${PLAIN}"
-    echo -e "当前模式：${CYAN}$(traffic_guard_mode_label "$mode")${PLAIN}；本周期已用：$(traffic_guard_human_bytes "$initial_used_bytes")"
+    echo -e "${GREEN}✅ Базовая линия трафика для ${iface} сброшена.${PLAIN}"
+    echo -e "Текущий режим: ${CYAN}$(traffic_guard_mode_label "$mode")${PLAIN}; использовано в периоде: $(traffic_guard_human_bytes "$initial_used_bytes")"
     pause_return
 }
 
 repair_traffic_guard_timer() {
     local interval
     load_traffic_guard_config || {
-        echo -e "${YELLOW}尚未配置流量达量保护。${PLAIN}"
+        echo -e "${YELLOW}Защита от превышения трафика не настроена.${PLAIN}"
         pause_return
         return 1
     }
@@ -19560,15 +19551,15 @@ repair_traffic_guard_timer() {
     fi
 
     if [[ "${ACTION:-poweroff}" == "poweroff" ]]; then
-        confirm_danger "修复流量保护自动检查 timer" \
-            "会重新安装 vps-traffic-guard-check 和 systemd timer，恢复后会按 ${interval}s 周期检查。" \
-            "如果当前实时估算已经达到阈值，下一次检查可能会执行 systemctl poweroff。" \
-            "请先确认云厂商后台流量、阈值和当前 SSH/控制台救援方式。" || return 1
+        confirm_danger "Восстановить автоматический проверяющий timer защиты трафика" \
+            "Будет переустановлен vps-traffic-guard-check и systemd timer, после восстановления проверка будет выполняться каждые ${interval}с." \
+            "Если текущая оценка уже достигла порога, следующая проверка может выполнить systemctl poweroff." \
+            "Сначала убедитесь в статистике облачного провайдера, пороге и способе восстановления через SSH/консоль." || return 1
     else
-        confirm_risk_action "修复流量保护自动检查 timer" \
-            "会重新安装 vps-traffic-guard-check 和 systemd timer，恢复后会按 ${interval}s 周期检查。" \
-            "当前动作是 ${ACTION:-log}，达到阈值时只按配置动作执行。" \
-            "修复后请回到状态页确认最近检查时间开始刷新。" || return 1
+        confirm_risk_action "Восстановить автоматический проверяющий timer защиты трафика" \
+            "Будет переустановлен vps-traffic-guard-check и systemd timer, после восстановления проверка будет выполняться каждые ${interval}с." \
+            "Текущее действие: ${ACTION:-log}, при достижении порога будет выполнено только соответствующее действие." \
+            "После восстановления проверьте страницу состояния, чтобы убедиться, что время последней проверки обновляется." || return 1
     fi
 
     traffic_guard_install_checker_or_report || {
@@ -19576,39 +19567,39 @@ repair_traffic_guard_timer() {
         return 1
     }
     install_traffic_guard_units "$interval" || {
-        echo -e "${RED}❌ 启用 systemd timer 失败，请检查 systemd 状态。${PLAIN}"
+        echo -e "${RED}❌ Ошибка включения systemd timer, проверьте состояние systemd.${PLAIN}"
         pause_return
         return 1
     }
     systemctl restart vps-traffic-guard.timer >/dev/null 2>&1 || true
     reset_traffic_guard_failed_state
-    echo -e "${GREEN}✅ 已重装并重启 vps-traffic-guard.timer。${PLAIN}"
-    echo -e "${CYAN}▶ 正在立即运行一次检查器，验证状态文件是否刷新...${PLAIN}"
+    echo -e "${GREEN}✅ vps-traffic-guard.timer переустановлен и перезапущен.${PLAIN}"
+    echo -e "${CYAN}▶ Немедленный запуск проверяющего скрипта для проверки обновления файла состояния...${PLAIN}"
     if traffic_guard_run_checker_once; then
-        echo -e "${GREEN}✅ 已重装 timer，并确认检查器可以刷新状态。${PLAIN}"
+        echo -e "${GREEN}✅ Timer переустановлен, проверяющий скрипт может обновлять состояние.${PLAIN}"
     else
-        echo -e "${RED}❌ timer 已重装，但检查器仍未刷新状态。下面是可直接排查的上下文：${PLAIN}"
+        echo -e "${RED}❌ Timer переустановлен, но проверяющий скрипт всё ещё не обновляет состояние. Ниже контекст для диагностики:${PLAIN}"
         traffic_guard_print_timer_failure_context
         pause_return
         return 1
     fi
-    echo -e "${YELLOW}后续可回到 [2] 查看状态；如果再次过期，用 [7] 可立即验证检查器。${PLAIN}"
+    echo -e "${YELLOW}Затем вернитесь в [2] для просмотра состояния; если оно снова устареет, используйте [7] для немедленной проверки скрипта.${PLAIN}"
     systemctl list-timers --all vps-traffic-guard.timer --no-pager 2>/dev/null || true
     pause_return
 }
 
 disable_traffic_guard() {
     if ! systemctl list-unit-files vps-traffic-guard.timer >/dev/null 2>&1 && [[ ! -f "$TRAFFIC_GUARD_CONFIG" ]]; then
-        echo -e "${YELLOW}未检测到流量保护配置。${PLAIN}"
+        echo -e "${YELLOW}Конфигурация защиты трафика не обнаружена.${PLAIN}"
         pause_return
         return 0
     fi
-    confirm_risk_action "停用流量达量保护" \
-        "vps-traffic-guard.timer 会停止，达到流量阈值后不再执行配置的动作。" \
-        "重新进入本菜单选择 [1] 启用保护。" \
-        "停用后请自行监控云厂商流量，避免超额账单。" || return 1
+    confirm_risk_action "Отключить защиту от превышения трафика" \
+        "vps-traffic-guard.timer будет остановлен, при достижении порога действие выполняться не будет." \
+        "Снова включите защиту через [1] в этом меню." \
+        "После отключения самостоятельно следите за трафиком через облачного провайдера, чтобы избежать превышения лимита." || return 1
     traffic_guard_restore_ssh_only_firewall || {
-        echo -e "${RED}❌ 无法解除仅保留 SSH 封锁规则，未停用保护。${PLAIN}"
+        echo -e "${RED}❌ Не удалось снять блокировку "только SSH", защита не отключена.${PLAIN}"
         pause_return
         return 1
     }
@@ -19618,7 +19609,7 @@ disable_traffic_guard() {
     if [[ -f "$TRAFFIC_GUARD_CONFIG" ]]; then
         sed -i 's/^ENABLED=.*/ENABLED=0/' "$TRAFFIC_GUARD_CONFIG" 2>/dev/null || true
     fi
-    echo -e "${GREEN}✅ 已停用流量达量保护，配置文件仍保留：${TRAFFIC_GUARD_CONFIG}${PLAIN}"
+    echo -e "${GREEN}✅ Защита от превышения трафика отключена, файл конфигурации сохранён: ${TRAFFIC_GUARD_CONFIG}${PLAIN}"
     pause_return
 }
 
@@ -19626,25 +19617,25 @@ func_traffic_guard_menu() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "网络/内核优化 > 流量达量保护"
-        echo -e "${BOLD}🧯 流量达量保护${PLAIN}"
+        print_breadcrumb "Сеть/оптимизация ядра > Защита от превышения трафика"
+        echo -e "${BOLD}🧯 Защита от превышения трафика${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}达到套餐安全阈值后可自动关机或仅保留 SSH，优先防止刷流量造成天价账单。${PLAIN}"
-        echo -e "${YELLOW}推荐阈值低于云厂商套餐上限，并按出站 TX 或总量模式保守配置。${PLAIN}"
+        echo -e "${YELLOW}При достижении безопасного порога тарифа можно автоматически выключить сервер или оставить только SSH, чтобы предотвратить огромные счета.${PLAIN}"
+        echo -e "${YELLOW}Рекомендуется устанавливать порог ниже лимита тарифа и использовать консервативный режим (исходящий или общий).${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}  1. 配置 / 启用保护${PLAIN}"
-        echo -e "${GREEN}  2. 查看状态与已用量${PLAIN}"
-        echo -e "${GREEN}  3. 重置本周期统计基线${PLAIN}"
-        echo -e "${YELLOW}  4. 停用保护${PLAIN}"
-        echo -e "${GREEN}  5. 查看最近日志${PLAIN}"
-        echo -e "${GREEN}  6. 修复/重装自动检查 timer${PLAIN}"
-        echo -e "${GREEN}  7. 立即同步/验证检查器${PLAIN}"
+        echo -e "${GREEN}  1. Настроить / включить защиту${PLAIN}"
+        echo -e "${GREEN}  2. Просмотреть статус и использованный трафик${PLAIN}"
+        echo -e "${GREEN}  3. Сбросить базовую линию статистики текущего периода${PLAIN}"
+        echo -e "${YELLOW}  4. Отключить защиту${PLAIN}"
+        echo -e "${GREEN}  5. Просмотреть последние логи${PLAIN}"
+        echo -e "${GREEN}  6. Восстановить/переустановить автоматический timer проверки${PLAIN}"
+        echo -e "${GREEN}  7. Немедленная синхронизация/проверка${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${RED}  0. 返回上一级 / q 返回${PLAIN}"
+        echo -e "${RED}  0. Вернуться на уровень выше / q${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local choice
-        read_trimmed choice "👉 请选择操作: "
+        read_trimmed choice "👉 Выберите действие: "
         case "$choice" in
             1) configure_traffic_guard ;;
             2) show_traffic_guard_status; pause_return ;;
@@ -19652,13 +19643,13 @@ func_traffic_guard_menu() {
             4) disable_traffic_guard ;;
             5)
                 echo -e "${CYAN}--- ${TRAFFIC_GUARD_LOG} ---${PLAIN}"
-                tail -n 30 "$TRAFFIC_GUARD_LOG" 2>/dev/null || echo "暂无日志"
+                tail -n 30 "$TRAFFIC_GUARD_LOG" 2>/dev/null || echo "Логов пока нет"
                 pause_return
                 ;;
             6) repair_traffic_guard_timer ;;
             7) sync_traffic_guard_now; pause_return ;;
             0|q|Q) break ;;
-            *) echo -e "${RED}❌ 无效选择！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
@@ -19667,7 +19658,7 @@ func_traffic_guard_menu() {
 # Module: network_interface.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Network interface overview and operational controls.
+# Обзор сетевых интерфейсов и оперативные управляющие функции.
 
 network_iface_exists() {
     local iface="$1"
@@ -19689,19 +19680,19 @@ network_iface_is_default_route() {
 network_choose_iface() {
     local default_iface iface
     default_iface=$(traffic_guard_detect_iface)
-    iface=$(ask_with_default "网卡名称" "${default_iface:-eth0}")
+    iface=$(ask_with_default "Имя интерфейса" "${default_iface:-eth0}")
     if ! network_iface_exists "$iface"; then
-        echo -e "${RED}❌ 网卡 ${iface} 不存在。${PLAIN}" >&2
+        echo -e "${RED}❌ Интерфейс ${iface} не существует.${PLAIN}" >&2
         return 1
     fi
     printf '%s' "$iface"
 }
 
 network_show_overview() {
-    echo -e "${CYAN}--- 网卡地址 ---${PLAIN}"
+    echo -e "${CYAN}--- Адреса интерфейсов ---${PLAIN}"
     ip -br addr 2>/dev/null || ip addr
     echo ""
-    echo -e "${CYAN}--- 默认路由 ---${PLAIN}"
+    echo -e "${CYAN}--- Маршруты по умолчанию ---${PLAIN}"
     ip route show default 2>/dev/null || true
     ip -6 route show default 2>/dev/null || true
     echo ""
@@ -19716,14 +19707,14 @@ network_show_overview() {
 network_show_iface_detail() {
     local iface
     iface=$(network_choose_iface) || return 1
-    echo -e "${CYAN}--- ${iface} 链路详情 ---${PLAIN}"
+    echo -e "${CYAN}--- Детали канала ${iface} ---${PLAIN}"
     ip -d link show dev "$iface" 2>/dev/null || ip link show dev "$iface"
     echo ""
-    echo -e "${CYAN}--- ${iface} 流量统计 ---${PLAIN}"
+    echo -e "${CYAN}--- Статистика трафика ${iface} ---${PLAIN}"
     ip -s link show dev "$iface" 2>/dev/null || true
     if command -v ethtool >/dev/null 2>&1; then
         echo ""
-        echo -e "${CYAN}--- ${iface} 驱动/速率 ---${PLAIN}"
+        echo -e "${CYAN}--- Драйвер/скорость ${iface} ---${PLAIN}"
         ethtool "$iface" 2>/dev/null | sed -n '1,40p' || true
     fi
 }
@@ -19735,48 +19726,48 @@ network_set_iface_state() {
     if [[ "$state" == "down" ]]; then
         local default_hint=""
         if network_iface_is_default_route "$iface"; then
-            default_hint="当前网卡承载默认路由，关闭后 SSH 大概率会断开。"
+            default_hint="Этот интерфейс является маршрутом по умолчанию, его отключение, скорее всего, разорвёт SSH-соединение."
         else
-            default_hint="关闭网卡会影响该网卡上的所有连接。"
+            default_hint="Отключение интерфейса повлияет на все соединения через этот интерфейс."
         fi
-        confirm_danger "关闭网卡 ${iface}" \
-            "网卡 ${iface} 链路状态" \
-            "通过云厂商控制台或本菜单重新启用网卡" \
+        confirm_danger "Отключить интерфейс ${iface}" \
+            "Состояние канала интерфейса ${iface}" \
+            "Включите интерфейс через консоль провайдера или это меню" \
             "${default_hint}" || return 1
     fi
     ip link set dev "$iface" "$state" || {
-        echo -e "${RED}❌ 设置 ${iface} ${state} 失败。${PLAIN}"
+        echo -e "${RED}❌ Не удалось установить ${iface} в состояние ${state}.${PLAIN}"
         return 1
     }
-    echo -e "${GREEN}✅ 已设置 ${iface}: ${state}${PLAIN}"
+    echo -e "${GREEN}✅ Интерфейс ${iface} установлен в состояние: ${state}${PLAIN}"
 }
 
 network_set_iface_mtu() {
     local iface mtu
     iface=$(network_choose_iface) || return 1
-    read_trimmed mtu "请输入临时 MTU（576-9000，重启后可能恢复）: "
+    read_trimmed mtu "Введите временный MTU (576-9000, после перезагрузки может сброситься): "
     if ! [[ "$mtu" =~ ^[0-9]+$ ]] || (( 10#$mtu < 576 || 10#$mtu > 9000 )); then
-        echo -e "${RED}❌ MTU 无效。${PLAIN}"
+        echo -e "${RED}❌ Неверный MTU.${PLAIN}"
         return 1
     fi
-    confirm_risk_action "设置 ${iface} MTU 为 ${mtu}" \
-        "网卡 ${iface} 的运行时 MTU" \
-        "重新设置原 MTU，或重启网络/系统恢复云厂商默认值" \
-        "错误 MTU 可能导致部分网站或隧道访问异常。" || return 1
+    confirm_risk_action "Установить MTU ${iface} в ${mtu}" \
+        "Текущий MTU интерфейса ${iface}" \
+        "Установите прежний MTU или перезагрузите сеть/систему для восстановления значений провайдера" \
+        "Неверный MTU может вызвать проблемы с доступом к некоторым сайтам или туннелям." || return 1
     ip link set dev "$iface" mtu "$mtu" || {
-        echo -e "${RED}❌ 设置 MTU 失败。${PLAIN}"
+        echo -e "${RED}❌ Не удалось установить MTU.${PLAIN}"
         return 1
     }
-    echo -e "${GREEN}✅ ${iface} MTU 已临时设置为 ${mtu}${PLAIN}"
+    echo -e "${GREEN}✅ MTU интерфейса ${iface} временно установлен в ${mtu}${PLAIN}"
 }
 
 network_renew_dhcp() {
     local iface
     iface=$(network_choose_iface) || return 1
-    confirm_danger "刷新 ${iface} DHCP 租约" \
-        "网卡 ${iface} 的地址租约/网络连接" \
-        "通过云厂商控制台重连，或重启系统恢复网络" \
-        "如果这是当前 SSH 使用的公网网卡，刷新租约可能短暂断开连接。" || return 1
+    confirm_danger "Обновить DHCP-аренду на ${iface}" \
+        "Сетевой адрес/подключение интерфейса ${iface}" \
+        "Восстановите подключение через консоль провайдера или перезагрузите систему" \
+        "Если это публичный интерфейс, используемый для SSH, обновление аренды может временно разорвать соединение." || return 1
     if command -v dhclient >/dev/null 2>&1; then
         dhclient -r "$iface" >/dev/null 2>&1 || true
         dhclient "$iface" || return 1
@@ -19785,32 +19776,32 @@ network_renew_dhcp() {
     elif command -v nmcli >/dev/null 2>&1; then
         nmcli device reapply "$iface" || nmcli device connect "$iface" || return 1
     else
-        echo -e "${YELLOW}⚠️ 未检测到 dhclient/networkctl/nmcli，无法自动刷新 DHCP。${PLAIN}"
+        echo -e "${YELLOW}⚠️ dhclient/networkctl/nmcli не обнаружены, автоматическое обновление DHCP невозможно.${PLAIN}"
         return 1
     fi
-    echo -e "${GREEN}✅ 已尝试刷新 ${iface} 的 DHCP/网络连接。${PLAIN}"
+    echo -e "${GREEN}✅ Попытка обновления DHCP/сети для ${iface} выполнена.${PLAIN}"
 }
 
 func_network_interface_manage() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "网络/内核优化 > 网卡管理工具"
-        echo -e "${BOLD}🧰 网卡管理工具${PLAIN}"
+        print_breadcrumb "Сеть/оптимизация ядра > Инструменты управления интерфейсами"
+        echo -e "${BOLD}🧰 Инструменты управления интерфейсами${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}用途：查看网卡、路由、DNS 和链路状态；危险操作会要求确认。${PLAIN}"
+        echo -e "${YELLOW}Назначение: просмотр интерфейсов, маршрутов, DNS и состояния каналов; опасные операции требуют подтверждения.${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}  1. 查看网卡 / 路由 / DNS 概览${PLAIN}"
-        echo -e "${GREEN}  2. 查看指定网卡详情与流量统计${PLAIN}"
-        echo -e "${GREEN}  3. 启用指定网卡${PLAIN}"
-        echo -e "${RED}  4. 关闭指定网卡${PLAIN}"
-        echo -e "${YELLOW}  5. 临时设置网卡 MTU${PLAIN}"
-        echo -e "${YELLOW}  6. 刷新 DHCP/网络连接${PLAIN}"
+        echo -e "${GREEN}  1. Обзор интерфейсов / маршрутов / DNS${PLAIN}"
+        echo -e "${GREEN}  2. Детали указанного интерфейса и статистика трафика${PLAIN}"
+        echo -e "${GREEN}  3. Включить интерфейс${PLAIN}"
+        echo -e "${RED}  4. Отключить интерфейс${PLAIN}"
+        echo -e "${YELLOW}  5. Временно установить MTU интерфейса${PLAIN}"
+        echo -e "${YELLOW}  6. Обновить DHCP/сетевое подключение${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${RED}  0. 返回上一级 / q 返回${PLAIN}"
+        echo -e "${RED}  0. Вернуться на уровень выше / q${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
         local choice
-        read_trimmed choice "👉 请选择操作: "
+        read_trimmed choice "👉 Выберите действие: "
         case "$choice" in
             1) network_show_overview; pause_return ;;
             2) network_show_iface_detail; pause_return ;;
@@ -19819,147 +19810,147 @@ func_network_interface_manage() {
             5) network_set_iface_mtu; pause_return ;;
             6) network_renew_dhcp; pause_return ;;
             0|q|Q) break ;;
-            *) echo -e "${RED}❌ 无效选择！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
 
 # ---------------------------------------------------------
-# 24. 网络加速与内核优化菜单 (二级直达)
+# 24. Меню сетевого ускорения и оптимизации ядра (второй уровень)
 # ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # Module: menus.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Help text plus top-level and second-level menu wiring.
+# Текст помощи и соединение главного и второго уровней меню.
 
 show_main_help() {
-    echo -e "${CYAN}VPS-Optimize > 主菜单 > 帮助${PLAIN}"
-    echo "1/2 适合新机器先体检和初始化。"
-    echo "3   基础组件与常用服务；安装 Docker、Python、WARP 和常用工具。"
-    echo "4   反代（Caddy/Nginx）；适合未接入 443 单入口的网站/面板反代。"
-    echo "5   管理 3x-ui、S-UI、Sing-box、Xray 和订阅工具。"
-    echo "6   SSH 安全中心；管理端口、公钥和用户密钥登录模式。"
-    echo "8   管理系统防火墙；支持端口放行、删除和每来源 IP 连接数限制。"
-    echo "10  网络/内核优化；涉及 BBR、TCP、ZRAM 和内核清理。"
-    echo "15  健康总览和反馈诊断信息，用于排错或提交 Issue。"
-    echo "16  备份与回滚，高风险操作前建议先跑。"
-    echo "19  443 单入口管理中心，面板/订阅/REALITY 共用公网 443。"
-    echo "10 -> 5  流量达量保护，按账单周期防刷流量和超额账单。"
-    echo "xcm 直达 x-ui 增强套件；也可走 5 -> 2。"
-    echo "? 查看帮助，0/q 退出。"
+    echo -e "${CYAN}VPS-Optimize > Главное меню > Справка${PLAIN}"
+    echo "1/2 Подходит для первичной проверки и инициализации нового сервера."
+    echo "3   Базовые компоненты и часто используемые службы; установка Docker, Python, WARP и полезных утилит."
+    echo "4   Обратный прокси (Caddy/Nginx); подходит для сайтов/панелей, не подключенных к единому входу 443."
+    echo "5   Управление 3x-ui, S-UI, Sing-box, Xray и инструментами подписки."
+    echo "6   Центр безопасности SSH; управление портами, открытыми ключами и режимом входа по ключам пользователей."
+    echo "8   Управление системным брандмауэром; поддержка открытия портов, удаления и ограничения числа соединений с каждого IP-адреса."
+    echo "10  Оптимизация сети/ядра; включает BBR, TCP, ZRAM и очистку ядер."
+    echo "15  Общий обзор состояния и диагностическая информация для отладки или отправки Issue."
+    echo "16  Резервное копирование и откат, рекомендуется выполнять перед операциями с высоким риском."
+    echo "19  Центр управления единым входом 443, общий публичный порт 443 для панелей/подписок/REALITY."
+    echo "10 -> 5  Защита от превышения трафика, предотвращение накрутки трафика и превышения счетов по биллинговому периоду."
+    echo "xcm прямой доступ к расширенному набору x-ui; также можно через 5 -> 2."
+    echo "? Показать справку, 0/q выход."
 }
 
 show_beginner_help() {
-    echo -e "${CYAN}VPS-Optimize > 新手向导 > 帮助${PLAIN}"
-    echo "1 新机器初始化：按安全顺序引导预检、初始化、SSH、公钥、Fail2ban、防火墙、备份。"
-    echo "2 安装面板/节点：进入面板、节点与订阅工具菜单。"
-    echo "3 配置 443 单入口：进入 443 管理中心，适合面板、订阅和 REALITY 共用 443。"
-    echo "4 健康检查：查看服务、端口、证书，并可生成反馈诊断信息。"
-    echo "5 备份/回滚：创建备份或从已有备份恢复。"
-    echo "? 查看帮助，0/q 返回主菜单。"
+    echo -e "${CYAN}VPS-Optimize > Новичок-гид > Справка${PLAIN}"
+    echo "1 Инициализация нового сервера: пошаговое выполнение в безопасном порядке: предпроверка, инициализация, SSH, открытые ключи, Fail2ban, брандмауэр, резервное копирование."
+    echo "2 Установка панели/узла: переход в меню панелей, узлов и инструментов подписки."
+    echo "3 Настройка единого входа 443: переход в центр управления 443, подходит для совместного использования 443 панелями, подписками и REALITY."
+    echo "4 Проверка состояния: просмотр служб, портов, сертификатов, а также генерация диагностической информации для обратной связи."
+    echo "5 Резервное копирование/откат: создание резервной копии или восстановление из существующей."
+    echo "? Показать справку, 0/q вернуться в главное меню."
 }
 
 show_panel_help() {
-    echo -e "${CYAN}VPS-Optimize > 面板、节点与订阅工具 > 帮助${PLAIN}"
-    echo "1 3x-ui 面板脚本：安装、官方菜单、修复面板。"
-    echo "2 x-ui 增强套件：重置日期、流量校准、备份恢复和日志。"
-    echo "3 面板 SSL 修复，适合 443 接入前清空面板证书路径。"
-    echo "4 S-UI 面板脚本：安装、官方菜单、卸载。"
-    echo "5/6 Sing-box 脚本和 Xray 脚本。"
-    echo "7/8/9 订阅栈，11 Dockge Compose，12 Compose 迁移；公网 HTTPS：未启用 443 单入口走主菜单 [4 反代]，已启用走主菜单 [19 443 单入口管理中心] -> [8 管理 Web 域名/反代]。"
-    echo "16 dog 流量计，只看已监控端口实际跑过的流量。"
-    echo "? 查看帮助，0/q 返回主菜单。"
+    echo -e "${CYAN}VPS-Optimize > Панели, узлы и инструменты подписок > Справка${PLAIN}"
+    echo "1 Сценарий панели 3x-ui: установка, официальное меню, восстановление панели."
+    echo "2 Расширенный набор x-ui: сброс даты, калибровка трафика, восстановление из резервной копии и логи."
+    echo "3 Восстановление SSL панели, подходит для очистки пути сертификата панели перед подключением 443."
+    echo "4 Сценарий панели S-UI: установка, официальное меню, удаление."
+    echo "5/6 Сценарии Sing-box и Xray."
+    echo "7/8/9 Стек подписок, 11 Dockge Compose, 12 Миграция Compose; публичный HTTPS: если единый вход 443 не включен, используйте главное меню [4 Обратный прокси], если включен - главное меню [19 Центр управления единым входом 443] -> [8 Управление веб-доменами/прокси]."
+    echo "16 dog - измеритель трафика, показывает только фактический трафик на отслеживаемых портах."
+    echo "? Показать справку, 0/q вернуться в главное меню."
 }
 
 show_sni_help() {
-    echo -e "${CYAN}VPS-Optimize > 443 单入口管理中心 > 帮助${PLAIN}"
-    echo "1 查看当前入口状态 / 监听详情：显示公网 443、Web 反代引擎、Xray 和服务状态。"
-    echo "2 首次配置 / 安装：建立共享 Web 域名、Web 反代引擎、证书和默认 Nginx Stream 入口。"
-    echo "3/4/5 入口模式切换：在 Nginx Stream 模式、Xray Fallback 模式、TCP Peek + Splice 模式之间切换。"
-    echo "6 重新应用：按当前 ENTRY_MODE 重新生成并启动入口配置。"
-    echo "7 回滚：恢复上一次入口模式切换前的备份。"
-    echo "8 管理 Web 域名/反代：后续新增或删除网站，不需要重跑首次配置。"
-    echo "9 Web 域名 IP 白名单：只限制 Web 域名，不影响 Xray 节点。"
-    echo "10 修改 443 共享参数：调整面板、订阅、REALITY、入口端口与路径。"
-    echo "11 订阅链接 / External Proxy 提示：检查节点链接是否输出公网 443。"
-    echo "12 CF DNS / Caddy 证书维护：重签证书、修复软链接、清理和回滚。"
-    echo "13 链路体检：排查 ENTRY_MODE、监听、证书、Web 和 Xray 分流。"
-    echo "14 网络访问测试：检查 DNS、TCP、TLS SNI、面板和订阅路径响应。"
-    echo "15 Xray 入站管理：记录 SNI -> 本地地址:端口，不编辑 3x-ui/Xray 入站。"
-    echo "16 查看 TCP Peek + Splice 状态 / 8444 预检：展示 status.json 统计；预检只监听 8444，不改公网 443。"
-    echo "17 TCP Peek 分流规则校验：只检查配置，不重启入口。"
-    echo "18 查看 TCP Peek + Splice 日志：查看 vpso-mux 分流器日志。"
-    echo "修改面板域名请走主菜单 [19 443 单入口管理中心] -> [8 管理 Web 域名/反代] -> [9 修改面板域名]。"
-    echo "未接入 443 单入口时，用主菜单 [4 反代] -> [5] 管理 Caddy/Nginx 域名 IP 白名单。"
-    echo "? 查看帮助，0/q 返回主菜单。"
+    echo -e "${CYAN}VPS-Optimize > Центр управления единым входом 443 > Справка${PLAIN}"
+    echo "1 Просмотр текущего состояния входа / деталей прослушивания: отображает публичный 443, веб-прокси-движок, Xray и состояние служб."
+    echo "2 Первоначальная настройка / установка: создание общего веб-домена, веб-прокси-движка, сертификата и стандартного входа Nginx Stream."
+    echo "3/4/5 Переключение режимов входа: между Nginx Stream, Xray Fallback и TCP Peek + Splice."
+    echo "6 Повторное применение: перегенерировать и запустить конфигурацию входа согласно текущему ENTRY_MODE."
+    echo "7 Откат: восстановить резервную копию перед последним переключением режима входа."
+    echo "8 Управление веб-доменами/прокси: добавление или удаление сайтов в дальнейшем, не требуется повторная первоначальная настройка."
+    echo "9 Белый список IP для веб-доменов: ограничивает только веб-домены, не влияет на узлы Xray."
+    echo "10 Изменение общих параметров 443: настройка панелей, подписок, REALITY, портов входа и путей."
+    echo "11 Ссылки подписок / External Proxy: проверка, выводят ли ссылки узлов публичный порт 443."
+    echo "12 Обслуживание сертификатов CF DNS / Caddy: переподпись сертификатов, восстановление символических ссылок, очистка и откат."
+    echo "13 Проверка цепочки: диагностика ENTRY_MODE, прослушивания, сертификатов, веб- и Xray-маршрутизации."
+    echo "14 Тест сетевого доступа: проверка DNS, TCP, TLS SNI, ответов панели и путей подписки."
+    echo "15 Управление входящими Xray: запись SNI -> локальный адрес:порт, без редактирования входящих 3x-ui/Xray."
+    echo "16 Просмотр статуса TCP Peek + Splice / предпроверка 8444: отображает статистику status.json; предпроверка слушает только 8444, не меняет публичный 443."
+    echo "17 Проверка правил маршрутизации TCP Peek: только проверка конфигурации, без перезапуска входа."
+    echo "18 Просмотр логов TCP Peek + Splice: просмотр логов分流ера (маршрутизатора) vpso-mux."
+    echo "Для изменения домена панели используйте главное меню [19 Центр управления единым входом 443] -> [8 Управление веб-доменами/прокси] -> [9 Изменить домен панели]."
+    echo "Если единый вход 443 не подключен, используйте главное меню [4 Обратный прокси] -> [5] для управления белым списком IP для доменов Caddy/Nginx."
+    echo "? Показать справку, 0/q вернуться в главное меню."
 }
 
 show_backup_help() {
-    echo -e "${CYAN}VPS-Optimize > 备份与回滚 > 帮助${PLAIN}"
-    echo "1 创建备份：高风险操作前先用。"
-    echo "2 查看备份：确认可用备份和时间。"
-    echo "3 回滚：会覆盖当前配置，必须输入 yes 确认，大小写均可。"
-    echo "4 隔离旧备份：只移动到隔离目录，不直接删除。"
-    echo "5 查看/编辑脚本已应用配置：先备份，再按配置类型校验，可选择 reload/restart。"
-    echo "? 查看帮助，0/q 返回主菜单。"
+    echo -e "${CYAN}VPS-Optimize > Резервное копирование и откат > Справка${PLAIN}"
+    echo "1 Создать резервную копию: использовать перед операциями с высоким риском."
+    echo "2 Просмотр резервных копий: подтвердить доступные копии и время."
+    echo "3 Откат: перезаписывает текущую конфигурацию, необходимо ввести yes для подтверждения (регистр не важен)."
+    echo "4 Изолировать старые резервные копии: только переместить в карантинный каталог, без непосредственного удаления."
+    echo "5 Просмотр/редактирование применённой конфигурации скрипта: сначала резервное копирование, затем проверка по типу конфигурации, возможен выбор reload/restart."
+    echo "? Показать справку, 0/q вернуться в главное меню."
 }
 
 show_net_kernel_help() {
-    echo -e "${CYAN}VPS-Optimize > 网络/内核优化 > 帮助${PLAIN}"
-    echo "1 BBR / 拥塞控制：调用外部调优脚本，执行前建议备份。"
-    echo "2 TCP 参数：修改 sysctl，适合有明确参数需求的用户。"
-    echo "3 DNS 更改优化：国内/国外默认 DNS，也支持自定义 IPv4 和 IPv6。"
-    echo "4 网卡管理工具：查看网卡、路由、DNS，临时调整 MTU 或刷新 DHCP。"
-    echo "5 流量达量保护：按网卡流量和账单周期自动关机或仅保留 SSH，防止超额账单。"
-    echo "6 ZRAM / Swap：适合小内存 VPS。"
-    echo "7 安装/切换内核：高风险，必须确认快照和救援控制台可用。"
-    echo "8 清理旧内核：不要删除当前内核和云厂商定制内核。"
-    echo "? 查看帮助，0/q 返回主菜单。"
+    echo -e "${CYAN}VPS-Optimize > Сеть/Оптимизация ядра > Справка${PLAIN}"
+    echo "1 BBR / Управление перегрузками: вызов внешнего скрипта настройки, перед выполнением рекомендуется резервное копирование."
+    echo "2 Параметры TCP: изменение sysctl, подходит для пользователей с конкретными требованиями к параметрам."
+    echo "3 Оптимизация DNS: выбор DNS по умолчанию для Китая/мира, также поддерживается пользовательский IPv4 и IPv6."
+    echo "4 Инструменты управления сетевыми интерфейсами: просмотр интерфейсов, маршрутов, DNS, временная настройка MTU или обновление DHCP."
+    echo "5 Защита от превышения трафика: автоматическое выключение или сохранение только SSH в зависимости от трафика интерфейса и биллингового периода, предотвращение превышения счетов."
+    echo "6 ZRAM / Swap: подходит для VPS с малым объёмом памяти."
+    echo "7 Установка/переключение ядра: высокий риск, необходимо подтвердить наличие снимков и консоли восстановления."
+    echo "8 Очистка старых ядер: не удалять текущее ядро и кастомные ядра от провайдера."
+    echo "? Показать справку, 0/q вернуться в главное меню."
 }
 
 show_health_help() {
-    echo -e "${CYAN}VPS-Optimize > 诊断/健康检查 > 帮助${PLAIN}"
-    echo "健康总览会检查关键服务、监听端口和证书摘要。"
-    echo "如果存在脚本添加的 connlimit 规则，也会显示持久化后端、运行时/保存文件一致性和重启风险提示。"
-    echo "健康总览会显示日志容量摘要；输入 p 可做配置、状态和日志文件权限体检，输入 P 可确认后修复。"
-    echo "输入 s 可进入服务恢复，支持重启常用/失败服务、清除失败状态和设置失败自动重启。"
-    echo "系统硬件探针会附带 443、Caddy、3x-ui、订阅工具和 Docker 场景概览。"
-    echo "生成反馈诊断信息用于提交 GitHub Issue，会尽量避免输出 Token、私钥和敏感密钥。"
+    echo -e "${CYAN}VPS-Optimize > Диагностика/Проверка состояния > Справка${PLAIN}"
+    echo "Общий обзор состояния проверяет ключевые службы, прослушиваемые порты и сводку по сертификатам."
+    echo "Если существуют правила connlimit, добавленные скриптом, также отображается информация о постоянном бэкенде, соответствии времени выполнения/сохранённых файлов и предупреждения о рисках перезапуска."
+    echo "Общий обзор состояния показывает сводку по объёму логов; введите p для проверки прав на конфигурации, состояние и файлы логов, введите P для подтверждения и исправления."
+    echo "Введите s для входа в восстановление служб, поддерживается перезапуск часто используемых/сбойных служб, сброс состояния сбоя и настройка автоматического перезапуска при сбое."
+    echo "Аппаратный зонд системы включает обзор сценариев 443, Caddy, 3x-ui, инструментов подписки и Docker."
+    echo "Генерация диагностической информации для отправки в GitHub Issue, старается избегать вывода токенов, закрытых ключей и конфиденциальных ключей."
 }
 
 NET_KERNEL_MENU_ITEMS=(
-    "1|BBR / 拥塞控制管理|调用 ylx2016 多内核调优脚本|func_bbr_manage|net_bbr"
-    "2|动态 TCP 参数调优|粘贴 Omnitt 参数并自动校验|func_tcp_tune|net_tcp_tune"
-    "3|DNS 更改优化|国内/国外/自定义，IPv4+IPv6|func_dns_optimize|"
-    "4|网卡管理工具|网卡/路由/DNS/MTU/DHCP|func_network_interface_manage|"
-    "5|流量达量保护|防刷流量 / 防超额账单|func_traffic_guard_menu|"
-    "6|ZRAM / Swap 内存调优|按内存分档优化小鸡|func_zram_swap|"
-    "7|安装/切换优化内核|Cloud/KVM 稳定推荐 / XanMod 高级可选|func_install_kernel|net_kernel_install"
-    "8|清理旧内核|释放磁盘空间，谨慎操作|func_clean_kernel|"
+    "1|BBR / Управление перегрузками|Вызов скрипта настройки ядра ylx2016|func_bbr_manage|net_bbr"
+    "2|Динамическая настройка TCP параметров|Вставить параметры Omnitt и автоматически проверить|func_tcp_tune|net_tcp_tune"
+    "3|Оптимизация DNS|Китай/мир/пользовательский, IPv4+IPv6|func_dns_optimize|"
+    "4|Инструменты управления сетевыми интерфейсами|Интерфейсы/маршруты/DNS/MTU/DHCP|func_network_interface_manage|"
+    "5|Защита от превышения трафика|Предотвращение накрутки / превышения счетов|func_traffic_guard_menu|"
+    "6|Оптимизация памяти ZRAM / Swap|Оптимизация VPS по объёму памяти|func_zram_swap|"
+    "7|Установка/переключение оптимизированного ядра|Cloud/KVM стабильная рекомендация / XanMod продвинутый вариант|func_install_kernel|net_kernel_install"
+    "8|Очистка старых ядер|Освободить место на диске, действовать осторожно|func_clean_kernel|"
 )
 
 confirm_menu_risk() {
     local risk="$1"
     case "$risk" in
         net_bbr)
-            confirm_risk_action "BBR / 拥塞控制管理" \
-                "内核网络模块、拥塞控制和 TCP 参数" \
-                "从快照恢复，或重新进入本菜单切换回原配置" \
-                "外部调优脚本可能安装/切换内核，请确认救援控制台可用。"
+            confirm_risk_action "BBR / Управление перегрузками" \
+                "Модули ядра сети, управление перегрузками и параметры TCP" \
+                "Восстановить из снимка или вернуться в это меню и переключиться обратно на исходную конфигурацию" \
+                "Внешний скрипт настройки может установить/переключить ядро, убедитесь, что консоль восстановления доступна."
             ;;
         net_tcp_tune)
-            confirm_risk_action "动态 TCP 参数调优" \
-                "sysctl TCP 参数和网络栈配置" \
-                "恢复 /etc/sysctl.d 中的备份配置，或手动回退参数" \
-                "确认参数来源可信，错误参数可能影响网络连接。"
+            confirm_risk_action "Динамическая настройка TCP параметров" \
+                "Параметры sysctl TCP и конфигурация сетевого стека" \
+                "Восстановить резервную конфигурацию из /etc/sysctl.d или вручную откатить параметры" \
+                "Убедитесь, что источник параметров надежен, неверные параметры могут повлиять на сетевое соединение."
             ;;
         net_kernel_install)
-            confirm_risk_action "安装/切换优化内核" \
-                "内核包、引导配置和 GRUB 菜单" \
-                "从云厂商控制台选择旧内核启动，或使用救援模式恢复" \
-                "确认已创建快照，且当前 VPS 不是 OpenVZ 老系统。"
+            confirm_risk_action "Установка/переключение оптимизированного ядра" \
+                "Пакеты ядра, конфигурация загрузчика и меню GRUB" \
+                "Выбрать загрузку старого ядра из консоли облачного провайдера или использовать режим восстановления" \
+                "Убедитесь, что создан снимок, и текущий VPS не является старой системой OpenVZ."
             ;;
         *) return 0 ;;
     esac
@@ -19970,56 +19961,56 @@ func_net_kernel_menu() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "网络/内核优化"
-        echo -e "${BOLD}🚀 网络性能与内核管理${PLAIN}"
+        print_breadcrumb "Сеть/Оптимизация ядра"
+        echo -e "${BOLD}🚀 Управление производительностью сети и ядра${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}用途：调整网络栈、内存压缩和内核；涉及内核安装/清理前建议先做快照。${PLAIN}"
+        echo -e "${YELLOW}Назначение: настройка сетевого стека, сжатия памяти и ядра; перед установкой/очисткой ядра рекомендуется сделать снимок.${PLAIN}"
         echo -e "------------------------------------------------"
         render_menu NET_KERNEL_MENU_ITEMS
         echo -e "------------------------------------------------"
-        echo -e "${BLUE}  ?. 查看帮助${PLAIN}"
-        echo -e "${RED}  0. 返回主菜单 / q 返回上一级${PLAIN}"
+        echo -e "${BLUE}  ?. Показать справку${PLAIN}"
+        echo -e "${RED}  0. Вернуться в главное меню / q вернуться на уровень выше${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local nk_choice
-        read_trimmed nk_choice "👉 请选择操作: "
+        read_trimmed nk_choice "👉 Выберите действие: "
         case $nk_choice in
             "?"|help) show_net_kernel_help; pause_return ;;
             0|q|Q) break ;;
-            *) dispatch_menu_choice "$nk_choice" NET_KERNEL_MENU_ITEMS || { echo -e "${RED}❌ 无效选择！${PLAIN}"; sleep 1; } ;;
+            *) dispatch_menu_choice "$nk_choice" NET_KERNEL_MENU_ITEMS || { echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1; } ;;
         esac
     done
 }
 
 # ---------------------------------------------------------
-# 24. 面板与节点部署菜单 (二级直达)
+# 24. Меню развертывания панелей и узлов (второй уровень)
 # ---------------------------------------------------------
 func_panel_deploy_menu() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "面板、节点与订阅工具"
-        echo -e "${BOLD}🛰️ 面板、节点与订阅工具部署${PLAIN}"
+        print_breadcrumb "Панели, узлы и инструменты подписки"
+        echo -e "${BOLD}🛰️ Развертывание панелей, узлов и инструментов подписки${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BOLD}${BLUE}▶ 面板 / 核心${PLAIN}"
-        echo -e "  ${BOLD}${GREEN}1.${PLAIN} ${BOLD}3x-ui 面板脚本${PLAIN}     ${BOLD}${GREEN}2.${PLAIN} ${BOLD}x-ui 增强套件${PLAIN}      ${BOLD}${GREEN}3.${PLAIN} ${BOLD}面板 SSL 修复${PLAIN}"
-        echo -e "  ${BOLD}${GREEN}4.${PLAIN} ${BOLD}S-UI 面板脚本${PLAIN}      ${BOLD}${GREEN}5.${PLAIN} ${BOLD}Sing-box 脚本${PLAIN}      ${BOLD}${GREEN}6.${PLAIN} ${BOLD}Xray 脚本${PLAIN}"
+        echo -e "${BOLD}${BLUE}▶ Панели / Ядро${PLAIN}"
+        echo -e "  ${BOLD}${GREEN}1.${PLAIN} ${BOLD}Сценарий панели 3x-ui${PLAIN}     ${BOLD}${GREEN}2.${PLAIN} ${BOLD}Расширенный набор x-ui${PLAIN}      ${BOLD}${GREEN}3.${PLAIN} ${BOLD}Восстановление SSL панели${PLAIN}"
+        echo -e "  ${BOLD}${GREEN}4.${PLAIN} ${BOLD}Сценарий панели S-UI${PLAIN}      ${BOLD}${GREEN}5.${PLAIN} ${BOLD}Сценарий Sing-box${PLAIN}      ${BOLD}${GREEN}6.${PLAIN} ${BOLD}Сценарий Xray${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BOLD}${BLUE}▶ 订阅 / Compose${PLAIN}"
-        echo -e "  ${BOLD}${GREEN}7.${PLAIN} ${BOLD}SublinkPro 订阅栈${PLAIN}  ${BOLD}${GREEN}8.${PLAIN} ${BOLD}妙妙屋订阅栈${PLAIN}       ${BOLD}${GREEN}9.${PLAIN} ${BOLD}Sub-Store 订阅栈${PLAIN}"
-        echo -e " ${BOLD}${YELLOW}10.${PLAIN} ${BOLD}订阅栈更新${PLAIN}        ${BOLD}${GREEN}11.${PLAIN} ${BOLD}Dockge Compose${PLAIN}    ${BOLD}${GREEN}12.${PLAIN} ${BOLD}Compose 迁移${PLAIN}"
-        echo -e " ${BOLD}${GREEN}13.${PLAIN} ${BOLD}Komari 探针面板${PLAIN}"
+        echo -e "${BOLD}${BLUE}▶ Подписки / Compose${PLAIN}"
+        echo -e "  ${BOLD}${GREEN}7.${PLAIN} ${BOLD}Стек подписок SublinkPro${PLAIN}  ${BOLD}${GREEN}8.${PLAIN} ${BOLD}Стек подписок Miaomiaowu${PLAIN}       ${BOLD}${GREEN}9.${PLAIN} ${BOLD}Стек подписок Sub-Store${PLAIN}"
+        echo -e " ${BOLD}${YELLOW}10.${PLAIN} ${BOLD}Обновление стеков подписок${PLAIN}        ${BOLD}${GREEN}11.${PLAIN} ${BOLD}Dockge Compose${PLAIN}    ${BOLD}${GREEN}12.${PLAIN} ${BOLD}Миграция Compose${PLAIN}"
+        echo -e " ${BOLD}${GREEN}13.${PLAIN} ${BOLD}Панель зонда Komari${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BOLD}${BLUE}▶ 工具 / 辅助${PLAIN}"
-        echo -e " ${BOLD}${GREEN}14.${PLAIN} ${BOLD}DNS 解锁脚本${PLAIN}      ${BOLD}${GREEN}15.${PLAIN} ${BOLD}IP-Sentinel 脚本${PLAIN}  ${BOLD}${GREEN}16.${PLAIN} ${BOLD}dog 流量计${PLAIN}"
+        echo -e "${BOLD}${BLUE}▶ Инструменты / Вспомогательное${PLAIN}"
+        echo -e " ${BOLD}${GREEN}14.${PLAIN} ${BOLD}Сценарий разблокировки DNS${PLAIN}      ${BOLD}${GREEN}15.${PLAIN} ${BOLD}Сценарий IP-Sentinel${PLAIN}  ${BOLD}${GREEN}16.${PLAIN} ${BOLD}dog - измеритель трафика${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BLUE}  ?. 查看帮助${PLAIN}"
-        echo -e "${RED}  0. 返回主菜单 / q 返回上一级${PLAIN}"
+        echo -e "${BLUE}  ?. Показать справку${PLAIN}"
+        echo -e "${RED}  0. Вернуться в главное меню / q вернуться на уровень выше${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local pd_choice
-        read_trimmed pd_choice "👉 请选择操作: "
+        read_trimmed pd_choice "👉 Выберите действие: "
         case $pd_choice in
             1) func_xpanel_menu ;;
             2) func_xui_custom_manager ;;
@@ -20040,7 +20031,7 @@ func_panel_deploy_menu() {
             xcm|XCM|xui-custom|外置|外置增强|外置管理) func_xui_custom_manager ;;
             "?"|help) show_panel_help; pause_return ;;
             0|q|Q) break ;;
-            *) echo -e "${RED}❌ 无效选择！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
@@ -20051,42 +20042,42 @@ func_sni_stack_quick_menu() {
         show_current_entry_summary
         echo -e "------------------------------------------------"
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "443 单入口管理中心"
-        echo -e "${BOLD}🧩 443 单入口管理中心${PLAIN}"
+        print_breadcrumb "Центр управления единым входом 443"
+        echo -e "${BOLD}🧩 Центр управления единым входом 443${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}用途：统一管理公网 443 的入口模式、Web 域名、Xray 入站分流和链路体检。${PLAIN}"
-        echo -e "${YELLOW}首次部署先选 [2]；已有配置后用 [3]/[4]/[5] 在三种入口模式间切换。${PLAIN}"
+        echo -e "${YELLOW}Назначение: централизованное управление режимом входа на публичном порту 443, веб-доменами, маршрутизацией входящих Xray и проверкой цепочки.${PLAIN}"
+        echo -e "${YELLOW}При первом развертывании выберите [2]; после наличия конфигурации используйте [3]/[4]/[5] для переключения между тремя режимами входа.${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BOLD}${BLUE}▶ 当前状态与入口模式${PLAIN}"
-        echo -e "${GREEN}  1. 查看当前入口状态 / 监听详情${PLAIN} ${YELLOW}(公网 443、Web 反代、Xray、服务状态)${PLAIN}"
-        echo -e "${GREEN}  2. 首次配置 / 安装 443 单入口${PLAIN} ${YELLOW}(默认 Nginx Stream 模式，第一次部署用)${PLAIN}"
-        echo -e "${GREEN}  3. 切换到 Nginx Stream 模式${PLAIN}  ${YELLOW}(默认稳定模式)${PLAIN}"
-        echo -e "${GREEN}  4. 切换到 Xray Fallback 模式${PLAIN} ${YELLOW}(需已有 Xray/3x-ui 主入站)${PLAIN}"
-        echo -e "${GREEN}  5. 切换到 TCP Peek + Splice 模式${PLAIN} ${YELLOW}(需先完成 8444 预检，切换时不自动编译)${PLAIN}"
-        echo -e "${CYAN}  6. 重新应用当前入口模式${PLAIN}"
-        echo -e "${YELLOW}  7. 回滚上一次入口模式切换${PLAIN}"
+        echo -e "${BOLD}${BLUE}▶ Текущее состояние и режим входа${PLAIN}"
+        echo -e "${GREEN}  1. Просмотр текущего состояния входа / деталей прослушивания${PLAIN} ${YELLOW}(публичный 443, веб-прокси, Xray, состояние служб)${PLAIN}"
+        echo -e "${GREEN}  2. Первоначальная настройка / установка единого входа 443${PLAIN} ${YELLOW}(по умолчанию режим Nginx Stream, для первого развертывания)${PLAIN}"
+        echo -e "${GREEN}  3. Переключиться на режим Nginx Stream${PLAIN}  ${YELLOW}(стабильный режим по умолчанию)${PLAIN}"
+        echo -e "${GREEN}  4. Переключиться на режим Xray Fallback${PLAIN} ${YELLOW}(требуется уже существующий основной входящий Xray/3x-ui)${PLAIN}"
+        echo -e "${GREEN}  5. Переключиться на режим TCP Peek + Splice${PLAIN} ${YELLOW}(требуется предварительная проверка 8444, при переключении автоматическая компиляция не выполняется)${PLAIN}"
+        echo -e "${CYAN}  6. Повторно применить текущий режим входа${PLAIN}"
+        echo -e "${YELLOW}  7. Откатить последнее переключение режима входа${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BOLD}${BLUE}▶ 共享配置与体检${PLAIN}"
-        echo -e "${GREEN}  8. 管理 Web 域名/反代${PLAIN}        ${YELLOW}(新增/删除/查看网站，最常用)${PLAIN}"
-        echo -e "${CYAN}  9. 管理 Web 域名 IP 白名单${PLAIN}   ${YELLOW}(只限制 Web 域名)${PLAIN}"
-        echo -e "${CYAN} 10. 修改 443 共享参数${PLAIN}         ${YELLOW}(面板/订阅/REALITY/入口端口与路径)${PLAIN}"
-        echo -e "${CYAN} 11. 订阅链接 / External Proxy 提示${PLAIN} ${YELLOW}(检查节点链接是否输出公网 443)${PLAIN}"
-        echo -e "${CYAN} 12. CF DNS / Caddy 证书维护${PLAIN}   ${YELLOW}(重签/软链/清理/修复/回滚)${PLAIN}"
-        echo -e "${GREEN} 13. 443 链路体检${PLAIN}              ${YELLOW}(ENTRY_MODE/监听/证书/Web/Xray 分流)${PLAIN}"
-        echo -e "${CYAN} 14. 443 网络访问测试${PLAIN}          ${YELLOW}(DNS/TCP/TLS/面板/订阅路径)${PLAIN}"
-        echo -e "${CYAN} 15. Xray 入站管理${PLAIN}             ${YELLOW}(SNI -> 本地地址:端口 分流记录)${PLAIN}"
-        echo -e "${CYAN} 16. 查看 TCP Peek + Splice 状态 / 8444 预检${PLAIN} ${YELLOW}(不改公网 443)${PLAIN}"
-        echo -e "${CYAN} 17. TCP Peek 分流规则校验${PLAIN} ${YELLOW}(只检查配置，不重启入口)${PLAIN}"
-        echo -e "${CYAN} 18. 查看 TCP Peek + Splice 日志${PLAIN} ${YELLOW}(vpso-mux 分流器日志)${PLAIN}"
+        echo -e "${BOLD}${BLUE}▶ Общие конфигурации и проверка${PLAIN}"
+        echo -e "${GREEN}  8. Управление веб-доменами/прокси${PLAIN}        ${YELLOW}(добавление/удаление/просмотр сайтов, наиболее часто)${PLAIN}"
+        echo -e "${CYAN}  9. Управление белым списком IP для веб-доменов${PLAIN}   ${YELLOW}(ограничивает только веб-домены)${PLAIN}"
+        echo -e "${CYAN} 10. Изменение общих параметров 443${PLAIN}         ${YELLOW}(панели/подписки/REALITY/порты и пути входа)${PLAIN}"
+        echo -e "${CYAN} 11. Ссылки подписок / External Proxy${PLAIN} ${YELLOW}(проверка, выводят ли ссылки узлов публичный 443)${PLAIN}"
+        echo -e "${CYAN} 12. Обслуживание сертификатов CF DNS / Caddy${PLAIN}   ${YELLOW}(переподпись/символические ссылки/очистка/восстановление/откат)${PLAIN}"
+        echo -e "${GREEN} 13. Проверка цепочки 443${PLAIN}              ${YELLOW}(ENTRY_MODE/прослушивание/сертификаты/веб-маршрутизация/Xray)${PLAIN}"
+        echo -e "${CYAN} 14. Тест сетевого доступа 443${PLAIN}          ${YELLOW}(DNS/TCP/TLS/панели/пути подписок)${PLAIN}"
+        echo -e "${CYAN} 15. Управление входящими Xray${PLAIN}             ${YELLOW}(SNI -> локальный адрес:порт, запись маршрутизации)${PLAIN}"
+        echo -e "${CYAN} 16. Просмотр статуса TCP Peek + Splice / предпроверка 8444${PLAIN} ${YELLOW}(не меняет публичный 443)${PLAIN}"
+        echo -e "${CYAN} 17. Проверка правил маршрутизации TCP Peek${PLAIN} ${YELLOW}(только проверка конфигурации, без перезапуска входа)${PLAIN}"
+        echo -e "${CYAN} 18. Просмотр логов TCP Peek + Splice${PLAIN} ${YELLOW}(логи分流ера vpso-mux)${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${YELLOW}说明：三种 443 入口不是三套独立安装器；[2] 建立共享配置，[3]/[4]/[5] 负责检查依赖、生成目标配置并切换入口。${PLAIN}"
+        echo -e "${YELLOW}Примечание: три режима входа 443 не являются тремя отдельными установщиками; [2] создает общую конфигурацию, [3]/[4]/[5] отвечают за проверку зависимостей, генерацию целевой конфигурации и переключение входа.${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BLUE}  ?. 查看帮助${PLAIN}"
-        echo -e "${RED}  0. 返回主菜单 / q/back/返回${PLAIN}"
+        echo -e "${BLUE}  ?. Показать справку${PLAIN}"
+        echo -e "${RED}  0. Вернуться в главное меню / q/back/назад${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local sni_choice
-        read_trimmed sni_choice "👉 请输入菜单编号或 ?: "
+        read_trimmed sni_choice "👉 Введите номер меню или ?: "
         case "$sni_choice" in
             1) show_current_entry_status ;;
             2) func_caddy_cf_reality_wizard ;;
@@ -20108,10 +20099,10 @@ func_sni_stack_quick_menu() {
             18) view_vpso_mux_logs ;;
             "?"|help) show_sni_help; pause_return; continue ;;
             0) break ;;
-            *) echo -e "${RED}❌ 无效选择，请输入菜单编号或 ?。${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор, введите номер меню или ?.${PLAIN}"; sleep 1 ;;
         esac
         echo ""
-        read -n 1 -s -r -p "按任意键继续..."
+        read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
     done
 }
 
@@ -20155,9 +20146,9 @@ beginner_run_optional_step() {
     local choice
 
     echo -e "${CYAN}[${step}/${total}] ${label}${PLAIN}"
-    read_trimmed choice "是否进入此步骤？(Y/n): "
+    read_trimmed choice "Перейти к этому шагу? (Y/n): "
     if [[ "${choice:-yes}" =~ ^[Nn]([Oo])?$ ]]; then
-        echo -e "${BLUE}已跳过：${label}${PLAIN}"
+        echo -e "${BLUE}Пропущено: ${label}${PLAIN}"
         return 2
     fi
     "$function_name"
@@ -20167,30 +20158,30 @@ func_beginner_machine_init() {
     local total=7
     local step_rc step_entry step label function_name
     local VPSO_BEGINNER_FLOW=1
-    local completed=("部署前预检")
+    local completed=("Предварительная проверка перед развертыванием")
     local skipped=()
     local optional_steps=(
-        "3|SSH 安全配置|func_security"
-        "4|SSH 公钥配置|func_add_ssh_key"
-        "5|Fail2ban 配置|func_fail2ban"
-        "6|防火墙配置|func_firewall_manage"
-        "7|配置备份|func_backup_center"
+        "3|Настройка безопасности SSH|func_security"
+        "4|Настройка открытых ключей SSH|func_add_ssh_key"
+        "5|Настройка Fail2ban|func_fail2ban"
+        "6|Настройка брандмауэра|func_firewall_manage"
+        "7|Резервное копирование конфигурации|func_backup_center"
     )
 
-    echo -e "${CYAN}[1/${total}] 部署前预检${PLAIN}"
+    echo -e "${CYAN}[1/${total}] Предварительная проверка перед развертыванием${PLAIN}"
     if ! func_preflight_check; then
-        echo -e "${RED}❌ 预检存在异常，新机器初始化已停止，未继续修改系统。${PLAIN}"
+        echo -e "${RED}❌ Обнаружены проблемы при предварительной проверке, инициализация нового сервера остановлена, система не была изменена.${PLAIN}"
         pause_return
         return 1
     fi
 
-    echo -e "${CYAN}[2/${total}] 基础初始化${PLAIN}"
+    echo -e "${CYAN}[2/${total}] Базовая инициализация${PLAIN}"
     if ! func_base_init; then
-        echo -e "${RED}❌ 基础初始化未完整完成，后续安全配置已停止。${PLAIN}"
+        echo -e "${RED}❌ Базовая инициализация завершена не полностью, последующие настройки безопасности остановлены.${PLAIN}"
         pause_return
         return 1
     fi
-    completed+=("基础初始化")
+    completed+=("Базовая инициализация")
 
     for step_entry in "${optional_steps[@]}"; do
         IFS='|' read -r step label function_name <<< "$step_entry"
@@ -20201,18 +20192,18 @@ func_beginner_machine_init() {
         elif [[ "$step_rc" -eq 2 ]]; then
             skipped+=("$label")
         else
-            echo -e "${RED}❌ ${label} 执行失败，新机器初始化已停止。${PLAIN}"
-            echo -e "${CYAN}已完成：${completed[*]}${PLAIN}"
+            echo -e "${RED}❌ ${label} не удалось выполнить, инициализация нового сервера остановлена.${PLAIN}"
+            echo -e "${CYAN}Завершено: ${completed[*]}${PLAIN}"
             pause_return
             return 1
         fi
     done
 
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${GREEN}✅ 新机器初始化流程结束。${PLAIN}"
-    echo -e "已完成：${completed[*]}"
+    echo -e "${GREEN}✅ Процесс инициализации нового сервера завершен.${PLAIN}"
+    echo -e "Завершено: ${completed[*]}"
     if [[ ${#skipped[@]} -gt 0 ]]; then
-        echo -e "${YELLOW}已跳过：${skipped[*]}${PLAIN}"
+        echo -e "${YELLOW}Пропущено: ${skipped[*]}${PLAIN}"
     fi
     pause_return
 }
@@ -20221,23 +20212,23 @@ func_beginner_menu() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "新手向导"
+        print_breadcrumb "Новичок-гид"
         echo -e "${BOLD}VPS-Optimize ${SCRIPT_VERSION}${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}这是简化入口，只保留第一次部署最常用的路径；老用户可返回完整菜单。${PLAIN}"
+        echo -e "${YELLOW}Это упрощенный вход, содержащий только наиболее часто используемые пути для первого развертывания; опытные пользователи могут вернуться в полное меню.${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}  1. 新机器初始化${PLAIN}       ${YELLOW}(预检 -> 初始化 -> SSH/公钥/Fail2ban/防火墙 -> 备份)${PLAIN}"
-        echo -e "${GREEN}  2. 安装面板/节点${PLAIN}     ${YELLOW}(进入面板、节点与订阅工具菜单)${PLAIN}"
-        echo -e "${GREEN}  3. 配置 443 单入口${PLAIN}   ${YELLOW}(面板/订阅/REALITY 共用公网 443)${PLAIN}"
-        echo -e "${GREEN}  4. 健康检查${PLAIN}          ${YELLOW}(服务状态、端口、证书、反馈诊断)${PLAIN}"
-        echo -e "${GREEN}  5. 备份/回滚${PLAIN}         ${YELLOW}(创建备份或恢复配置)${PLAIN}"
+        echo -e "${GREEN}  1. Инициализация нового сервера${PLAIN}       ${YELLOW}(предпроверка -> инициализация -> SSH/открытые ключи/Fail2ban/брандмауэр -> резервное копирование)${PLAIN}"
+        echo -e "${GREEN}  2. Установка панели/узла${PLAIN}     ${YELLOW}(переход в меню панелей, узлов и подписок)${PLAIN}"
+        echo -e "${GREEN}  3. Настройка единого входа 443${PLAIN}   ${YELLOW}(общий публичный 443 для панелей/подписок/REALITY)${PLAIN}"
+        echo -e "${GREEN}  4. Проверка состояния${PLAIN}          ${YELLOW}(состояние служб, порты, сертификаты, диагностика)${PLAIN}"
+        echo -e "${GREEN}  5. Резервное копирование/откат${PLAIN}         ${YELLOW}(создать резервную копию или восстановить конфигурацию)${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BLUE}  ?. 查看帮助${PLAIN}"
-        echo -e "${RED}  0. 返回主菜单 / q 返回${PLAIN}"
+        echo -e "${BLUE}  ?. Показать справку${PLAIN}"
+        echo -e "${RED}  0. Вернуться в главное меню / q вернуться${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local beginner_choice
-        read_trimmed beginner_choice "👉 请选择操作: "
+        read_trimmed beginner_choice "👉 Выберите действие: "
         case "$beginner_choice" in
             1)
                 func_beginner_machine_init
@@ -20248,65 +20239,65 @@ func_beginner_menu() {
             5) func_backup_center ;;
             "?"|help|h) show_beginner_help; echo ""; pause_return ;;
             0|q|Q) break ;;
-            *) echo -e "${RED}❌ 无效选择！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
 
 # ---------------------------------------------------------
-# 界面主循环 (新增 IP 防送中 & SublinkPro)
+# Основной цикл интерфейса (добавлены IP-защита и SublinkPro)
 # ---------------------------------------------------------
 main_menu() {
     create_shortcut
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "主菜单"
-        echo -e " ${BOLD}🚀 VPS-Optimize ${SCRIPT_VERSION} (快捷键: ${YELLOW}cy${PLAIN}${BOLD})${PLAIN}"
+        print_breadcrumb "Главное меню"
+        echo -e " ${BOLD}🚀 VPS-Optimize ${SCRIPT_VERSION} (горячие клавиши: ${YELLOW}cy${PLAIN}${BOLD})${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e " ${YELLOW}快捷输入：443 直达单入口，h 看健康，b 做备份，u 更新，q 退出。${PLAIN}"
-        echo -e " ${YELLOW}高风险操作需要输入 yes 确认，大小写均可；不确定时先做 [16] 备份。${PLAIN}"
+        echo -e " ${YELLOW}Быстрый ввод: 443 - прямой вход в единый вход, h - состояние, b - резервное копирование, u - обновление, q - выход.${PLAIN}"
+        echo -e " ${YELLOW}Операции с высоким риском требуют ввода yes для подтверждения (регистр не важен); при сомнениях сначала сделайте [16] резервное копирование.${PLAIN}"
         print_auto_update_notice
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e " ${BOLD}${BLUE}▶ 模式入口${PLAIN}"
-        echo -e "  ${GREEN}n.${PLAIN} 新手向导              ${YELLOW}(只显示核心路径)${PLAIN}"
-        echo -e "  ${GREEN}?.${PLAIN} 当前菜单帮助          ${YELLOW}(解释关键入口)${PLAIN}"
+        echo -e " ${BOLD}${BLUE}▶ Вход в режимы${PLAIN}"
+        echo -e "  ${GREEN}n.${PLAIN} Новичок-гид              ${YELLOW}(показывает только основные пути)${PLAIN}"
+        echo -e "  ${GREEN}?.${PLAIN} Справка по текущему меню          ${YELLOW}(поясняет ключевые входы)${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
-        echo -e " ${BOLD}${BLUE}▶ ① 推荐流程：新机器先跑这里${PLAIN}"
-        echo -e "  ${GREEN}1.${PLAIN} 运维预检与风险扫描    ${YELLOW}(部署前先看端口/系统/服务状态)${PLAIN}"
-        echo -e "  ${GREEN}2.${PLAIN} 基础环境初始化        ${YELLOW}(工具/时区/系统更新/基础 BBR)${PLAIN}"
-        echo -e "  ${GREEN}3.${PLAIN} 基础组件与常用服务    ${YELLOW}(Docker/Python/WARP/常用工具)${PLAIN}"
-        echo -e "  ${GREEN}4.${PLAIN} 反代（Caddy/Nginx）   ${YELLOW}(未接入 443 单入口的网站/面板反代)${PLAIN}"
-        echo -e "  ${GREEN}5.${PLAIN} 面板、节点与订阅工具  ${YELLOW}(3x-ui/Sing-box/订阅管理/Dockge)${PLAIN}"
+        echo -e " ${BOLD}${BLUE}▶ ① Рекомендуемый порядок: сначала запустите здесь новый сервер${PLAIN}"
+        echo -e "  ${GREEN}1.${PLAIN} Предварительная проверка и сканирование рисков    ${YELLOW}(перед развертыванием проверьте порты/систему/состояние служб)${PLAIN}"
+        echo -e "  ${GREEN}2.${PLAIN} Инициализация базовой среды        ${YELLOW}(инструменты/часовой пояс/обновление системы/базовый BBR)${PLAIN}"
+        echo -e "  ${GREEN}3.${PLAIN} Базовые компоненты и часто используемые службы    ${YELLOW}(Docker/Python/WARP/полезные утилиты)${PLAIN}"
+        echo -e "  ${GREEN}4.${PLAIN} Обратный прокси (Caddy/Nginx)   ${YELLOW}(для сайтов/панелей, не подключенных к единому входу 443)${PLAIN}"
+        echo -e "  ${GREEN}5.${PLAIN} Панели, узлы и инструменты подписок  ${YELLOW}(3x-ui/Sing-box/управление подписками/Dockge)${PLAIN}"
 
-        echo -e " ${BOLD}${BLUE}▶ ② 安全与访问控制${PLAIN}"
-        echo -e "  ${GREEN}6.${PLAIN} SSH 安全中心          ${YELLOW}(端口/公钥/密钥登录模式)${PLAIN}"
-        echo -e "  ${GREEN}7.${PLAIN} Fail2ban 防爆破       ${YELLOW}(自动封禁 SSH 爆破 IP)${PLAIN}"
-        echo -e "  ${GREEN}8.${PLAIN} 防火墙规则管理        ${YELLOW}(放行/删除/查看/关闭/连接数限制)${PLAIN}"
-        echo -e "  ${GREEN}9.${PLAIN} 系统开关与清理        ${YELLOW}(IPv6/IPv4优先/Ping/主机名/清理)${PLAIN}"
+        echo -e " ${BOLD}${BLUE}▶ ② Безопасность и контроль доступа${PLAIN}"
+        echo -e "  ${GREEN}6.${PLAIN} Центр безопасности SSH          ${YELLOW}(порт/открытые ключи/режим входа по ключу)${PLAIN}"
+        echo -e "  ${GREEN}7.${PLAIN} Fail2ban защита от взлома       ${YELLOW}(автоматическая блокировка IP при атаках на SSH)${PLAIN}"
+        echo -e "  ${GREEN}8.${PLAIN} Управление правилами брандмауэра        ${YELLOW}(разрешить/удалить/просмотреть/отключить/ограничение числа соединений)${PLAIN}"
+        echo -e "  ${GREEN}9.${PLAIN} Системные переключатели и очистка        ${YELLOW}(приоритет IPv6/IPv4/Ping/имя хоста/очистка)${PLAIN}"
 
-        echo -e " ${BOLD}${BLUE}▶ ③ 网络性能与容器${PLAIN}"
-        echo -e " ${GREEN}10.${PLAIN} 网络与内核优化        ${YELLOW}(BBR/TCP/ZRAM/DNS/轻量内核)${PLAIN}"
-        echo -e " ${GREEN}11.${PLAIN} Docker 安全管理       ${YELLOW}(本地防穿透/恢复访问)${PLAIN}"
+        echo -e " ${BOLD}${BLUE}▶ ③ Сетевая производительность и контейнеры${PLAIN}"
+        echo -e " ${GREEN}10.${PLAIN} Оптимизация сети и ядра        ${YELLOW}(BBR/TCP/ZRAM/DNS/легкое ядро)${PLAIN}"
+        echo -e " ${GREEN}11.${PLAIN} Безопасность Docker       ${YELLOW}(защита от локального проникновения/восстановление доступа)${PLAIN}"
 
-        echo -e " ${BOLD}${BLUE}▶ ④ 诊断、备份与维护${PLAIN}"
-        echo -e " ${GREEN}12.${PLAIN} 测速与质量检测        ${YELLOW}(YABS/流媒体/回程/IP质量)${PLAIN}"
-        echo -e " ${GREEN}13.${PLAIN} 端口排查与释放        ${YELLOW}(查看占用并强杀进程)${PLAIN}"
-        echo -e " ${GREEN}14.${PLAIN} 系统硬件探针          ${YELLOW}(CPU/内存/磁盘/网络实时信息)${PLAIN}"
-        echo -e " ${GREEN}15.${PLAIN} 服务健康总览          ${YELLOW}(服务状态/证书摘要/端口概览)${PLAIN}"
-        echo -e " ${GREEN}16.${PLAIN} 配置备份与回滚        ${YELLOW}(备份/列表/恢复/清理)${PLAIN}"
-        echo -e " ${BOLD}${YELLOW}17.${PLAIN} 更新脚本              ${CYAN}(快捷词：u / update / upd)${PLAIN}"
-        echo -e " ${RED}18.${PLAIN} 重启服务器"
+        echo -e " ${BOLD}${BLUE}▶ ④ Диагностика, резервирование и обслуживание${PLAIN}"
+        echo -e " ${GREEN}12.${PLAIN} Тест скорости и проверка качества        ${YELLOW}(YABS/потоковое видео/обратный путь/качество IP)${PLAIN}"
+        echo -e " ${GREEN}13.${PLAIN} Проверка и освобождение портов        ${YELLOW}(просмотр занятости и принудительное завершение процессов)${PLAIN}"
+        echo -e " ${GREEN}14.${PLAIN} Аппаратный зонд системы          ${YELLOW}(CPU/память/диск/информация о сети в реальном времени)${PLAIN}"
+        echo -e " ${GREEN}15.${PLAIN} Общий обзор состояния служб          ${YELLOW}(статус служб/сводка по сертификатам/обзор портов)${PLAIN}"
+        echo -e " ${GREEN}16.${PLAIN} Резервное копирование и откат конфигурации        ${YELLOW}(резервирование/список/восстановление/очистка)${PLAIN}"
+        echo -e " ${BOLD}${YELLOW}17.${PLAIN} Обновить скрипт              ${CYAN}(быстрый ввод: u / update / upd)${PLAIN}"
+        echo -e " ${RED}18.${PLAIN} Перезагрузить сервер"
         echo -e ""
-        echo -e " ${BOLD}${BLUE}▶ ⑤ 高频直达${PLAIN}"
-        echo -e " ${GREEN}19.${PLAIN} 443 单入口管理中心    ${YELLOW}(初始化/加网站/体检/证书修复)${PLAIN}"
+        echo -e " ${BOLD}${BLUE}▶ ⑤ Часто используемые${PLAIN}"
+        echo -e " ${GREEN}19.${PLAIN} Центр управления единым входом 443    ${YELLOW}(инициализация/добавление сайтов/проверка/восстановление сертификатов)${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e " ${RED} 0.${PLAIN} 退出面板"
+        echo -e " ${RED} 0.${PLAIN} Выйти из панели"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local choice
-        read_trimmed choice "👉 请输入数字或快捷词选择功能: "
+        read_trimmed choice "👉 Введите номер или быстрое слово для выбора функции: "
         choice=$(normalize_main_choice "$choice")
 
         case $choice in
@@ -20334,7 +20325,7 @@ main_menu() {
             19) func_sni_stack_quick_menu ;;
             0) exit 0 ;;
             *)
-                echo -e "${RED}❌ 无效的输入，请输入菜单中存在的数字！${PLAIN}"
+                echo -e "${RED}❌ Неверный ввод, введите номер, присутствующий в меню!${PLAIN}"
                 sleep 1
                 ;;
         esac
@@ -20345,13 +20336,12 @@ main_menu() {
 # Module: main.sh
 # ---------------------------------------------------------
 # shellcheck shell=bash
-# Main bootstrap. Feature implementation lives in the focused src/*.sh modules.
+# Основная загрузка. Реализация функций находится в модулях src/*.sh.
 
-# --- Main entrypoint ---
+# --- Главная точка входа ---
 main() {
     ensure_runtime_root
     main_menu "$@"
 }
 
 main "$@"
-
