@@ -2446,4 +2446,4 @@ func_backup_center() {
                 fi
                 if tar -tzf "$target_file" 2>/dev/null | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
                     quarantine_path "$restore_dir" "/etc/vps-optimize/quarantine/manual-temp" >/dev/null 2>&1 || true
-                    echo -e "${RED}❌ Файл резервной копии содержит
+                    echo -e "${RED}❌ Файл резервной копии содержит"
