@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Firewall rule management workflows.
+# Управление правилами брандмауэра.
 
 port_connlimit_comment() {
     local port="$1"
@@ -19,15 +19,15 @@ ensure_connlimit_tool() {
         return 0
     fi
 
-    echo -e "${YELLOW}⚠️ 未检测到 ${cmd}，正在尝试安装 iptables 兼容工具...${PLAIN}"
+    echo -e "${YELLOW}⚠️ ${cmd} не обнаружен, попытка установить iptables-совместимый инструмент...${PLAIN}"
     install_pkg iptables || true
 
     if command -v "$cmd" >/dev/null 2>&1; then
         return 0
     fi
 
-    echo -e "${RED}❌ 未检测到 ${cmd}，无法写入 ${family_label} connlimit 规则。${PLAIN}"
-    echo -e "${YELLOW}请先安装 iptables/ip6tables 兼容工具，再重新进入本菜单。${PLAIN}"
+    echo -e "${RED}❌ ${cmd} не обнаружен, невозможно записать правила connlimit для ${family_label}.${PLAIN}"
+    echo -e "${YELLOW}Установите iptables/ip6tables и повторите попытку.${PLAIN}"
     return 1
 }
 
@@ -218,52 +218,52 @@ print_port_connlimit_health_summary() {
     case "$backend" in
         netfilter-persistent) backend_label="${GREEN}netfilter-persistent${PLAIN}" ;;
         rhel-iptables-services) backend_label="${GREEN}rhel-iptables-services${PLAIN}" ;;
-        *) backend_label="${YELLOW}未检测到可用后端${PLAIN}" ;;
+        *) backend_label="${YELLOW}Не обнаружен доступный бэкенд${PLAIN}" ;;
     esac
 
     if [[ "$backend" == "none" ]]; then
-        consistency="${YELLOW}未检测（无可用持久化后端）${PLAIN}"
+        consistency="${YELLOW}Не обнаружен (нет доступного бэкенда)${PLAIN}"
     elif [[ "$runtime_rules" == "$saved_rules" ]]; then
-        consistency="${GREEN}一致${PLAIN}"
+        consistency="${GREEN}Согласовано${PLAIN}"
     else
-        consistency="${YELLOW}不一致${PLAIN}"
+        consistency="${YELLOW}Не согласовано${PLAIN}"
     fi
 
     if [[ "$backend" == "none" && "$runtime_count" -gt 0 ]]; then
-        risk="${YELLOW}存在：运行时规则未接入可用持久化后端，重启后可能丢失或恢复旧快照。${PLAIN}"
+        risk="${YELLOW}Есть: правила выполняются, но нет доступного бэкенда; после перезагрузки могут потеряться или восстановиться из старого снимка.${PLAIN}"
     elif [[ "$backend" == "none" && "$known_saved_count" -gt 0 ]]; then
-        risk="${YELLOW}存在：发现保存文件里仍有脚本规则标记，但当前无可用后端，重启恢复行为需手动确认。${PLAIN}"
+        risk="${YELLOW}Есть: обнаружены сохранённые правила скрипта, но нет доступного бэкенда; поведение после перезагрузки требует проверки.${PLAIN}"
     elif [[ "$backend" != "none" && "$runtime_count" -gt 0 && "$saved_count" -eq 0 ]]; then
-        risk="${YELLOW}存在：运行时规则尚未出现在当前保存文件中，重启后可能丢失。${PLAIN}"
+        risk="${YELLOW}Есть: правила в памяти, но ещё не сохранены в файл; после перезагрузки могут потеряться.${PLAIN}"
     elif [[ "$backend" != "none" && "$runtime_count" -eq 0 && "$saved_count" -gt 0 ]]; then
-        risk="${YELLOW}存在：运行时没有脚本规则，但保存文件仍有旧标记，重启后可能恢复旧规则。${PLAIN}"
+        risk="${YELLOW}Есть: в памяти нет правил скрипта, но в сохранённом файле есть старые метки; после перезагрузки могут восстановиться.${PLAIN}"
     elif [[ "$backend" != "none" && "$runtime_rules" != "$saved_rules" ]]; then
-        risk="${YELLOW}存在：运行时规则与保存文件不同，建议到 [8] -> [5] -> [5] 重新保存/检查。${PLAIN}"
+        risk="${YELLOW}Есть: правила в памяти и сохранённом файле различаются; рекомендуется повторно сохранить/проверить через [8] -> [5] -> [5].${PLAIN}"
     else
-        risk="${GREEN}未发现明显丢失/旧快照风险${PLAIN}"
+        risk="${GREEN}Риск потери/восстановления не обнаружен${PLAIN}"
     fi
 
-    echo -e "${CYAN}🔒 connlimit 持久化摘要${PLAIN}"
+    echo -e "${CYAN}🔒 Сводка по сохранению connlimit${PLAIN}"
     if [[ "$runtime_count" -gt 0 ]]; then
-        echo -e "脚本规则状态       : [ ${GREEN}存在${PLAIN} ]  运行时: ${CYAN}${runtime_count}${PLAIN} 条"
+        echo -e "Статус правил скрипта   : [ ${GREEN}Присутствуют${PLAIN} ]   В памяти: ${CYAN}${runtime_count}${PLAIN} правил"
     else
-        echo -e "脚本规则状态       : [ ${BLUE}未检测到运行时规则${PLAIN} ]"
+        echo -e "Статус правил скрипта   : [ ${BLUE}Правила в памяти не обнаружены${PLAIN} ]"
     fi
-    echo -e "可用持久化后端     : [ $backend_label ]"
-    echo -e "运行时/保存文件    : [ $consistency ]  保存文件: ${CYAN}${saved_count}${PLAIN} 条"
-    echo -e "重启风险提示       : [ $risk ]"
+    echo -e "Доступный бэкенд        : [ $backend_label ]"
+    echo -e "Память/сохранённый файл  : [ $consistency ]   Сохранённых правил: ${CYAN}${saved_count}${PLAIN}"
+    echo -e "Риск при перезагрузке   : [ $risk ]"
 }
 
 print_port_connlimit_persistence_unavailable() {
-    echo -e "${YELLOW}⚠️ 未检测到本脚本可可靠调用的 connlimit 持久化保存能力。${PLAIN}"
+    echo -e "${YELLOW}⚠️ Не обнаружен надёжно вызываемый бэкенд для сохранения connlimit.${PLAIN}"
     if is_debian; then
-        echo -e "${YELLOW}Debian/Ubuntu 可安装并启用 iptables-persistent / netfilter-persistent 后再保存。${PLAIN}"
+        echo -e "${YELLOW}На Debian/Ubuntu можно установить и включить iptables-persistent / netfilter-persistent перед сохранением.${PLAIN}"
     elif is_redhat; then
-        echo -e "${YELLOW}RHEL/Rocky/Alma/CentOS Stream 仅在检测到已有 iptables-services（iptables.service 或 /etc/sysconfig/iptables）时自动保存。${PLAIN}"
+        echo -e "${YELLOW}На RHEL/Rocky/Alma/CentOS Stream автоматическое сохранение работает только при обнаружении iptables-services (iptables.service или /etc/sysconfig/iptables).${PLAIN}"
     else
-        echo -e "${YELLOW}当前发行版未提供本脚本可验证的 iptables 持久化路径，请使用系统自带机制手动保存。${PLAIN}"
+        echo -e "${YELLOW}Текущий дистрибутив не предоставляет проверяемый путь для сохранения iptables; используйте системные средства для сохранения вручную.${PLAIN}"
     fi
-    echo -e "${YELLOW}当前 connlimit 规则只在本次运行期生效，重启后可能丢失或恢复旧快照。${PLAIN}"
+    echo -e "${YELLOW}Текущие правила connlimit действуют только до перезагрузки, после могут потеряться или восстановиться из старого снимка.${PLAIN}"
 }
 
 print_port_connlimit_persistence_status() {
@@ -281,19 +281,19 @@ print_port_connlimit_persistence_status() {
     rhel_v6_saved=$(port_connlimit_persisted_rule_count /etc/sysconfig/ip6tables)
     v4_file=$(port_connlimit_saved_file_for_family 4 "$backend" 2>/dev/null || true)
 
-    echo -e "${CYAN}持久化检查：${PLAIN}"
-    echo "  运行时规则：IPv4 ${v4_runtime} 条，IPv6 ${v6_runtime} 条。"
-    echo "  Debian/Ubuntu 保存文件：/etc/iptables/rules.v4 中 ${deb_v4_saved} 条，/etc/iptables/rules.v6 中 ${deb_v6_saved} 条。"
-    echo "  RHEL 系列保存文件：/etc/sysconfig/iptables 中 ${rhel_v4_saved} 条，/etc/sysconfig/ip6tables 中 ${rhel_v6_saved} 条。"
+    echo -e "${CYAN}Проверка сохранения:${PLAIN}"
+    echo "  Правила в памяти: IPv4 ${v4_runtime} шт., IPv6 ${v6_runtime} шт."
+    echo "  Файлы на Debian/Ubuntu: /etc/iptables/rules.v4 содержит ${deb_v4_saved} шт., /etc/iptables/rules.v6 содержит ${deb_v6_saved} шт."
+    echo "  Файлы на RHEL: /etc/sysconfig/iptables содержит ${rhel_v4_saved} шт., /etc/sysconfig/ip6tables содержит ${rhel_v6_saved} шт."
 
     if [[ "$backend" == "netfilter-persistent" ]]; then
-        echo -e "${GREEN}  已检测到 netfilter-persistent；添加/删除 connlimit 后会自动尝试保存，也可用本菜单 [5] 手动检查/保存。${PLAIN}"
+        echo -e "${GREEN}  Обнаружен netfilter-persistent; при добавлении/удалении connlimit скрипт автоматически попытается сохранить, также можно использовать [5] для проверки/сохранения.${PLAIN}"
     elif command -v dpkg-query >/dev/null 2>&1 && dpkg-query -W -f='${Status}' iptables-persistent 2>/dev/null | grep -q 'install ok installed'; then
-        echo -e "${YELLOW}  已检测到 iptables-persistent 包，但未检测到 netfilter-persistent 命令；请确认 /usr/sbin 是否在 PATH。${PLAIN}"
+        echo -e "${YELLOW}  Обнаружен пакет iptables-persistent, но команда netfilter-persistent не найдена; проверьте, что /usr/sbin в PATH.${PLAIN}"
     elif [[ "$backend" == "rhel-iptables-services" ]]; then
-        echo -e "${GREEN}  已检测到 RHEL 系列已有 iptables-services 持久化路径；添加/删除 connlimit 后会自动写入 ${v4_file:-/etc/sysconfig/iptables}。${PLAIN}"
+        echo -e "${GREEN}  Обнаружен существующий путь сохранения iptables-services на RHEL; при добавлении/удалении connlimit будет запись в ${v4_file:-/etc/sysconfig/iptables}.${PLAIN}"
         if ! port_connlimit_rhel_ipv6_persistence_available; then
-            echo -e "${YELLOW}  IPv6 未检测到 ip6tables.service 或 /etc/sysconfig/ip6tables；如有 IPv6 connlimit 规则，可能只能在本次运行期生效。${PLAIN}"
+            echo -e "${YELLOW}  Для IPv6 не обнаружен ip6tables.service или /etc/sysconfig/ip6tables; правила IPv6 connlimit могут действовать только до перезагрузки.${PLAIN}"
         fi
     else
         print_port_connlimit_persistence_unavailable
@@ -303,29 +303,29 @@ print_port_connlimit_persistence_status() {
         local enabled active
         enabled=$(systemctl is-enabled netfilter-persistent 2>/dev/null || true)
         active=$(systemctl is-active netfilter-persistent 2>/dev/null || true)
-        echo "  开机恢复服务：netfilter-persistent enabled=${enabled:-unknown}, active=${active:-unknown}。"
+        echo "  Служба восстановления при загрузке: netfilter-persistent enabled=${enabled:-unknown}, active=${active:-unknown}."
     fi
     if port_connlimit_systemd_unit_exists iptables; then
         local iptables_enabled iptables_active
         iptables_enabled=$(systemctl is-enabled iptables 2>/dev/null || true)
         iptables_active=$(systemctl is-active iptables 2>/dev/null || true)
-        echo "  开机恢复服务：iptables enabled=${iptables_enabled:-unknown}, active=${iptables_active:-unknown}。"
+        echo "  Служба восстановления при загрузке: iptables enabled=${iptables_enabled:-unknown}, active=${iptables_active:-unknown}."
     fi
     if port_connlimit_systemd_unit_exists ip6tables; then
         local ip6tables_enabled ip6tables_active
         ip6tables_enabled=$(systemctl is-enabled ip6tables 2>/dev/null || true)
         ip6tables_active=$(systemctl is-active ip6tables 2>/dev/null || true)
-        echo "  开机恢复服务：ip6tables enabled=${ip6tables_enabled:-unknown}, active=${ip6tables_active:-unknown}。"
+        echo "  Служба восстановления при загрузке: ip6tables enabled=${ip6tables_enabled:-unknown}, active=${ip6tables_active:-unknown}."
     fi
 
     if (( v4_runtime > 0 && v4_saved == 0 )) || (( v6_runtime > 0 && v6_saved == 0 )); then
-        echo -e "${YELLOW}  提示：检测到运行时 connlimit 规则尚未出现在当前可用的保存文件中，重启后可能丢失。${PLAIN}"
+        echo -e "${YELLOW}  Обнаружены правила connlimit в памяти, но они отсутствуют в доступном сохранённом файле; после перезагрузки могут потеряться.${PLAIN}"
     elif (( v4_runtime + v6_runtime == 0 && v4_saved + v6_saved > 0 )); then
-        echo -e "${YELLOW}  提示：运行时没有脚本规则，但保存文件里仍有旧标记；如不更新快照，重启后可能恢复旧规则。${PLAIN}"
+        echo -e "${YELLOW}  В памяти нет правил скрипта, но в сохранённом файле есть старые метки; если не обновить снимок, после перезагрузки могут восстановиться.${PLAIN}"
     elif (( v4_runtime + v6_runtime > 0 )); then
-        echo -e "${GREEN}  已在当前可用的保存文件中检测到脚本规则标记，重启恢复还取决于对应恢复服务是否启用。${PLAIN}"
+        echo -e "${GREEN}  В доступном сохранённом файле обнаружены метки правил скрипта; восстановление при загрузке зависит от соответствующей службы.${PLAIN}"
     else
-        echo -e "${BLUE}  当前没有检测到脚本添加的运行时 connlimit 规则。${PLAIN}"
+        echo -e "${BLUE}  В данный момент правил connlimit, добавленных скриптом, не обнаружено.${PLAIN}"
     fi
 }
 
@@ -334,23 +334,23 @@ enable_port_connlimit_persistence_service() {
 
     if [[ "$backend" == "netfilter-persistent" ]] && command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files netfilter-persistent.service --no-legend 2>/dev/null | grep -q .; then
         if systemctl enable netfilter-persistent >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ 已确认 netfilter-persistent 开机恢复服务启用。${PLAIN}"
+            echo -e "${GREEN}✅ Включена служба восстановления netfilter-persistent при загрузке.${PLAIN}"
         else
-            echo -e "${YELLOW}⚠️ 未能启用 netfilter-persistent 服务；规则文件已保存，但开机恢复状态需要手动确认。${PLAIN}"
+            echo -e "${YELLOW}⚠️ Не удалось включить netfilter-persistent; файл правил сохранён, но восстановление при загрузке нужно проверить вручную.${PLAIN}"
         fi
     fi
     if [[ "$backend" == "rhel-iptables-services" ]] && port_connlimit_systemd_unit_exists iptables; then
         if systemctl enable iptables >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ 已确认 iptables 开机恢复服务启用。${PLAIN}"
+            echo -e "${GREEN}✅ Включена служба восстановления iptables при загрузке.${PLAIN}"
         else
-            echo -e "${YELLOW}⚠️ 未能启用 iptables 服务；IPv4 规则文件已保存，但开机恢复状态需要手动确认。${PLAIN}"
+            echo -e "${YELLOW}⚠️ Не удалось включить iptables; файл правил IPv4 сохранён, но восстановление при загрузке нужно проверить вручную.${PLAIN}"
         fi
     fi
     if [[ "$backend" == "rhel-iptables-services" ]] && port_connlimit_systemd_unit_exists ip6tables; then
         if systemctl enable ip6tables >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ 已确认 ip6tables 开机恢复服务启用。${PLAIN}"
+            echo -e "${GREEN}✅ Включена служба восстановления ip6tables при загрузке.${PLAIN}"
         else
-            echo -e "${YELLOW}⚠️ 未能启用 ip6tables 服务；IPv6 规则文件已保存，但开机恢复状态需要手动确认。${PLAIN}"
+            echo -e "${YELLOW}⚠️ Не удалось включить ip6tables; файл правил IPv6 сохранён, но восстановление при загрузке нужно проверить вручную.${PLAIN}"
         fi
     fi
 }
@@ -371,26 +371,26 @@ save_rhel_port_connlimit_family() {
         mkdir -p "$(dirname "$file")" || {
             rm -f "$tmp_file"
             rm -f "$err_file"
-            echo -e "${RED}❌ 无法创建 $(dirname "$file")，${label} connlimit 持久化保存失败。${PLAIN}"
+            echo -e "${RED}❌ Не удалось создать $(dirname "$file"), сохранение ${label} connlimit не удалось.${PLAIN}"
             return 1
         }
         if cp "$tmp_file" "$file"; then
             chmod 600 "$file" 2>/dev/null || true
             rm -f "$tmp_file"
             rm -f "$err_file"
-            echo -e "${GREEN}✅ 已写入 ${file}，${label} connlimit 快照已保存。${PLAIN}"
+            echo -e "${GREEN}✅ Записано в ${file}, снимок ${label} connlimit сохранён.${PLAIN}"
             return 0
         fi
         rm -f "$tmp_file"
         rm -f "$err_file"
-        echo -e "${RED}❌ 写入 ${file} 失败，${label} connlimit 规则仍可能只在运行时有效。${PLAIN}"
+        echo -e "${RED}❌ Ошибка записи в ${file}, правила ${label} connlimit могут действовать только до перезагрузки.${PLAIN}"
         return 1
     fi
 
     output=$(<"$err_file")
     rm -f "$tmp_file"
     rm -f "$err_file"
-    echo -e "${RED}❌ ${save_cmd} 执行失败，${label} connlimit 持久化保存失败：${output}${PLAIN}"
+    echo -e "${RED}❌ ${save_cmd} не удался, сохранение ${label} connlimit не удалось: ${output}${PLAIN}"
     return 1
 }
 
@@ -401,7 +401,7 @@ save_rhel_port_connlimit_persistence() {
 
     iptables_save=$(port_connlimit_command_path iptables-save 2>/dev/null || true)
     if [[ -z "$iptables_save" ]]; then
-        echo -e "${RED}❌ 未检测到 iptables-save，无法写入 RHEL 系列 IPv4 connlimit 持久化文件。${PLAIN}"
+        echo -e "${RED}❌ iptables-save не обнаружен, невозможно записать файл сохранения IPv4 connlimit на RHEL.${PLAIN}"
         rc=1
     else
         save_rhel_port_connlimit_family "$iptables_save" "/etc/sysconfig/iptables" "IPv4" || rc=1
@@ -413,7 +413,7 @@ save_rhel_port_connlimit_persistence() {
         ip6tables_save=$(port_connlimit_command_path ip6tables-save 2>/dev/null || true)
         save_rhel_port_connlimit_family "$ip6tables_save" "/etc/sysconfig/ip6tables" "IPv6" || rc=1
     elif (( v6_runtime > 0 || v6_saved > 0 )); then
-        echo -e "${YELLOW}⚠️ 未检测到 RHEL IPv6 持久化路径；当前 IPv6 connlimit 规则或旧快照无法由脚本可靠保存。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Не обнаружен путь сохранения IPv6 на RHEL; текущие правила connlimit IPv6 или старый снимок не могут быть надёжно сохранены скриптом.${PLAIN}"
         rc=1
     fi
 
@@ -440,10 +440,10 @@ save_port_connlimit_persistence() {
     local netfilter_cmd
     netfilter_cmd=$(port_connlimit_command_path netfilter-persistent)
     if output=$("$netfilter_cmd" save 2>&1); then
-        echo -e "${GREEN}✅ 已执行 netfilter-persistent save，当前 iptables/ip6tables 快照已写入持久化文件。${PLAIN}"
+        echo -e "${GREEN}✅ Выполнено netfilter-persistent save, текущий снимок iptables/ip6tables записан в файлы.${PLAIN}"
     else
-        echo -e "${RED}❌ netfilter-persistent save 执行失败：${output}${PLAIN}"
-        echo -e "${YELLOW}本次不会假装已保存；当前 connlimit 规则仍可能只在运行时有效。${PLAIN}"
+        echo -e "${RED}❌ netfilter-persistent save не удался: ${output}${PLAIN}"
+        echo -e "${YELLOW}В этот раз сохранение не выполнено; текущие правила connlimit могут действовать только до перезагрузки.${PLAIN}"
         return 1
     fi
 
@@ -456,7 +456,7 @@ save_port_connlimit_persistence() {
     v6_saved=$(port_connlimit_saved_rule_count_for_family 6 "$backend")
 
     if (( v4_runtime > 0 && v4_saved == 0 )) || (( v6_runtime > 0 && v6_saved == 0 )); then
-        echo -e "${RED}❌ 保存后仍未在当前持久化文件中检测到脚本规则标记，请不要认为重启后一定会恢复。${PLAIN}"
+        echo -e "${RED}❌ После сохранения метки правил скрипта не обнаружены в сохранённом файле; не рассчитывайте на восстановление после перезагрузки.${PLAIN}"
         return 1
     fi
 
@@ -467,12 +467,12 @@ auto_save_port_connlimit_persistence_after_change() {
     local action_label="$1"
 
     echo ""
-    echo -e "${CYAN}正在尝试自动保存 connlimit 持久化快照（${action_label} 后刷新）...${PLAIN}"
+    echo -e "${CYAN}Попытка автоматического сохранения снимка connlimit (после ${action_label})...${PLAIN}"
     if save_port_connlimit_persistence; then
-        echo -e "${GREEN}✅ connlimit 持久化快照已刷新。${PLAIN}"
+        echo -e "${GREEN}✅ Снимок connlimit обновлён.${PLAIN}"
     else
-        echo -e "${YELLOW}⚠️ connlimit 运行时规则已按上方结果处理，但当前无法确认重启后保留。${PLAIN}"
-        echo -e "${YELLOW}请按提示补齐系统持久化能力，或在确认发行版机制后手动保存；不要默认重启后仍存在。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Правила connlimit применены, но сохранение не подтверждено; после перезагрузки они могут не сохраниться.${PLAIN}"
+        echo -e "${YELLOW}Восстановите возможности сохранения или сохраните вручную в соответствии с вашим дистрибутивом.${PLAIN}"
         return 1
     fi
 }
@@ -480,11 +480,11 @@ auto_save_port_connlimit_persistence_after_change() {
 func_save_port_connlimit_persistence() {
     print_port_connlimit_persistence_status
     echo ""
-    confirm_risk_action "保存端口并发连接限制持久化快照" \
-        "按当前系统已检测到的持久化机制保存 iptables/ip6tables 快照；Debian/Ubuntu 优先 netfilter-persistent，RHEL 系列优先已有 iptables-services" \
-        "添加或删除 connlimit 规则后脚本会自动尝试保存；本入口用于手动检查或失败后重试" \
-        "本操作不清空运行时规则，不改写 UFW/firewalld 放行配置；它只刷新额外 connlimit 规则所在的 iptables 快照。" || {
-        echo -e "${BLUE}已取消保存端口并发连接限制持久化快照。${PLAIN}"
+    confirm_risk_action "Сохранение снимка ограничений параллельных соединений" \
+        "Сохраняет текущий снимок iptables/ip6tables с использованием обнаруженного бэкенда; на Debian/Ubuntu предпочтение netfilter-persistent, на RHEL — существующий iptables-services" \
+        "При добавлении/удалении правил connlimit скрипт автоматически сохраняет; этот пункт для ручной проверки или повторной попытки" \
+        "Операция не удаляет правила, не меняет настройки UFW/firewalld; обновляется только снимок дополнительных правил connlimit." || {
+        echo -e "${BLUE}Сохранение снимка отменено.${PLAIN}"
         return 0
     }
 
@@ -515,18 +515,18 @@ port_connlimit_loopback_only_listener() {
 print_port_connlimit_scope_notice() {
     local port="$1"
 
-    echo -e "${YELLOW}说明：本功能写入的是额外 iptables/ip6tables connlimit 规则，不等同于 UFW/firewalld 的端口放行规则。${PLAIN}"
-    echo -e "${YELLOW}默认按“每个来源 IP”限制 TCP 并发连接数，不做全局总连接数限制。${PLAIN}"
-    echo -e "${YELLOW}添加/删除后会自动尝试刷新持久化快照；系统不支持时会明确提示只在本次运行期生效。${PLAIN}"
+    echo -e "${YELLOW}Пояснение: эта функция добавляет дополнительные правила iptables/ip6tables connlimit, которые не являются правилами разрешения портов UFW/firewalld.${PLAIN}"
+    echo -e "${YELLOW}По умолчанию ограничивается количество одновременных TCP-соединений с каждого исходного IP-адреса, а не общее количество соединений.${PLAIN}"
+    echo -e "${YELLOW}При добавлении/удалении автоматически обновляется снимок; если система не поддерживает сохранение, будет выдано предупреждение.${PLAIN}"
 
     if [[ "$port" == "443" ]]; then
-        echo -e "${RED}⚠️ 443 强提醒：如果当前启用了 443 单入口/端口复用，本限制会作用于整个公网 443。${PLAIN}"
-        echo -e "${RED}它不能精准限制某一个 Xray/3x-ui 入站、某一个 SNI、某一个 UUID 或某一个用户。${PLAIN}"
+        echo -e "${RED}⚠️ Предупреждение для 443: если включён единый вход 443/мультиплексирование порта, это ограничение действует на весь публичный порт 443.${PLAIN}"
+        echo -e "${RED}Оно не может быть применено к конкретному входящему Xray/3x-ui, SNI, UUID или пользователю.${PLAIN}"
     fi
 
     if port_connlimit_loopback_only_listener "$port"; then
-        echo -e "${YELLOW}⚠️ 检测到该端口可能只监听 127.0.0.1/::1。本功能建议限制公网监听端口。${PLAIN}"
-        echo -e "${YELLOW}如果限制本地后端端口，可能只能限制本机代理到后端的连接，不能代表真实公网来源。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Обнаружено, что порт, возможно, слушает только 127.0.0.1/::1. Эта функция предназначена для ограничения публичных портов.${PLAIN}"
+        echo -e "${YELLOW}Если ограничить локальный бэкенд-порт, это может ограничить только соединения от прокси к бэкенду, но не реальные источники из интернета.${PLAIN}"
     fi
 }
 
@@ -559,33 +559,33 @@ run_port_connlimit_rule_action() {
     case "$action" in
         add)
             if "$cmd" -C INPUT "${args[@]}" >/dev/null 2>&1; then
-                echo -e "${BLUE}ℹ️ ${family_label} 已存在相同规则：端口 ${port}，每来源 IP 超过 ${limit} 条新连接将被拒绝。${PLAIN}"
+                echo -e "${BLUE}ℹ️ ${family_label} уже существует правило: порт ${port}, более ${limit} новых соединений с одного IP будут отклонены.${PLAIN}"
                 return 0
             fi
             if port_connlimit_has_rule_for_port "$cmd" "$port"; then
-                echo -e "${YELLOW}⚠️ ${family_label} 已存在同端口脚本规则。继续添加会叠加限制；如需替换，建议先按端口和连接数删除旧规则。${PLAIN}"
+                echo -e "${YELLOW}⚠️ ${family_label} уже существует правило для этого порта с меткой скрипта. Добавление приведёт к наложению; для замены сначала удалите старое правило.${PLAIN}"
             fi
             if output=$("$cmd" -I INPUT "${args[@]}" 2>&1); then
-                echo -e "${GREEN}✅ ${family_label} 已添加：端口 ${port}，每来源 IP 最大并发 ${limit}。${PLAIN}"
+                echo -e "${GREEN}✅ ${family_label} добавлено: порт ${port}, максимум ${limit} одновременных соединений с одного IP.${PLAIN}"
                 return 0
             fi
-            echo -e "${RED}❌ ${family_label} 添加失败：${output}${PLAIN}"
+            echo -e "${RED}❌ ${family_label} ошибка добавления: ${output}${PLAIN}"
             return 1
             ;;
         delete)
             if ! "$cmd" -C INPUT "${args[@]}" >/dev/null 2>&1; then
-                echo -e "${YELLOW}⚠️ ${family_label} 未找到匹配规则：端口 ${port}，连接数 ${limit}。${PLAIN}"
+                echo -e "${YELLOW}⚠️ ${family_label} правило не найдено: порт ${port}, соединений ${limit}.${PLAIN}"
                 return 1
             fi
             if output=$("$cmd" -D INPUT "${args[@]}" 2>&1); then
-                echo -e "${GREEN}✅ ${family_label} 已删除：端口 ${port}，连接数 ${limit}。${PLAIN}"
+                echo -e "${GREEN}✅ ${family_label} удалено: порт ${port}, соединений ${limit}.${PLAIN}"
                 return 0
             fi
-            echo -e "${RED}❌ ${family_label} 删除失败：${output}${PLAIN}"
+            echo -e "${RED}❌ ${family_label} ошибка удаления: ${output}${PLAIN}"
             return 1
             ;;
         *)
-            echo -e "${RED}❌ 未知 connlimit 操作：${action}${PLAIN}"
+            echo -e "${RED}❌ Неизвестная операция connlimit: ${action}${PLAIN}"
             return 1
             ;;
     esac
@@ -595,13 +595,13 @@ read_connlimit_port() {
     local __target="$1"
     local port
 
-    read_trimmed port "请输入要限制的端口号（1-65535，回车或 0 取消）: "
+    read_trimmed port "Введите номер порта (1-65535, Enter или 0 для отмены): "
     if [[ -z "$port" || "$port" == "0" ]]; then
-        echo -e "${BLUE}已取消端口并发连接限制操作。${PLAIN}"
+        echo -e "${BLUE}Операция ограничения порта отменена.${PLAIN}"
         return 1
     fi
     if ! is_valid_port "$port"; then
-        echo -e "${RED}❌ 端口无效，必须是 1-65535。${PLAIN}"
+        echo -e "${RED}❌ Неверный порт, должен быть 1-65535.${PLAIN}"
         return 1
     fi
 
@@ -612,13 +612,13 @@ read_connlimit_limit() {
     local __target="$1"
     local limit
 
-    read_trimmed limit "请输入每个来源 IP 最大 TCP 并发连接数（正整数，回车或 0 取消）: "
+    read_trimmed limit "Введите максимальное количество одновременных TCP-соединений с одного IP (положительное целое, Enter или 0 для отмены): "
     if [[ -z "$limit" || "$limit" == "0" ]]; then
-        echo -e "${BLUE}已取消端口并发连接限制操作。${PLAIN}"
+        echo -e "${BLUE}Операция ограничения порта отменена.${PLAIN}"
         return 1
     fi
     if ! is_valid_connlimit_value "$limit"; then
-        echo -e "${RED}❌ 连接数无效，必须是正整数。${PLAIN}"
+        echo -e "${RED}❌ Неверное значение, должно быть положительным целым.${PLAIN}"
         return 1
     fi
 
@@ -630,10 +630,10 @@ func_add_port_connlimit_rule() {
 
     read_connlimit_port port || return 0
     read_connlimit_limit limit || return 0
-    read_trimmed apply_ipv6 "是否同时应用 IPv6？(y/n，默认 n): "
+    read_trimmed apply_ipv6 "Применить также для IPv6? (y/n, по умолчанию n): "
 
     print_port_connlimit_scope_notice "$port"
-    echo -e "${CYAN}即将添加规则标记：$(port_connlimit_comment "$port")${PLAIN}"
+    echo -e "${CYAN}Будет добавлено правило с меткой: $(port_connlimit_comment "$port")${PLAIN}"
 
     ensure_connlimit_tool iptables "IPv4" || return 1
     if is_yes "$apply_ipv6"; then
@@ -641,11 +641,11 @@ func_add_port_connlimit_rule() {
     fi
     try_load_connlimit_module
 
-    confirm_risk_action "添加端口 ${port} 并发连接限制" \
-        "iptables/ip6tables INPUT 链 connlimit 规则，超过 ${limit} 条并发的新 TCP 连接将被拒绝" \
-        "回到本菜单按同一端口和连接数删除规则；必要时通过云控制台/VNC 清理 iptables 规则" \
-        "该规则是额外连接数限制，不代表端口已被 UFW/firewalld 放行。" || {
-        echo -e "${BLUE}已取消添加端口并发连接限制。${PLAIN}"
+    confirm_risk_action "Добавить ограничение параллельных соединений для порта ${port}" \
+        "Правило connlimit в цепочке INPUT iptables/ip6tables, новые TCP-соединения свыше ${limit} будут отклоняться" \
+        "Удалите правило через этот же пункт меню по порту и лимиту; при необходимости очистите iptables через VNC/консоль" \
+        "Это дополнительное ограничение, не является правилом разрешения UFW/firewalld." || {
+        echo -e "${BLUE}Добавление ограничения отменено.${PLAIN}"
         return 0
     }
 
@@ -662,9 +662,9 @@ func_add_port_connlimit_rule() {
         fi
     fi
     if [[ "$touched" -eq 1 ]]; then
-        auto_save_port_connlimit_persistence_after_change "添加规则" || true
+        auto_save_port_connlimit_persistence_after_change "добавление правила" || true
     else
-        echo -e "${YELLOW}提示：添加未完全成功，未自动刷新持久化快照；请先处理上方失败项。${PLAIN}"
+        echo -e "${YELLOW}Добавление не завершено полностью, автоматическое сохранение не выполнено; сначала исправьте ошибки выше.${PLAIN}"
     fi
     return "$rc"
 }
@@ -674,21 +674,21 @@ func_delete_port_connlimit_rule() {
 
     read_connlimit_port port || return 0
     read_connlimit_limit limit || return 0
-    read_trimmed delete_ipv6 "是否同时删除 IPv6 对应规则？(Y/n，默认 yes): "
+    read_trimmed delete_ipv6 "Удалить также соответствующее правило IPv6? (Y/n, по умолчанию yes): "
 
     print_port_connlimit_scope_notice "$port"
-    echo -e "${CYAN}将按端口和连接数精确删除规则标记：$(port_connlimit_comment "$port")${PLAIN}"
+    echo -e "${CYAN}Будет удалено правило с меткой: $(port_connlimit_comment "$port")${PLAIN}"
 
     ensure_connlimit_tool iptables "IPv4" || return 1
     if ! is_no "$delete_ipv6"; then
         ensure_connlimit_tool ip6tables "IPv6" || return 1
     fi
 
-    confirm_risk_action "删除端口 ${port} 并发连接限制" \
-        "仅删除端口 ${port}、连接数 ${limit}、脚本标记为 $(port_connlimit_comment "$port") 的 connlimit 规则" \
-        "如误删，可回到本菜单重新添加同端口同连接数限制" \
-        "本操作不会清空 UFW/firewalld，也不会批量清空 iptables。" || {
-        echo -e "${BLUE}已取消删除端口并发连接限制。${PLAIN}"
+    confirm_risk_action "Удалить ограничение параллельных соединений для порта ${port}" \
+        "Удаляет только правило connlimit для порта ${port}, лимита ${limit}, с меткой $(port_connlimit_comment "$port")" \
+        "Если удалено по ошибке, можно добавить заново через этот же пункт меню" \
+        "Это не удаляет правила UFW/firewalld и не очищает iptables массово." || {
+        echo -e "${BLUE}Удаление ограничения отменено.${PLAIN}"
         return 0
     }
 
@@ -696,15 +696,15 @@ func_delete_port_connlimit_rule() {
     if ! is_no "$delete_ipv6"; then
         run_port_connlimit_rule_action ip6tables delete "$port" "$limit" 128 "IPv6" || rc=1
     fi
-    auto_save_port_connlimit_persistence_after_change "删除规则" || true
+    auto_save_port_connlimit_persistence_after_change "удаление правила" || true
     return "$rc"
 }
 
 func_show_port_connlimit_rules() {
     local found=0
 
-    echo -e "${CYAN}当前由 VPS-Optimize 添加的端口并发连接限制规则：${PLAIN}"
-    echo -e "${YELLOW}标记格式：VPSO_CONN_LIMIT_PORT_<端口>${PLAIN}"
+    echo -e "${CYAN}Текущие правила ограничения параллельных соединений, добавленные VPS-Optimize:${PLAIN}"
+    echo -e "${YELLOW}Метка: VPSO_CONN_LIMIT_PORT_<порт>${PLAIN}"
     echo ""
 
     if command -v iptables >/dev/null 2>&1; then
@@ -712,10 +712,10 @@ func_show_port_connlimit_rules() {
         if iptables -S INPUT 2>/dev/null | grep -F 'VPSO_CONN_LIMIT_PORT_'; then
             found=1
         else
-            echo "  未发现 IPv4 脚本规则。"
+            echo "  Правил IPv4 не обнаружено."
         fi
     else
-        echo -e "${YELLOW}IPv4: 未检测到 iptables。${PLAIN}"
+        echo -e "${YELLOW}IPv4: iptables не обнаружен.${PLAIN}"
     fi
 
     echo ""
@@ -724,17 +724,17 @@ func_show_port_connlimit_rules() {
         if ip6tables -S INPUT 2>/dev/null | grep -F 'VPSO_CONN_LIMIT_PORT_'; then
             found=1
         else
-            echo "  未发现 IPv6 脚本规则。"
+            echo "  Правил IPv6 не обнаружено."
         fi
     else
-        echo -e "${YELLOW}IPv6: 未检测到 ip6tables。${PLAIN}"
+        echo -e "${YELLOW}IPv6: ip6tables не обнаружен.${PLAIN}"
     fi
 
     echo ""
     if [[ "$found" -eq 0 ]]; then
-        echo -e "${BLUE}当前没有检测到本脚本添加的 connlimit 规则。${PLAIN}"
+        echo -e "${BLUE}В данный момент правил connlimit от скрипта не обнаружено.${PLAIN}"
     fi
-    echo -e "${YELLOW}提示：这些规则是连接数限制，不等同于 UFW/firewalld 的端口放行规则。${PLAIN}"
+    echo -e "${YELLOW}Эти правила ограничивают количество соединений, они не являются правилами разрешения портов UFW/firewalld.${PLAIN}"
     echo ""
     print_port_connlimit_persistence_status
 }
@@ -745,16 +745,16 @@ func_show_port_current_connections() {
     read_connlimit_port port || return 0
 
     if ! command -v ss >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️ 未检测到 ss，正在尝试安装 iproute2/iproute...${PLAIN}"
+        echo -e "${YELLOW}⚠️ ss не обнаружен, попытка установить iproute2/iproute...${PLAIN}"
         install_pkg iproute2 || install_pkg iproute || true
     fi
     if ! command -v ss >/dev/null 2>&1; then
-        echo -e "${RED}❌ 未检测到 ss，无法查看当前连接情况。${PLAIN}"
+        echo -e "${RED}❌ ss не обнаружен, невозможно просмотреть текущие соединения.${PLAIN}"
         return 1
     fi
 
     print_port_connlimit_scope_notice "$port"
-    echo -e "${CYAN}端口 ${port} 当前 ESTABLISHED TCP 连接按来源 IP 统计：${PLAIN}"
+    echo -e "${CYAN}Порт ${port}: статистика установленных TCP-соединений по исходным IP:${PLAIN}"
     rows=$(ss -Htan state established 2>/dev/null | awk -v port="$port" '
         function is_local_port(endpoint) {
             return endpoint ~ (":" port "$") || endpoint ~ ("\\]:" port "$")
@@ -774,46 +774,46 @@ func_show_port_current_connections() {
     ' | sort | uniq -c | sort -nr)
 
     if [[ -z "$rows" ]]; then
-        echo "  当前没有 ESTABLISHED 连接。"
+        echo "  В данный момент установленных соединений нет."
     else
         printf '%s\n' "$rows" | awk '{count=$1; $1=""; sub(/^ /, ""); printf "  %-45s %s\n", $0, count}'
     fi
 }
 
 show_firewall_menu_help() {
-    echo "防火墙菜单用于放行、删除、查看或关闭系统防火墙规则。删除规则和关闭防火墙都必须输入 yes 确认，大小写均可。"
-    echo "自动放行会生成最小权限计划，展示协议、监听地址、进程和 Docker 映射；回环监听不会放行，当前 SSH 端口不能排除。"
-    echo "计划只代表当前公网监听和 Docker 发布端口，不能判断业务是否仍需对外开放；可按编号排除非必要规则，确认后才应用。"
-    echo "Docker 映射可能绕过普通 UFW/firewalld 端口规则；排除计划项不会关闭容器映射，需要同时修改 Docker 发布地址或使用 Docker 安全管理。"
-    echo "手动添加默认只放行 TCP，可明确选择 udp 或 both。删除旧规则默认同时检查 TCP/UDP。"
-    echo "端口并发连接限制用于按公网端口限制每来源 IP 的 TCP 并发连接数，IPv4 使用 iptables connlimit，IPv6 使用 ip6tables connlimit。"
-    echo "该限制是额外连接数限制规则，不等同于 UFW/firewalld 的端口放行规则；两者可能并存。"
-    echo "添加/删除 connlimit 后会自动尝试刷新持久化快照；[5] 可手动检查或再次保存。系统不支持时会提示当前规则只在本次运行期生效。"
-    echo "如果限制公网 443 且当前启用了 443 单入口/端口复用，限制粒度只能是整个公网 443，不能精准到某个入站、SNI、UUID 或用户。"
+    echo "Меню брандмауэра предназначено для разрешения, удаления, просмотра или отключения системного брандмауэра. Для удаления и отключения требуется ввод yes для подтверждения."
+    echo "Автоматическое разрешение создаёт минимальный план, показывая протокол, адрес прослушивания, процесс и Docker-маппинг; петлевые адреса не разрешаются, текущий SSH-порт не может быть исключён."
+    echo "План основан только на текущем публичном прослушивании и опубликованных портах Docker; необходимо проверить, нужны ли они для бизнеса; можно исключить необязательные правила по номеру."
+    echo "Маппинг Docker может обходить обычные правила UFW/firewalld; исключение из плана не закрывает маппинг контейнеров, требуется также изменить адрес публикации Docker или использовать безопасность Docker."
+    echo "Ручное добавление по умолчанию разрешает TCP; можно указать udp или both. Удаление проверяет TCP и UDP."
+    echo "Ограничение параллельных соединений используется для ограничения TCP-коннектов с одного IP на публичном порте; IPv4 использует iptables connlimit, IPv6 — ip6tables connlimit."
+    echo "Это дополнительное ограничение, не является правилом разрешения портов UFW/firewalld; они могут сосуществовать."
+    echo "При добавлении/удалении connlimit автоматически обновляется снимок; пункт [5] позволяет проверить или сохранить вручную. При отсутствии поддержки будет предупреждение."
+    echo "Если ограничивается публичный 443 и включён единый вход 443/мультиплексирование, ограничение применяется ко всему публичному 443 и не может быть точным для конкретного входящего, SNI, UUID или пользователя."
 }
 
 func_port_connlimit_menu() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "防火墙规则管理 > 端口并发连接限制"
-        echo -e "${BOLD}端口并发连接限制${PLAIN}"
+        print_breadcrumb "Управление брандмауэром > Ограничение параллельных соединений"
+        echo -e "${BOLD}Ограничение параллельных соединений на порт${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}用途：按公网端口限制每来源 IP 的 TCP 并发连接数。${PLAIN}"
-        echo -e "${YELLOW}说明：这是额外 connlimit 规则，不等同于 UFW/firewalld 放行规则。${PLAIN}"
-        echo -e "${YELLOW}持久化：添加/删除后自动尝试保存；用 [5] 手动检查/重试。${PLAIN}"
+        echo -e "${YELLOW}Назначение: ограничить количество одновременных TCP-соединений с одного IP на публичном порте.${PLAIN}"
+        echo -e "${YELLOW}Пояснение: это дополнительные правила connlimit, не являющиеся правилами разрешения UFW/firewalld.${PLAIN}"
+        echo -e "${YELLOW}Сохранение: при добавлении/удалении автоматически обновляется; [5] для ручной проверки/повторной попытки.${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}  1. 添加端口并发连接限制${PLAIN}"
-        echo -e "${GREEN}  2. 删除端口并发连接限制${PLAIN}"
-        echo -e "${GREEN}  3. 查看当前连接数限制规则${PLAIN}"
-        echo -e "${GREEN}  4. 查看某端口当前连接情况${PLAIN}"
-        echo -e "${GREEN}  5. 保存/检查重启持久化${PLAIN}"
+        echo -e "${GREEN}  1. Добавить ограничение параллельных соединений для порта${PLAIN}"
+        echo -e "${GREEN}  2. Удалить ограничение параллельных соединений для порта${PLAIN}"
+        echo -e "${GREEN}  3. Просмотреть текущие правила ограничения${PLAIN}"
+        echo -e "${GREEN}  4. Просмотреть текущие соединения для порта${PLAIN}"
+        echo -e "${GREEN}  5. Сохранить/проверить сохранение при перезагрузке${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BLUE}  0. 返回上一级${PLAIN}"
+        echo -e "${BLUE}  0. Вернуться на уровень выше${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local connlimit_choice
-        read_trimmed connlimit_choice "👉 请选择操作: "
+        read_trimmed connlimit_choice "👉 Выберите действие: "
         case "$connlimit_choice" in
             1) func_add_port_connlimit_rule; pause_return ;;
             2) func_delete_port_connlimit_rule; pause_return ;;
@@ -821,7 +821,7 @@ func_port_connlimit_menu() {
             4) func_show_port_current_connections; pause_return ;;
             5) func_save_port_connlimit_persistence; pause_return ;;
             0|q|Q) break ;;
-            *) echo -e "${RED}❌ 无效的选择！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
@@ -863,7 +863,7 @@ firewall_collect_public_listener_details() {
                 sub(/".*$/, "", process)
             }
             if (port ~ /^[0-9]+$/ && port >= 1 && port <= 65535) {
-                print port "|" proto "|" address "|" process "|系统监听|"
+                print port "|" proto "|" address "|" process "|Системный слушатель|"
             }
         }
     '
@@ -983,10 +983,10 @@ firewall_build_minimum_plan() {
         if [[ -z "${seen[$key]:-}" ]]; then
             keys+=("$key")
             seen["$key"]=1
-            addresses["$key"]="按 SSH 配置保护"
+            addresses["$key"]="Защищено SSH конфигурацией"
         fi
         processes["$key"]=$(firewall_add_unique_plan_value "${processes[$key]:-}" "sshd")
-        sources["$key"]=$(firewall_add_unique_plan_value "${sources[$key]:-}" "SSH 保护")
+        sources["$key"]=$(firewall_add_unique_plan_value "${sources[$key]:-}" "Защита SSH")
         protected["$key"]="yes"
     fi
 
@@ -1002,17 +1002,17 @@ firewall_build_minimum_plan() {
 firewall_print_minimum_plan() {
     local plan="$1"
     local index=0 port protocol address process source mapping protected
-    echo -e "${CYAN}👇 最小权限防火墙计划：${PLAIN}"
+    echo -e "${CYAN}👇 Минимальный план брандмауэра:${PLAIN}"
     while IFS='|' read -r port protocol address process source mapping protected; do
         [[ -n "$port" ]] || continue
         index=$((index + 1))
         printf '  [%d] %s/%s\n' "$index" "$port" "$protocol"
-        printf '      监听地址: %s\n' "${address:--}"
-        printf '      进程: %s\n' "${process:--}"
-        printf '      来源: %s\n' "${source:--}"
-        printf '      Docker 映射: %s\n' "${mapping:--}"
+        printf '      Адрес прослушивания: %s\n' "${address:--}"
+        printf '      Процесс: %s\n' "${process:--}"
+        printf '      Источник: %s\n' "${source:--}"
+        printf '      Docker маппинг: %s\n' "${mapping:--}"
         if [[ "$protected" == "yes" ]]; then
-            echo "      保护: 当前 SSH 端口，不能排除"
+            echo "      Защищено: текущий SSH-порт, не может быть исключён"
         fi
     done <<< "$plan"
 }
@@ -1028,14 +1028,14 @@ firewall_select_minimum_plan_rules() {
     count=$(grep -c '^[0-9]' <<< "$plan" || true)
     if [[ -n "$exclusions" ]]; then
         [[ "$exclusions" =~ ^[0-9]+(,[0-9]+)*$ ]] || {
-            echo "排除编号格式无效，请使用逗号分隔，例如：2,4。" >&2
+            echo "Неверный формат номеров для исключения, используйте запятые, например 2,4." >&2
             return 1
         }
         IFS=',' read -ra exclusion_items <<< "$exclusions"
         for item in "${exclusion_items[@]}"; do
             item_number=$((10#$item))
             if (( item_number < 1 || item_number > count )); then
-                echo "排除编号 ${item} 不在计划范围内。" >&2
+                echo "Номер ${item} вне диапазона плана." >&2
                 return 1
             fi
             excluded["$item_number"]=1
@@ -1047,7 +1047,7 @@ firewall_select_minimum_plan_rules() {
         [[ -n "$port" ]] || continue
         index=$((index + 1))
         if [[ -n "${excluded[$index]:-}" && "$protected" == "yes" ]]; then
-            echo "编号 ${index} 是当前 SSH 端口，已强制保留。" >&2
+            echo "Номер ${index} — текущий SSH-порт, оставлен принудительно." >&2
         elif [[ -n "${excluded[$index]:-}" ]]; then
             continue
         fi
@@ -1093,7 +1093,7 @@ firewall_apply_port_rule() {
         fi
     fi
     if [[ "$command_rc" -ne 0 ]]; then
-        echo -e "${RED}❌ ${action} ${port_rule}/${protocol} 失败：${output:-未知错误}${PLAIN}"
+        echo -e "${RED}❌ ${action} ${port_rule}/${protocol} не удалось: ${output:-неизвестная ошибка}${PLAIN}"
         return 1
     fi
 }
@@ -1130,8 +1130,8 @@ func_firewall_manage() {
     while true; do
         clear
         echo -e "${CYAN}================================================${PLAIN}"
-        print_breadcrumb "防火墙规则管理"
-        echo -e "${BOLD}🛡️ 防火墙规则管理${PLAIN}"
+        print_breadcrumb "Управление брандмауэром"
+        echo -e "${BOLD}🛡️ Управление правилами брандмауэра${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local fw_status
@@ -1143,58 +1143,58 @@ func_firewall_manage() {
         fi
 
         if [[ "$fw_status" == *"active"* ]]; then
-            str_fw="${GREEN}运行中${PLAIN}"
+            str_fw="${GREEN}Активен${PLAIN}"
         else
-            str_fw="${RED}已关闭 / 未配置${PLAIN}"
+            str_fw="${RED}Отключён / не настроен${PLAIN}"
         fi
 
-        echo -e "当前防火墙状态: [ $str_fw ]"
+        echo -e "Текущий статус брандмауэра: [ $str_fw ]"
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}  1. 查看防火墙放行列表${PLAIN}"
-        echo -e "${GREEN}  2. 启用防火墙 + 最小权限放行规划${PLAIN} ${YELLOW}(可预览/排除，不覆盖原有规则)${PLAIN}"
-        echo -e "${GREEN}  3. 手动放行端口${PLAIN} ${YELLOW}(可选 TCP/UDP，支持批量/范围)${PLAIN}"
-        echo -e "${GREEN}  4. 删除已放行端口${PLAIN} ${YELLOW}(可选 TCP/UDP，支持批量/范围)${PLAIN}"
-        echo -e "${GREEN}  5. 端口并发连接限制${PLAIN} ${YELLOW}(按每来源 IP 限制 TCP 并发)${PLAIN}"
-        echo -e "${RED}  6. 关闭防火墙${PLAIN}"
+        echo -e "${GREEN}  1. Просмотр списка разрешённых правил${PLAIN}"
+        echo -e "${GREEN}  2. Включить брандмауэр и применить минимальный план${PLAIN} ${YELLOW}(можно просмотреть/исключить, не перезаписывает существующие правила)${PLAIN}"
+        echo -e "${GREEN}  3. Разрешить порт вручную${PLAIN} ${YELLOW}(TCP/UDP, пакетно/диапазон)${PLAIN}"
+        echo -e "${GREEN}  4. Удалить разрешённый порт${PLAIN} ${YELLOW}(TCP/UDP, пакетно/диапазон)${PLAIN}"
+        echo -e "${GREEN}  5. Ограничение параллельных соединений на порт${PLAIN} ${YELLOW}(по IP)${PLAIN}"
+        echo -e "${RED}  6. Отключить брандмауэр${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${BLUE}  ?. 查看帮助${PLAIN}"
-        echo -e "${BLUE}  0. 返回上一级菜单 / q 返回${PLAIN}"
+        echo -e "${BLUE}  ?. Показать справку${PLAIN}"
+        echo -e "${BLUE}  0. Вернуться в предыдущее меню / q${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
 
         local fw_choice
-        read_trimmed fw_choice "👉 请选择操作: "
+        read_trimmed fw_choice "👉 Выберите действие: "
 
         case $fw_choice in
             1)
-                echo -e "${CYAN}👇 当前防火墙规则列表：${PLAIN}"
+                echo -e "${CYAN}👇 Список текущих правил брандмауэра:${PLAIN}"
                 if [[ "$OS" =~ debian|ubuntu ]]; then
                     ufw status numbered
                 else
                     firewall-cmd --list-ports
                 fi
-                read -n 1 -s -r -p "按任意键继续..."
+                read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
                 ;;
             2)
-                echo -e "${CYAN}👉 正在检查公网监听、进程和 Docker 发布端口...${PLAIN}"
+                echo -e "${CYAN}👉 Проверка публичных слушателей, процессов и опубликованных портов Docker...${PLAIN}"
                 local firewall_plan active_rules exclusions selection_cancelled
                 firewall_plan=$(firewall_build_minimum_plan)
 
                 if [[ -z "$firewall_plan" ]]; then
-                    echo -e "${RED}❌ 未能识别到需要放行的监听端口，已取消启用防火墙，避免误锁 SSH。${PLAIN}"
-                    echo -e "${YELLOW}请先确认 ss/iproute2 可用，或使用 [3] 手动添加 SSH 端口后再启用。${PLAIN}"
-                    read -n 1 -s -r -p "按任意键继续..."
+                    echo -e "${RED}❌ Не удалось определить порты для разрешения, включение отменено во избежание блокировки SSH.${PLAIN}"
+                    echo -e "${YELLOW}Убедитесь, что ss/iproute2 доступны, или используйте [3] для ручного добавления SSH-порта.${PLAIN}"
+                    read -n 1 -s -r -p "Нажмите любую клавишу для продолжения..."
                     continue
                 fi
                 firewall_print_minimum_plan "$firewall_plan"
-                echo -e "${YELLOW}说明：计划仅依据当前公网监听和 Docker 发布端口，仍需由你判断业务是否需要公网访问。${PLAIN}"
+                echo -e "${YELLOW}План основан на текущем публичном прослушивании и Docker-маппинге; вы должны проверить, нужны ли они для бизнеса.${PLAIN}"
                 if grep -Fq '|Docker|' <<< "$firewall_plan"; then
-                    echo -e "${RED}⚠️ Docker 映射可能绕过普通 UFW/firewalld 规则；从计划排除不会关闭容器映射。${PLAIN}"
-                    echo -e "${YELLOW}如需收口，请同时修改 Docker 发布地址，或使用 [11 Docker 安全管理]。${PLAIN}"
+                    echo -e "${RED}⚠️ Маппинг Docker может обходить обычные правила UFW/firewalld; исключение из плана не закрывает маппинг контейнеров.${PLAIN}"
+                    echo -e "${YELLOW}Для ограничения также измените адрес публикации Docker или используйте [11 Docker безопасность].${PLAIN}"
                 fi
 
                 selection_cancelled=0
                 while true; do
-                    read_trimmed exclusions "👉 输入要排除的编号（逗号分隔，直接回车全部保留，q 取消）: "
+                    read_trimmed exclusions "👉 Введите номера для исключения (через запятую, Enter для сохранения всех, q отмена): "
                     if [[ "$exclusions" =~ ^[qQ]$ ]]; then
                         selection_cancelled=1
                         break
@@ -1204,16 +1204,16 @@ func_firewall_manage() {
                     fi
                 done
                 if [[ "$selection_cancelled" -eq 1 ]]; then
-                    echo -e "${BLUE}已取消启用防火墙。${PLAIN}"
+                    echo -e "${BLUE}Включение брандмауэра отменено.${PLAIN}"
                     sleep 1
                     continue
                 fi
-                echo -e "${CYAN}将放行：$(echo "$active_rules" | tr '\n' ' ')${PLAIN}"
-                confirm_risk_action "启用防火墙并应用最小权限放行计划" \
-                    "系统防火墙默认入站策略，以及上方选中的 TCP/UDP 放行规则" \
-                    "保持当前 SSH 会话，使用云厂商控制台/VNC 关闭防火墙或补回业务端口" \
-                    "确认上方计划已覆盖当前 SSH 和所有必须公网访问的服务。" || {
-                    echo -e "${BLUE}已取消启用防火墙。${PLAIN}"
+                echo -e "${CYAN}Будут разрешены: $(echo "$active_rules" | tr '\n' ' ')${PLAIN}"
+                confirm_risk_action "Включить брандмауэр и применить минимальный план разрешений" \
+                    "Политика по умолчанию для входящих соединений и выбранные правила TCP/UDP" \
+                    "Сохраните текущую SSH-сессию, используйте консоль провайдера/VNC для отключения брандмауэра или восстановления бизнес-портов" \
+                    "Убедитесь, что план покрывает текущий SSH и все необходимые публичные службы." || {
+                    echo -e "${BLUE}Включение брандмауэра отменено.${PLAIN}"
                     sleep 1
                     continue
                 }
@@ -1222,7 +1222,7 @@ func_firewall_manage() {
                 local firewalld_was_inactive=0
                 if [[ "$OS" =~ debian|ubuntu ]]; then
                     if ! install_pkg ufw || ! command -v ufw >/dev/null 2>&1; then
-                        echo -e "${RED}❌ UFW 安装失败，未启用防火墙。${PLAIN}"
+                        echo -e "${RED}❌ Не удалось установить UFW, брандмауэр не включён.${PLAIN}"
                         sleep 2
                         continue
                     fi
@@ -1230,13 +1230,13 @@ func_firewall_manage() {
                     ufw default allow outgoing >/dev/null 2>&1 || firewall_rc=1
                 else
                     if ! install_pkg firewalld || ! command -v firewall-cmd >/dev/null 2>&1; then
-                        echo -e "${RED}❌ Firewalld 安装失败，未继续写入规则。${PLAIN}"
+                        echo -e "${RED}❌ Не удалось установить firewalld, брандмауэр не включён.${PLAIN}"
                         sleep 2
                         continue
                     fi
                     if ! systemctl is-active --quiet firewalld; then
                         if ! command -v firewall-offline-cmd >/dev/null 2>&1; then
-                            echo -e "${RED}❌ 缺少 firewall-offline-cmd，无法在启动防火墙前安全写入 SSH 放行规则。${PLAIN}"
+                            echo -e "${RED}❌ Отсутствует firewall-offline-cmd, невозможно безопасно добавить SSH-порт до запуска firewalld.${PLAIN}"
                             sleep 2
                             continue
                         fi
@@ -1267,139 +1267,138 @@ func_firewall_manage() {
                 fi
 
                 if [[ "$firewall_rc" -ne 0 ]]; then
-                    echo -e "${RED}❌ 防火墙配置未完整成功，请根据上方失败规则修复后重试。${PLAIN}"
-                    echo -e "${YELLOW}计划放行：$(echo "$active_rules" | tr '\n' ' ')${PLAIN}"
+                    echo -e "${RED}❌ Конфигурация брандмауэра не завершена полностью, исправьте ошибки выше.${PLAIN}"
+                    echo -e "${YELLOW}План разрешений: $(echo "$active_rules" | tr '\n' ' ')${PLAIN}"
                     sleep 3
                     continue
                 fi
-                echo -e "${GREEN}✅ 防火墙已启用，已按实际监听协议放行：$(echo "$active_rules" | tr '\n' ' ')${PLAIN}"
+                echo -e "${GREEN}✅ Брандмауэр включён, разрешены: $(echo "$active_rules" | tr '\n' ' ')${PLAIN}"
                 sleep 2
                 ;;
             3)
                 local add_p add_protocol
-                echo -e "${YELLOW}💡 支持格式：单端口(80)、多端口(80,443)、端口范围(8000:9000 或 8000-9000)${PLAIN}"
-                read_trimmed add_p "👉 请输入要放行的端口号: "
+                echo -e "${YELLOW}💡 Форматы: одиночный порт(80), несколько портов(80,443), диапазон(8000:9000 или 8000-9000)${PLAIN}"
+                read_trimmed add_p "👉 Введите порт для разрешения: "
                 add_p=$(normalize_port_rule_input "$add_p")
                 if [[ -z "$add_p" || "$add_p" == "0" ]]; then
-                    echo -e "${BLUE}已取消添加端口规则。${PLAIN}"
+                    echo -e "${BLUE}Добавление правила отменено.${PLAIN}"
                     sleep 1
                     continue
                 fi
 
-                # 放宽正则，允许数字、逗号、冒号和减号
                 if is_valid_port_rule_input "$add_p"; then
                     if [[ "$OS" =~ debian|ubuntu ]]; then
                         install_pkg ufw
                         if ! command -v ufw >/dev/null 2>&1; then
-                            echo -e "${RED}❌ 未检测到 ufw，无法写入规则。${PLAIN}"
+                            echo -e "${RED}❌ ufw не обнаружен, невозможно записать правило.${PLAIN}"
                             sleep 2
                             continue
                         fi
                         if ! ufw status 2>/dev/null | grep -qi active; then
-                            echo -e "${YELLOW}⚠️ UFW 当前未启用，本次只写入规则；需要启用时请回到 [1] 自动放行活动端口。${PLAIN}"
+                            echo -e "${YELLOW}⚠️ UFW в данный момент не активен, правило будет добавлено, но для применения требуется включить UFW через [1].${PLAIN}"
                         fi
                     elif ! systemctl is-active --quiet firewalld 2>/dev/null; then
-                        echo -e "${RED}❌ Firewalld 未运行。为避免误关端口，请先使用 [2] 启用并自动放行当前活动端口。${PLAIN}"
+                        echo -e "${RED}❌ Firewalld не запущен. Во избежание блокировки порта сначала используйте [2] для включения и автоматического разрешения активных портов.${PLAIN}"
                         sleep 2
                         continue
                     fi
-                    read_trimmed add_protocol "👉 请选择协议 tcp/udp/both（默认 tcp）: "
+                    read_trimmed add_protocol "👉 Выберите протокол tcp/udp/both (по умолчанию tcp): "
                     add_protocol=$(normalize_firewall_protocol "${add_protocol:-tcp}" 2>/dev/null || true)
                     if [[ -z "$add_protocol" ]]; then
-                        echo -e "${RED}❌ 协议只能是 tcp、udp 或 both。${PLAIN}"
+                        echo -e "${RED}❌ Протокол должен быть tcp, udp или both.${PLAIN}"
                         sleep 2
                         continue
                     fi
                     if firewall_apply_port_input add "$add_p" "$add_protocol" \
                         && { [[ "$OS" =~ debian|ubuntu ]] || firewall-cmd --reload >/dev/null 2>&1; }; then
-                        echo -e "${GREEN}✅ 端口规则 [${add_p}/${add_protocol}] 已添加至允许列表。${PLAIN}"
+                        echo -e "${GREEN}✅ Правило [${add_p}/${add_protocol}] добавлено.${PLAIN}"
                     else
-                        echo -e "${RED}❌ 端口规则 [${add_p}/${add_protocol}] 未完整添加，请检查上方错误。${PLAIN}"
+                        echo -e "${RED}❌ Правило [${add_p}/${add_protocol}] не добавлено полностью, проверьте ошибки.${PLAIN}"
                     fi
                 else
-                    echo -e "${RED}❌ 无效的端口格式！端口必须是 1-65535，范围起始值不能大于结束值。${PLAIN}"
+                    echo -e "${RED}❌ Неверный формат порта!${PLAIN}"
                 fi
                 sleep 2
                 ;;
             4)
                 local del_p del_protocol
-                echo -e "${YELLOW}💡 支持格式：单端口(80)、多端口(80,443)、端口范围(8000:9000 或 8000-9000)${PLAIN}"
-                read_trimmed del_p "👉 请输入要删除放行的端口号: "
+                echo -e "${YELLOW}💡 Форматы: одиночный порт(80), несколько портов(80,443), диапазон(8000:9000 или 8000-9000)${PLAIN}"
+                read_trimmed del_p "👉 Введите порт для удаления: "
                 del_p=$(normalize_port_rule_input "$del_p")
                 if [[ -z "$del_p" || "$del_p" == "0" ]]; then
-                    echo -e "${BLUE}已取消删除端口规则。${PLAIN}"
+                    echo -e "${BLUE}Удаление правила отменено.${PLAIN}"
                     sleep 1
                     continue
                 fi
 
                 if is_valid_port_rule_input "$del_p"; then
-                    confirm_risk_action "删除防火墙放行规则 ${del_p}" \
-                        "系统防火墙端口放行规则" \
-                        "重新进入防火墙菜单手动放行端口，或通过云厂商控制台/VNC 修复" \
-                        "确认不会删除当前 SSH 端口或业务必需端口。" || {
-                        echo -e "${BLUE}已取消删除端口规则。${PLAIN}"
+                    confirm_risk_action "Удалить правило разрешения порта ${del_p}" \
+                        "Правило разрешения порта в системном брандмауэре" \
+                        "Вернитесь в меню брандмауэра и разрешите порт вручную, или восстановите через консоль провайдера/VNC" \
+                        "Убедитесь, что не удаляете текущий SSH-порт или бизнес-порт." || {
+                        echo -e "${BLUE}Удаление правила отменено.${PLAIN}"
                         sleep 1
                         continue
                     }
                     if [[ "$OS" =~ debian|ubuntu ]]; then
                         install_pkg ufw
                         if ! command -v ufw >/dev/null 2>&1; then
-                            echo -e "${RED}❌ 未检测到 ufw，无法删除规则。${PLAIN}"
+                            echo -e "${RED}❌ ufw не обнаружен, невозможно удалить правило.${PLAIN}"
                             sleep 2
                             continue
                         fi
                     elif ! systemctl is-active --quiet firewalld 2>/dev/null; then
-                        echo -e "${RED}❌ Firewalld 未运行，无法读取/删除运行时规则。${PLAIN}"
+                        echo -e "${RED}❌ Firewalld не запущен, невозможно удалить правила.${PLAIN}"
                         sleep 2
                         continue
                     fi
-                    read_trimmed del_protocol "👉 请选择要删除的协议 tcp/udp/both（默认 both）: "
+                    read_trimmed del_protocol "👉 Выберите протокол tcp/udp/both (по умолчанию both): "
                     del_protocol=$(normalize_firewall_protocol "${del_protocol:-both}" 2>/dev/null || true)
                     if [[ -z "$del_protocol" ]]; then
-                        echo -e "${RED}❌ 协议只能是 tcp、udp 或 both。${PLAIN}"
+                        echo -e "${RED}❌ Протокол должен быть tcp, udp или both.${PLAIN}"
                         sleep 2
                         continue
                     fi
                     if firewall_apply_port_input delete "$del_p" "$del_protocol" \
                         && { [[ "$OS" =~ debian|ubuntu ]] || firewall-cmd --reload >/dev/null 2>&1; }; then
-                        echo -e "${GREEN}✅ 端口规则 [${del_p}/${del_protocol}] 已从允许列表移除。${PLAIN}"
+                        echo -e "${GREEN}✅ Правило [${del_p}/${del_protocol}] удалено.${PLAIN}"
                     else
-                        echo -e "${RED}❌ 端口规则 [${del_p}/${del_protocol}] 未完整移除，请检查上方错误。${PLAIN}"
+                        echo -e "${RED}❌ Правило [${del_p}/${del_protocol}] не удалено полностью, проверьте ошибки.${PLAIN}"
                     fi
                 else
-                    echo -e "${RED}❌ 无效的端口格式！端口必须是 1-65535，范围起始值不能大于结束值。${PLAIN}"
+                    echo -e "${RED}❌ Неверный формат порта!${PLAIN}"
                 fi
                 sleep 2
                 ;;
             5) func_port_connlimit_menu ;;
             6)
-                confirm_risk_action "关闭系统防火墙" \
-                    "ufw/firewalld 服务状态和系统侧访问控制" \
-                    "重新启用防火墙并恢复放行规则；必要时从云厂商安全组限制暴露面" \
-                    "确认关闭后不会暴露数据库、面板或内部服务。" || {
-                    echo -e "${BLUE}已取消关闭防火墙。${PLAIN}"
+                confirm_risk_action "Отключить системный брандмауэр" \
+                    "Служба ufw/firewalld и контроль доступа" \
+                    "Включите брандмауэр повторно и восстановите правила; при необходимости ограничьте доступ через безопасную группу провайдера" \
+                    "Убедитесь, что после отключения не будут открыты базы данных, панели или внутренние службы." || {
+                    echo -e "${BLUE}Отключение брандмауэра отменено.${PLAIN}"
                     sleep 1
                     continue
                 }
-                echo -e "${RED}⚠️ 正在关闭防火墙...${PLAIN}"
+                echo -e "${RED}⚠️ Отключение брандмауэра...${PLAIN}"
                 if [[ "$OS" =~ debian|ubuntu ]]; then
                     if ufw disable >/dev/null 2>&1 && ufw status 2>/dev/null | grep -qi inactive; then
-                        echo -e "${GREEN}✅ 防火墙已禁用。${PLAIN}"
+                        echo -e "${GREEN}✅ Брандмауэр отключён.${PLAIN}"
                     else
-                        echo -e "${RED}❌ UFW 禁用失败或状态仍为 active。${PLAIN}"
+                        echo -e "${RED}❌ Не удалось отключить UFW или статус active.${PLAIN}"
                     fi
                 else
                     if systemctl disable --now firewalld >/dev/null 2>&1 && ! systemctl is-active --quiet firewalld; then
-                        echo -e "${GREEN}✅ 防火墙已禁用。${PLAIN}"
+                        echo -e "${GREEN}✅ Брандмауэр отключён.${PLAIN}"
                     else
-                        echo -e "${RED}❌ Firewalld 禁用失败或服务仍在运行。${PLAIN}"
+                        echo -e "${RED}❌ Не удалось отключить firewalld или служба всё ещё работает.${PLAIN}"
                     fi
                 fi
                 sleep 2
                 ;;
             "?"|help) show_firewall_menu_help; pause_return ;;
             0|q|Q) break ;;
-            *) echo -e "${RED}❌ 无效的选择！${PLAIN}"; sleep 1 ;;
+            *) echo -e "${RED}❌ Неверный выбор!${PLAIN}"; sleep 1 ;;
         esac
     done
 }
