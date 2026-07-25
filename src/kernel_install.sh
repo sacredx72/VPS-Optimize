@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Optimized kernel detection, repository setup, installation, and boot selection.
+# Обнаружение оптимизированных ядер, настройка репозиториев, установка и выбор загрузки.
 
 normalize_kernel_arch() {
     case "$(uname -m)" in
@@ -19,17 +19,17 @@ set_grub_default_kernel_by_keyword() {
     local target_v menu_1 menu_2
 
     if ! command -v dpkg >/dev/null 2>&1 || [[ ! -f /etc/default/grub ]]; then
-        echo -e "${YELLOW}⚠️ 未检测到 dpkg/GRUB 配置，已跳过自动接管引导。${PLAIN}"
+        echo -e "${YELLOW}⚠️ dpkg или конфигурация GRUB не обнаружены, автоматическое управление загрузкой пропущено.${PLAIN}"
         return 0
     fi
 
     target_v=$(dpkg -l | awk '/^ii[[:space:]]+linux-image-[0-9]/ && /'"$kernel_keyword"'/ {print $2}' | sed 's/linux-image-//' | sort -V | tail -n 1)
     if [[ -z "$target_v" ]]; then
-        echo -e "${RED}❌ 错误：未找到已安装的 ${kernel_keyword} 内核包，请检查安装日志。${PLAIN}"
+        echo -e "${RED}❌ Ошибка: не найдено установленное ядро ${kernel_keyword}, проверьте логи установки.${PLAIN}"
         return 1
     fi
 
-    echo -e "${CYAN}▶ 正在接管 GRUB 底层引导，锁定启动内核为: $target_v ...${PLAIN}"
+    echo -e "${CYAN}▶ Настройка GRUB для загрузки ядра: $target_v ...${PLAIN}"
     if grep -q '^GRUB_DEFAULT=' /etc/default/grub; then
         sed -i 's/^GRUB_DEFAULT=.*/GRUB_DEFAULT=saved/' /etc/default/grub
     else
@@ -45,7 +45,7 @@ set_grub_default_kernel_by_keyword() {
     local grub_cfg="/boot/grub/grub.cfg"
     [[ -f "$grub_cfg" ]] || grub_cfg="/boot/grub2/grub.cfg"
     if [[ ! -f "$grub_cfg" ]]; then
-        echo -e "${YELLOW}⚠️ 未找到 grub.cfg，新内核已安装，但请重启后手动确认默认启动项。${PLAIN}"
+        echo -e "${YELLOW}⚠️ grub.cfg не найден, новое ядро установлено, но проверьте вручную загрузочный пункт после перезагрузки.${PLAIN}"
         return 0
     fi
 
@@ -54,11 +54,11 @@ set_grub_default_kernel_by_keyword() {
 
     if [[ -n "$menu_1" && -n "$menu_2" ]]; then
         grub-set-default "$menu_1>$menu_2" 2>/dev/null || grub2-set-default "$menu_1>$menu_2" 2>/dev/null || true
-        echo -e "${GREEN}✅ GRUB 引导接管成功！重启后将优先进入：$target_v${PLAIN}"
+        echo -e "${GREEN}✅ Настройка GRUB выполнена! После перезагрузки загрузится $target_v${PLAIN}"
         return 0
     fi
 
-    echo -e "${YELLOW}⚠️ 警告：GRUB 菜单寻址失败。系统可能仍以最高版本号内核启动。${PLAIN}"
+    echo -e "${YELLOW}⚠️ Предупреждение: не удалось определить пункт меню GRUB. Система может загружать ядро с наибольшим номером версии.${PLAIN}"
     return 1
 }
 
@@ -67,17 +67,17 @@ install_cloud_kvm_kernel() {
     local candidates=()
 
     if uname -r | grep -qE "kvm|cloud|virtual"; then
-        echo -e "${GREEN}✅ 系统当前已运行 KVM/Cloud/Virtual 优化内核 ($(uname -r))，无需重复安装！${PLAIN}"
+        echo -e "${GREEN}✅ Система уже использует оптимизированное ядро KVM/Cloud/Virtual ($(uname -r)), установка не требуется!${PLAIN}"
         return 0
     fi
 
     arch=$(normalize_kernel_arch)
     if [[ "$arch" == "unknown" ]]; then
-        echo -e "${RED}❌ 当前架构 $(uname -m) 暂不支持自动切换精简内核。${PLAIN}"
+        echo -e "${RED}❌ Текущая архитектура $(uname -m) не поддерживает автоматическую установку лёгкого ядра.${PLAIN}"
         return 1
     fi
 
-    echo -e "${CYAN}▶ 正在安装发行版官方 Cloud/KVM/Virtual 精简内核...${PLAIN}"
+    echo -e "${CYAN}▶ Установка официального лёгкого ядра Cloud/KVM/Virtual...${PLAIN}"
     ensure_minimal_system_compat
 
     if [[ "$OS" == "debian" ]]; then
@@ -95,7 +95,7 @@ install_cloud_kvm_kernel() {
         fi
         kernel_keyword="kvm|virtual|generic"
     else
-        echo -e "${RED}❌ Cloud/KVM/Virtual 内核功能目前仅支持 Debian 和 Ubuntu。${PLAIN}"
+        echo -e "${RED}❌ Установка Cloud/KVM/Virtual ядра поддерживается только на Debian и Ubuntu.${PLAIN}"
         return 1
     fi
 
@@ -107,19 +107,19 @@ install_cloud_kvm_kernel() {
 
     for pkg in "${candidates[@]}"; do
         if ! apt_pkg_available "$pkg"; then
-            echo -e "${YELLOW}  - 当前源未提供 ${pkg}，尝试下一个候选...${PLAIN}"
+            echo -e "${YELLOW}  - Пакет ${pkg} недоступен в репозитории, пробую следующий...${PLAIN}"
             continue
         fi
-        echo -e "${CYAN}▶ 尝试安装内核包: ${pkg}${PLAIN}"
+        echo -e "${CYAN}▶ Попытка установки пакета ядра: ${pkg}${PLAIN}"
         if install_pkg "$pkg"; then
-            echo -e "${GREEN}✅ 已安装内核包: ${pkg}${PLAIN}"
+            echo -e "${GREEN}✅ Установлен пакет ядра: ${pkg}${PLAIN}"
             set_grub_default_kernel_by_keyword "$kernel_keyword"
             return $?
         fi
-        echo -e "${YELLOW}  - ${pkg} 安装失败，尝试下一个候选...${PLAIN}"
+        echo -e "${YELLOW}  - ${pkg} не установился, пробую следующий...${PLAIN}"
     done
 
-    echo -e "${RED}❌ 未能安装可用的官方精简内核，请检查系统版本、架构和软件源。${PLAIN}"
+    echo -e "${RED}❌ Не удалось установить доступное лёгкое ядро, проверьте версию системы, архитектуру и источники.${PLAIN}"
     return 1
 }
 
@@ -163,12 +163,12 @@ add_xanmod_repo() {
     key_tmp=$(mktemp /tmp/xanmod-key.XXXXXX) || return 1
     if ! curl -fsSL --connect-timeout 10 --max-time 60 --retry 2 --retry-delay 1 https://dl.xanmod.org/archive.key -o "$key_tmp"; then
         rm -f "$key_tmp"
-        echo -e "${RED}❌ XanMod GPG key 下载失败。${PLAIN}"
+        echo -e "${RED}❌ Не удалось загрузить GPG key XanMod.${PLAIN}"
         return 1
     fi
     if ! gpg --batch --yes --dearmor -o /etc/apt/keyrings/xanmod-archive-keyring.gpg "$key_tmp"; then
         rm -f "$key_tmp"
-        echo -e "${RED}❌ XanMod GPG key 下载或写入失败。${PLAIN}"
+        echo -e "${RED}❌ Не удалось записать GPG key XanMod.${PLAIN}"
         return 1
     fi
     rm -f "$key_tmp"
@@ -181,12 +181,12 @@ install_xanmod_kernel_package() {
     local pkg
     while IFS= read -r pkg; do
         apt_pkg_available "$pkg" || continue
-        echo -e "${CYAN}▶ 尝试安装 XanMod 包: ${pkg}${PLAIN}"
+        echo -e "${CYAN}▶ Попытка установки пакета XanMod: ${pkg}${PLAIN}"
         if install_pkg "$pkg"; then
-            echo -e "${GREEN}✅ 已安装 XanMod 内核包: ${pkg}${PLAIN}"
+            echo -e "${GREEN}✅ Установлен пакет XanMod: ${pkg}${PLAIN}"
             return 0
         fi
-        echo -e "${YELLOW}  - ${pkg} 安装失败，尝试更保守候选...${PLAIN}"
+        echo -e "${YELLOW}  - ${pkg} не установился, пробую более консервативный...${PLAIN}"
     done < <(xanmod_candidate_packages "$preferred_level")
 
     return 1
@@ -196,19 +196,19 @@ install_xanmod_kernel() {
     local codename confirm arch cpu_level
 
     if uname -r | grep -qi "xanmod"; then
-        echo -e "${GREEN}✅ 系统当前已运行 XanMod 内核 ($(uname -r))，无需重复安装！${PLAIN}"
+        echo -e "${GREEN}✅ Система уже использует ядро XanMod ($(uname -r)), установка не требуется!${PLAIN}"
         return 0
     fi
 
     if ! is_debian; then
-        echo -e "${RED}❌ XanMod 自动安装目前仅支持 Debian/Ubuntu 衍生系统。${PLAIN}"
+        echo -e "${RED}❌ Автоматическая установка XanMod поддерживается только на Debian/Ubuntu.${PLAIN}"
         return 1
     fi
 
     arch=$(normalize_kernel_arch)
     if [[ "$arch" != "amd64" ]]; then
-        echo -e "${RED}❌ XanMod 官方 x64v 内核仅支持 x86_64/amd64，本机为 $(uname -m)。${PLAIN}"
-        echo -e "${YELLOW}建议改用官方 Cloud/Virtual 内核。${PLAIN}"
+        echo -e "${RED}❌ Официальные ядра XanMod x64v поддерживают только x86_64/amd64, текущая архитектура $(uname -m).${PLAIN}"
+        echo -e "${YELLOW}Рекомендуется использовать официальное Cloud/Virtual ядро.${PLAIN}"
         return 1
     fi
 
@@ -217,31 +217,31 @@ install_xanmod_kernel() {
         codename=$(lsb_release -sc 2>/dev/null)
     fi
     if [[ -z "$codename" ]]; then
-        echo -e "${RED}❌ 无法识别系统代号，无法安全添加 XanMod 源。${PLAIN}"
+        echo -e "${RED}❌ Не удалось определить кодовое имя системы, невозможно безопасно добавить репозиторий XanMod.${PLAIN}"
         return 1
     fi
     if ! xanmod_supported_codename "$codename"; then
-        echo -e "${YELLOW}⚠️ 当前系统代号 ${codename} 可能不在脚本内置 XanMod 兼容列表中。${PLAIN}"
-        echo -e "${YELLOW}脚本仍会尝试添加源；若 apt update 失败，请改用官方 Cloud/Virtual 内核。${PLAIN}"
+        echo -e "${YELLOW}⚠️ Кодовое имя ${codename} может быть не в списке поддерживаемых XanMod.${PLAIN}"
+        echo -e "${YELLOW}Скрипт попытается добавить репозиторий; если apt update не удастся, используйте официальное Cloud/Virtual ядро.${PLAIN}"
     fi
 
     cpu_level=$(xanmod_cpu_level)
 
-    echo -e "${RED}⚠️  XanMod 是第三方性能内核，可能影响 DKMS/驱动/部分云厂商兼容性。${PLAIN}"
-    echo -e "${YELLOW}检测到 CPU 兼容级别：${cpu_level}，将从对应 XanMod LTS 包开始尝试，并自动向下兜底。${PLAIN}"
-    echo -e "${YELLOW}建议先确认有快照、救援控制台，且知道如何从 GRUB 切回旧内核。${PLAIN}"
-    confirm_risk_action "安装 XanMod 内核" \
-        "内核包、引导配置和 GRUB 菜单" \
-        "使用当前可启动内核或云厂商救援模式恢复" \
-        "建议先创建 VPS 快照，并确认不是 OpenVZ 老系统。" || { echo -e "${BLUE}已取消 XanMod 安装。${PLAIN}"; return 1; }
+    echo -e "${RED}⚠️ XanMod — стороннее производительное ядро, может повлиять на совместимость с драйверами/DKMS/облачными провайдерами.${PLAIN}"
+    echo -e "${YELLOW}Обнаружен уровень CPU: ${cpu_level}, будет попытка установки соответствующего XanMod LTS с автоматическим понижением.${PLAIN}"
+    echo -e "${YELLOW}Рекомендуется иметь снимок, консоль восстановления и знать, как вернуться к старому ядру через GRUB.${PLAIN}"
+    confirm_risk_action "Установка ядра XanMod" \
+        "Пакеты ядра, конфигурация загрузчика и меню GRUB" \
+        "Восстановите из текущего загрузочного ядра или режима восстановления" \
+        "Рекомендуется создать снимок VPS и убедиться, что это не OpenVZ." || { echo -e "${BLUE}Установка XanMod отменена.${PLAIN}"; return 1; }
 
-    echo -e "${CYAN}▶ 正在添加 XanMod 官方 APT 源并安装兼容内核...${PLAIN}"
+    echo -e "${CYAN}▶ Добавление официального APT-репозитория XanMod и установка совместимого ядра...${PLAIN}"
     ensure_minimal_system_compat
     install_pkg ca-certificates curl gpg gnupg || return 1
     add_xanmod_repo "$codename" || return 1
 
     if ! install_xanmod_kernel_package "$cpu_level"; then
-        echo -e "${RED}❌ XanMod 内核安装失败，可能是当前系统代号/软件源/CPU 级别暂不兼容。${PLAIN}"
+        echo -e "${RED}❌ Не удалось установить ядро XanMod, возможно, кодовое имя/репозиторий/уровень CPU несовместимы.${PLAIN}"
         return 1
     fi
 
@@ -251,40 +251,40 @@ install_xanmod_kernel() {
 func_install_kernel() {
     clear
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}☁️  安装/切换优化内核${PLAIN}"
+    echo -e "${BOLD}☁️ Установка/переключение оптимизированных ядер${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${GREEN}  1. Cloud/KVM/Virtual 官方云内核${PLAIN} ${YELLOW}(推荐：稳定、轻量、云厂商兼容更好)${PLAIN}"
-    echo -e "     Debian/Ubuntu 会按架构自动尝试 cloud/kvm/virtual/generic 候选。"
-    echo -e "${GREEN}  2. XanMod 性能内核${PLAIN} ${YELLOW}(高级：自动匹配 x64v1-v4 并向下兜底)${PLAIN}"
-    echo -e "     适合：愿意折腾、追求低延迟/新特性；仅 amd64，建议有快照或救援控制台。"
+    echo -e "${GREEN}  1. Официальное Cloud/KVM/Virtual ядро${PLAIN} ${YELLOW}(рекомендуется: стабильное, лёгкое, лучше совместимость)${PLAIN}"
+    echo -e "     На Debian/Ubuntu будет автоматически подобрано cloud/kvm/virtual/generic."
+    echo -e "${GREEN}  2. XanMod производительное ядро${PLAIN} ${YELLOW}(продвинутый: автоматическое определение x64v1-v4)${PLAIN}"
+    echo -e "     Подходит: для тех, кто готов экспериментировать, нужна низкая задержка/новые функции; только amd64, требуется снимок."
     echo -e "------------------------------------------------"
-    echo -e "${RED}  0. 返回${PLAIN}"
+    echo -e "${RED}  0. Вернуться${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
 
     local kernel_choice virt
-    read_trimmed kernel_choice "👉 请选择要安装的内核类型 [推荐 1]: "
+    read_trimmed kernel_choice "👉 Выберите тип ядра [рекомендуется 1]: "
     kernel_choice="${kernel_choice:-1}"
     [[ "$kernel_choice" == "0" ]] && return
 
     virt=$(systemd-detect-virt 2>/dev/null || echo "unknown")
     if [[ "$virt" =~ lxc|openvz ]]; then
-        echo -e "${RED}❌ 致命错误：检测到当前 VPS 为 $virt 容器架构！${PLAIN}"
-        echo -e "${YELLOW}💡 容器与母机共享内核，无法更改内核。操作已安全中止。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ Критическая ошибка: обнаружена контейнерная виртуализация $virt!${PLAIN}"
+        echo -e "${YELLOW}💡 Контейнеры используют ядро хоста, смена ядра невозможна. Операция безопасно остановлена.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
     local arch
     arch=$(normalize_kernel_arch)
     if [[ "$arch" == "unknown" ]]; then
-        echo -e "${RED}❌ 致命错误：当前架构暂不支持自动切换内核，本机为 $(uname -m)！${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ Критическая ошибка: текущая архитектура $(uname -m) не поддерживает автоматическую смену ядра!${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
     if [[ "$kernel_choice" == "2" && "$arch" != "amd64" ]]; then
-        echo -e "${RED}❌ XanMod x64v 内核仅支持 x86_64/amd64，本机为 $(uname -m)。${PLAIN}"
-        echo -e "${YELLOW}建议选择 [1] 官方 Cloud/KVM/Virtual 内核。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${RED}❌ XanMod x64v поддерживает только x86_64/amd64, текущая $(uname -m).${PLAIN}"
+        echo -e "${YELLOW}Рекомендуется выбрать [1] официальное Cloud/KVM/Virtual ядро.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
@@ -292,25 +292,25 @@ func_install_kernel() {
     case "$kernel_choice" in
         1) install_cloud_kvm_kernel ;;
         2) install_xanmod_kernel ;;
-        *) echo -e "${RED}❌ 无效选择。${PLAIN}"; read -n 1 -s -r -p "按任意键返回..."; return ;;
+        *) echo -e "${RED}❌ Неверный выбор.${PLAIN}"; read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."; return ;;
     esac
     install_rc=$?
     if [[ "$install_rc" -ne 0 ]]; then
         echo -e "------------------------------------------------"
-        echo -e "${YELLOW}⚠️ 内核安装/切换未完成，未继续提示重启。${PLAIN}"
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${YELLOW}⚠️ Установка/переключение ядра не завершены, перезагрузка не предлагается.${PLAIN}"
+        read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
         return
     fi
 
     echo -e "------------------------------------------------"
-    echo -e "${YELLOW}⚠️ 核心生效指引：${PLAIN}"
-    echo -e "1. 新内核引导已配置完毕，请先选择主菜单的 ${RED}[17] 重启服务器${PLAIN}。"
-    echo -e "2. 重启后请运行 ${GREEN}uname -r${PLAIN} 确认实际进入的新内核。"
-    echo -e "3. 确认稳定后，再进入本菜单选择 ${GREEN}[5] 清理旧内核${PLAIN}。"
+    echo -e "${YELLOW}⚠️ Инструкция по применению:${PLAIN}"
+    echo -e "1. Настройка загрузки завершена, сначала выберите ${RED}[17] Перезагрузить сервер${PLAIN}."
+    echo -e "2. После перезагрузки выполните ${GREEN}uname -r${PLAIN} для проверки фактического ядра."
+    echo -e "3. После подтверждения стабильности войдите в это меню и выберите ${GREEN}[5] Очистка старых ядер${PLAIN}."
 
-    read -n 1 -s -r -p "按任意键返回..."
+    read -n 1 -s -r -p "Нажмите любую клавишу для возврата..."
 }
 
 # ---------------------------------------------------------
-# 10. 清理冗余旧内核 (数组菜单驱动 + 核心防砖拦截版)
+# 10. Очистка старых ядер (управляемая массивом + защита от "кирпича")
 # ---------------------------------------------------------
