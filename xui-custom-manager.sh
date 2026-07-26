@@ -42,11 +42,11 @@ while [ "$#" -gt 0 ]; do
             SELF_TEST=1
             ;;
         -h|--help)
-            echo "用法：$0 [--reset-check] [--dry-run] [--self-test]"
+            echo "Использование: $0 [--reset-check] [--dry-run] [--self-test]"
             exit 0
             ;;
         *)
-            echo "未知参数：$1"
+            echo "Неизвестный параметр: $1"
             exit 1
             ;;
     esac
@@ -54,7 +54,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ "$(id -u)" -ne 0 ] && [ "$SELF_TEST" -ne 1 ]; then
-    echo "请用 root 用户运行。"
+    echo "Пожалуйста, запустите от root."
     exit 1
 fi
 
@@ -73,7 +73,7 @@ fi
 
 if { [ "$RUN_CHECK" -eq 1 ] || [ "$DRY_RUN" -eq 1 ]; } && [ "$SELF_TEST" -ne 1 ] && [ ! -t 1 ]; then
     exec > >(tee -a "$LOG_FILE") 2>&1
-    echo "===== $(date '+%F %T') reset-check 执行 ====="
+    echo "===== $(date '+%F %T') выполнение reset-check ====="
 fi
 
 clear_screen() {
@@ -86,7 +86,7 @@ clear_screen() {
 
 pause() {
     echo
-    read -rp "按回车返回菜单..."
+    read -rp "Нажмите Enter, чтобы вернуться в меню..."
 }
 
 confirm_yes() {
@@ -94,13 +94,13 @@ confirm_yes() {
     local answer
     echo
     echo -e "${YELLOW}${message}${PLAIN}"
-    read -rp "请输入 YES 确认继续： " answer
+    read -rp "Введите YES для подтверждения: " answer
     [ "$answer" = "YES" ]
 }
 
 need_tty() {
     if [ ! -t 0 ] && [ ! -r /dev/tty ]; then
-        echo "错误：该功能需要交互式终端。"
+        echo "Ошибка: для этой функции требуется интерактивный терминал."
         return 1
     fi
 }
@@ -113,15 +113,15 @@ require_interactive_menu() {
         exec </dev/tty
         return 0
     fi
-    echo "错误：管理菜单需要交互式终端，当前没有可读取的 stdin。"
-    echo "请在 SSH 终端中直接运行：bash $LOCAL_RUNNER"
-    echo "非交互环境请使用：bash $LOCAL_RUNNER --reset-check --dry-run"
+    echo "Ошибка: для меню управления требуется интерактивный терминал, но stdin не доступен."
+    echo "Пожалуйста, запустите непосредственно в SSH: bash $LOCAL_RUNNER"
+    echo "В неинтерактивной среде используйте: bash $LOCAL_RUNNER --reset-check --dry-run"
     return 1
 }
 
 read_menu_choice() {
     local __var_name="$1"
-    local __prompt="${2:-👉 请选择操作: }"
+    local __prompt="${2:-👉 Выберите действие: }"
     local __value
     read -rp "$__prompt" __value
     printf -v "$__var_name" '%s' "$__value"
@@ -189,20 +189,20 @@ print_xui_version_warning() {
     detected_version="${detected_version:-$(detect_xui_version)}"
     supported_ranges="$(format_supported_version_ranges)"
     if xui_version_is_supported "$detected_version"; then
-        echo -e "${GREEN}兼容性：当前 3x-ui v${detected_version} 在支持范围内，写库前仍会校验数据库表/字段关键字。${PLAIN}"
+        echo -e "${GREEN}Совместимость: текущая 3x-ui v${detected_version} входит в поддерживаемый диапазон, но перед записью в БД всё равно будет выполнена проверка таблиц/полей.${PLAIN}"
     else
-        echo -e "${YELLOW}兼容性提示：当前 3x-ui v${detected_version} 不在支持范围内。${PLAIN}"
-        echo -e "${YELLOW}支持范围：${supported_ranges}。其它版本只允许备份、查看、预览和自检，不允许写库或启用自动重置。${PLAIN}"
+        echo -e "${YELLOW}Предупреждение: текущая 3x-ui v${detected_version} не входит в поддерживаемый диапазон.${PLAIN}"
+        echo -e "${YELLOW}Поддерживаемые версии: ${supported_ranges}. Для остальных версий разрешены только резервное копирование, просмотр, предпросмотр и самопроверка, но не запись в БД и не включение автоматического сброса.${PLAIN}"
     fi
 }
 
 check_xui_db_schema_readonly() {
     if [ ! -f "$XUI_DB" ]; then
-        echo "数据库不存在：$XUI_DB" >&2
+        echo "База данных не найдена: $XUI_DB" >&2
         return 1
     fi
     if ! command -v python3 >/dev/null 2>&1; then
-        echo "缺少 python3，无法执行只读 schema 兼容检查。" >&2
+        echo "Отсутствует python3, невозможно выполнить проверку схемы (только чтение)." >&2
         return 1
     fi
 
@@ -224,7 +224,7 @@ optional_relation = {
 try:
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
 except Exception as exc:
-    print(f"只读打开数据库失败：{exc}", file=sys.stderr)
+    print(f"Не удалось открыть БД только для чтения: {exc}", file=sys.stderr)
     sys.exit(1)
 
 try:
@@ -250,7 +250,7 @@ try:
             for column in sorted(columns - existing):
                 missing.append(f"{table}.{column}")
     if missing:
-        print("数据库字段兼容检查失败，缺少：" + ", ".join(missing), file=sys.stderr)
+        print("Проверка совместимости полей БД не пройдена, отсутствуют: " + ", ".join(missing), file=sys.stderr)
         sys.exit(1)
 finally:
     conn.close()
@@ -262,12 +262,12 @@ require_verified_xui_for_write() {
     detected_version="$(detect_xui_version)"
     if ! xui_version_is_supported "$detected_version"; then
         print_xui_version_warning "$detected_version"
-        echo -e "${RED}错误：当前 3x-ui 版本不在支持范围内，已禁止写库/启用 timer。${PLAIN}"
+        echo -e "${RED}Ошибка: текущая версия 3x-ui не поддерживается, запись в БД и включение таймера запрещены.${PLAIN}"
         return 1
     fi
     if ! check_xui_db_schema_readonly; then
         print_xui_version_warning "$detected_version"
-        echo -e "${RED}错误：无法确认数据库字段兼容，已禁止写库/启用 timer。${PLAIN}"
+        echo -e "${RED}Ошибка: не удалось подтвердить совместимость полей БД, запись в БД и включение таймера запрещены.${PLAIN}"
         return 1
     fi
 }
@@ -283,7 +283,7 @@ install_runtime_deps() {
     fi
 
     if ! command -v apt-get >/dev/null 2>&1; then
-        echo "错误：缺少依赖：${missing[*]}，且未找到 apt-get，请手动安装后重试。"
+        echo "Ошибка: отсутствуют зависимости: ${missing[*]}, и apt-get не найден. Установите их вручную и повторите."
         return 1
     fi
 
@@ -298,8 +298,8 @@ install_runtime_deps() {
     export DEBIAN_FRONTEND=noninteractive
     if ! apt-get update -qq >"$apt_log" 2>&1 || ! apt-get install -y "${missing[@]}" >>"$apt_log" 2>&1; then
         unset DEBIAN_FRONTEND
-        echo "错误：自动安装依赖失败，日志：$apt_log"
-        echo "最后 20 行："
+        echo "Ошибка: автоматическая установка зависимостей не удалась, лог: $apt_log"
+        echo "Последние 20 строк:"
         tail -n 20 "$apt_log" 2>/dev/null || true
         return 1
     fi
@@ -309,9 +309,9 @@ install_runtime_deps() {
 
 timer_active_status() {
     if systemctl is-active --quiet xui-custom-reset.timer 2>/dev/null; then
-        echo "已启用"
+        echo "включён"
     else
-        echo "未启用"
+        echo "отключён"
     fi
 }
 
@@ -325,9 +325,9 @@ timer_enabled_status() {
 
 runner_status() {
     if [ -x "$LOCAL_RUNNER" ]; then
-        echo "已安装"
+        echo "установлен"
     else
-        echo "未安装"
+        echo "не установлен"
     fi
 }
 
@@ -358,11 +358,11 @@ mkdir -p "$CACHE_DIR"
 
 validate_downloaded_manager() {
     if ! bash -n "$TMP_FILE"; then
-        echo "警告：新下载的 xui-custom-manager.sh 语法检查失败，保留旧缓存。"
+        echo "Предупреждение: синтаксическая проверка загруженного xui-custom-manager.sh не пройдена, сохраняем старый кеш."
         return 1
     fi
     if ! grep -Eq 'xui-custom-manager|CONFIG_PROFILE' "$TMP_FILE"; then
-        echo "警告：新下载的 xui-custom-manager.sh 缺少关键标识，保留旧缓存。"
+        echo "Предупреждение: загруженный xui-custom-manager.sh не содержит ключевых идентификаторов, сохраняем старый кеш."
         return 1
     fi
 }
@@ -382,11 +382,11 @@ fi
 rm -f "$TMP_FILE"
 
 if [ -f "$CACHE_FILE" ]; then
-    echo "警告：拉取最新版失败，使用本地缓存版本。"
+    echo "Предупреждение: не удалось загрузить последнюю версию, используем локальный кеш."
     exec bash "$CACHE_FILE" "$@"
 fi
 
-echo "错误：无法拉取最新版，也没有本地缓存。"
+echo "Ошибка: не удалось загрузить последнюю версию, и локальный кеш отсутствует."
 exit 1
 EOF
     fi
@@ -399,20 +399,20 @@ validate_manager_script_source() {
     local first_line
 
     if [ ! -r "$source_file" ]; then
-        echo "错误：源脚本不可读：$source_file"
+        echo "Ошибка: исходный скрипт недоступен для чтения: $source_file"
         return 1
     fi
     IFS= read -r first_line < "$source_file" || first_line=""
     if [ "$first_line" != "#!/usr/bin/env bash" ]; then
-        echo "错误：拒绝安装本地 runner，源脚本首行必须是 #!/usr/bin/env bash。"
+        echo "Ошибка: отказ установки локального runner'а, первая строка исходного скрипта должна быть #!/usr/bin/env bash."
         return 1
     fi
     if ! bash -n "$source_file"; then
-        echo "错误：拒绝安装本地 runner，源脚本 bash -n 未通过。"
+        echo "Ошибка: отказ установки локального runner'а, bash -n не пройден."
         return 1
     fi
     if ! grep -Eq 'xui-custom-manager|CONFIG_PROFILE' "$source_file"; then
-        echo "错误：拒绝安装本地 runner，源脚本缺少 xui-custom-manager 关键标识。"
+        echo "Ошибка: отказ установки локального runner'а, исходный скрипт не содержит ключевых идентификаторов xui-custom-manager."
         return 1
     fi
 }
@@ -472,7 +472,7 @@ backup_database() {
     ensure_dirs
 
     if [ ! -f "$XUI_DB" ]; then
-        echo "错误：数据库不存在：$XUI_DB"
+        echo "Ошибка: база данных не найдена: $XUI_DB"
         return 1
     fi
 
@@ -486,7 +486,7 @@ backup_database() {
         return 0
     fi
 
-    echo "错误：数据库备份失败，已取消写库。"
+    echo "Ошибка: резервное копирование БД не удалось, запись отменена."
     return 1
 }
 
@@ -494,14 +494,14 @@ backup_all() {
     ensure_dirs
     install_runtime_deps
 
-    echo "正在备份..."
+    echo "Выполняется резервное копирование..."
 
     if [ -f "$XUI_DB" ]; then
         local db_backup
         db_backup="$(backup_database)" || return 1
-        echo "数据库备份：$db_backup"
+        echo "Резервная копия БД: $db_backup"
     else
-        echo "数据库不存在，跳过：$XUI_DB"
+        echo "База данных не найдена, пропуск: $XUI_DB"
     fi
 
     local ts
@@ -510,17 +510,17 @@ backup_all() {
     if [ -d "$XUI_ETC_DIR" ]; then
         tar -czf "$BACKUP_DIR/x-ui-etc.$ts.tar.gz" -C "$(dirname "$XUI_ETC_DIR")" "$(basename "$XUI_ETC_DIR")"
         chmod 600 "$BACKUP_DIR/x-ui-etc.$ts.tar.gz"
-        echo "配置目录备份：$BACKUP_DIR/x-ui-etc.$ts.tar.gz"
+        echo "Резервная копия каталога конфигурации: $BACKUP_DIR/x-ui-etc.$ts.tar.gz"
     else
-        echo "配置目录不存在，跳过：$XUI_ETC_DIR"
+        echo "Каталог конфигурации не найден, пропуск: $XUI_ETC_DIR"
     fi
 
     if [ -d "$XUI_PROGRAM_DIR" ]; then
         tar -czf "$BACKUP_DIR/x-ui-program.$ts.tar.gz" -C "$(dirname "$XUI_PROGRAM_DIR")" "$(basename "$XUI_PROGRAM_DIR")"
         chmod 600 "$BACKUP_DIR/x-ui-program.$ts.tar.gz"
-        echo "程序目录备份：$BACKUP_DIR/x-ui-program.$ts.tar.gz"
+        echo "Резервная копия каталога программы: $BACKUP_DIR/x-ui-program.$ts.tar.gz"
     else
-        echo "程序目录不存在，跳过：$XUI_PROGRAM_DIR"
+        echo "Каталог программы не найден, пропуск: $XUI_PROGRAM_DIR"
     fi
 }
 
@@ -534,20 +534,20 @@ restore_backup() {
     case "$kind" in
         db)
             pattern="x-ui.db.*.bak"
-            label="数据库"
+            label="БД"
             ;;
         program)
             pattern="x-ui-program.*.tar.gz"
-            label="程序目录"
+            label="каталог программы"
             target_dir="$(dirname "$XUI_PROGRAM_DIR")"
             ;;
         etc)
             pattern="x-ui-etc.*.tar.gz"
-            label="配置目录"
+            label="каталог конфигурации"
             target_dir="$(dirname "$XUI_ETC_DIR")"
             ;;
         *)
-            echo "未知恢复类型：$kind"
+            echo "Неизвестный тип восстановления: $kind"
             return 1
             ;;
     esac
@@ -555,18 +555,18 @@ restore_backup() {
     while true; do
         clear_screen
         echo "================================================"
-        echo "恢复$label"
+        echo "Восстановление $label"
         echo "================================================"
 
         local files=()
         mapfile -t files < <(find "$BACKUP_DIR" -maxdepth 1 -type f -name "$pattern" | sort -r)
 
         if [ "${#files[@]}" -eq 0 ]; then
-            echo "未找到 $label 备份。"
+            echo "Резервные копии $label не найдены."
             echo "------------------------------------------------"
-            echo -e "${RED}  0. 返回上级 / q 返回${PLAIN}"
+            echo -e "${RED}  0. Вернуться на уровень выше / q${PLAIN}"
             echo "================================================"
-            read_menu_choice _ "👉 请选择操作: "
+            read_menu_choice _ "👉 Выберите действие: "
             return 0
         fi
 
@@ -575,32 +575,32 @@ restore_backup() {
             echo " $((i + 1)). ${files[$i]}"
         done
         echo "------------------------------------------------"
-        echo -e "${RED}  0. 返回上级 / q 返回${PLAIN}"
+        echo -e "${RED}  0. Вернуться на уровень выше / q${PLAIN}"
         echo "================================================"
 
         local choice
-        read_menu_choice choice "👉 请选择备份文件: "
+        read_menu_choice choice "👉 Выберите файл резервной копии: "
         if [[ "$choice" =~ ^(0|q|Q)$ ]]; then
             return 0
         fi
         if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#files[@]}" ]; then
-            echo -e "${RED}❌ 无效选择！${PLAIN}"
+            echo -e "${RED}❌ Неверный выбор!${PLAIN}"
             sleep 1
             continue
         fi
 
         local selected="${files[$((choice - 1))]}"
-        confirm_yes "恢复会覆盖当前 $label。恢复前会先备份当前状态。" || {
-            echo "已取消。"
+        confirm_yes "Восстановление перезапишет текущий $label. Перед восстановлением будет создана резервная копия текущего состояния." || {
+            echo "Отменено."
             return 0
         }
 
         require_verified_xui_for_write || return 1
 
-        echo "恢复前备份当前状态..."
+        echo "Создание резервной копии текущего состояния..."
         backup_all || return 1
 
-        echo "停止 x-ui..."
+        echo "Остановка x-ui..."
         systemctl stop x-ui || true
 
         if [ "$kind" = "db" ]; then
@@ -610,7 +610,7 @@ restore_backup() {
             tar -xzf "$selected" -C "$target_dir"
         fi
 
-        echo "启动 x-ui..."
+        echo "Запуск x-ui..."
         systemctl start x-ui || true
         echo
         print_health_report
@@ -621,12 +621,12 @@ restore_backup() {
 cleanup_backups() {
     clear_screen
     echo "================================================"
-    echo "清理旧备份"
+    echo "Очистка старых резервных копий"
     echo "================================================"
     ensure_dirs
 
     local patterns=("x-ui.db.*.bak" "x-ui-etc.*.tar.gz" "x-ui-program.*.tar.gz")
-    local labels=("数据库" "配置目录" "程序目录")
+    local labels=("БД" "каталог конфигурации" "каталог программы")
     local i
 
     for i in "${!patterns[@]}"; do
@@ -634,35 +634,35 @@ cleanup_backups() {
         mapfile -t files < <(find "$BACKUP_DIR" -maxdepth 1 -type f -name "${patterns[$i]}" | sort -r)
 
         if [ "${#files[@]}" -le 10 ]; then
-            echo "${labels[$i]}：当前 ${#files[@]} 个，不需要清理。"
+            echo "${labels[$i]}: сейчас ${#files[@]} файлов, очистка не требуется."
             continue
         fi
 
         echo
-        echo "${labels[$i]}：保留最新 10 个，可选择删除一个旧备份。"
+        echo "${labels[$i]}: оставляем последние 10, можно удалить один старый файл."
         local idx
         for idx in "${!files[@]}"; do
             if [ "$idx" -ge 10 ]; then
                 echo " $((idx + 1)). ${files[$idx]}"
             fi
         done
-        echo -e "${RED}  0. 跳过 / q 跳过${PLAIN}"
+        echo -e "${RED}  0. Пропустить / q${PLAIN}"
 
         local choice
-        read_menu_choice choice "👉 请选择要删除的备份: "
+        read_menu_choice choice "👉 Выберите файл для удаления: "
         if [[ "$choice" =~ ^(0|q|Q)$ ]]; then
             continue
         fi
         if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 11 ] && [ "$choice" -le "${#files[@]}" ]; then
             local selected="${files[$((choice - 1))]}"
-            confirm_yes "确认删除文件：$selected" && rm -f -- "$selected" && echo "已删除：$selected"
+            confirm_yes "Подтвердите удаление файла: $selected" && rm -f -- "$selected" && echo "Удалено: $selected"
         else
-            echo "无效选择，已跳过。"
+            echo "Неверный выбор, пропускаем."
         fi
     done
 
     echo
-    echo "清理完成。"
+    echo "Очистка завершена."
 }
 
 run_custom_reset_ui() {
@@ -723,19 +723,19 @@ def menu_line(number, label, hint=""):
         line += f" {paint(hint, 'yellow')}"
     print(line)
 
-def status_value(enabled, enabled_text="开启", disabled_text="关闭"):
+def status_value(enabled, enabled_text="Вкл", disabled_text="Выкл"):
     return paint(enabled_text, "green") if enabled else paint(disabled_text, "red")
 
 def clear_screen():
     print("\033c", end="")
 
 def pause():
-    input("\n按回车返回菜单...")
+    input("\nНажмите Enter, чтобы вернуться в меню...")
 
 def print_write_blocked():
-    print(paint(f"错误：当前 3x-ui v{detected_version} 不在支持范围内，或数据库表/字段关键字未通过检查。", "red"))
-    print(paint(f"支持范围：{', '.join(supported_ranges.split())}。", "yellow"))
-    print(paint("不满足条件时只允许备份、查看、预览和自检，不允许修改配置、写库或启用自动重置。", "yellow"))
+    print(paint(f"Ошибка: текущая 3x-ui v{detected_version} не входит в поддерживаемый диапазон, или проверка таблиц/полей БД не пройдена.", "red"))
+    print(paint(f"Поддерживаемые версии: {', '.join(supported_ranges.split())}.", "yellow"))
+    print(paint("При несоответствии разрешены только резервное копирование, просмотр, предпросмотр и самопроверка; изменение конфигурации, запись в БД и включение автоматического сброса запрещены.", "yellow"))
 
 def require_config_write():
     if write_allowed:
@@ -756,7 +756,7 @@ def default_config():
 
 def normalize_config(data):
     if not isinstance(data, dict):
-        raise ValueError("配置根节点不是对象")
+        raise ValueError("Корневой элемент конфигурации не является объектом")
     data.setdefault("enabled", False)
     data["enabled"] = bool(data.get("enabled"))
     day = valid_day(data.get("default_day", 1))
@@ -792,9 +792,9 @@ def load_config():
         with config_path.open("r", encoding="utf-8") as f:
             return normalize_config(json.load(f))
     except Exception as exc:
-        print(f"错误：读取配置失败：{config_path}")
-        print(f"原因：{exc}")
-        print("请先手动检查配置文件，或从备份恢复。")
+        print(f"Ошибка чтения конфигурации: {config_path}")
+        print(f"Причина: {exc}")
+        print("Пожалуйста, проверьте конфигурационный файл вручную или восстановите из резервной копии.")
         sys.exit(1)
 
 def save_config(data):
@@ -816,32 +816,32 @@ def input_choice(prompt, valid_choices):
         try:
             choice = input(prompt).strip()
         except (EOFError, KeyboardInterrupt):
-            print("\n已取消。")
+            print("\nОтменено.")
             sys.exit(100)
         if choice in valid_choices:
             return choice
-        print("无效选择，请重新输入。")
+        print("Неверный выбор, попробуйте снова.")
 
 def ask_day(prompt, allow_zero=False):
     while True:
         try:
             raw = input(prompt).strip()
         except (EOFError, KeyboardInterrupt):
-            print("\n已取消。")
+            print("\nОтменено.")
             sys.exit(100)
         try:
             day = int(raw)
         except Exception:
-            print("请输入数字。")
+            print("Введите число.")
             continue
         if allow_zero and day == 0:
             return 0
         if 1 <= day <= 31:
             return day
-        print("日期范围只能是 1-31。")
+        print("День должен быть в диапазоне 1-31.")
 
 def trunc(text, limit=20):
-    text = text or "无备注"
+    text = text or "нет примечания"
     return text if len(text) <= limit else text[:limit] + "..."
 
 def timer_status():
@@ -859,7 +859,7 @@ def load_db():
         conn.close()
         return inbounds, clients
     except Exception as exc:
-        print(paint(f"数据库读取失败：{exc}", "red"))
+        print(paint(f"Ошибка чтения БД: {exc}", "red"))
         sys.exit(1)
 
 def table_columns(conn, table):
@@ -902,7 +902,7 @@ for client in clients:
 
 def show_config():
     clear_screen()
-    title("🧭 x-ui 增强套件 - 当前自定义重置配置")
+    title("🧭 x-ui расширенный набор - текущая конфигурация пользовательского сброса")
     print(json.dumps(config, ensure_ascii=False, indent=2))
     pause()
 
@@ -910,43 +910,43 @@ def manage_clients(inbound_id, inbound_cfg):
     clients_for_inbound = clients_by_inbound.get(str(inbound_id), [])
     while True:
         clear_screen()
-        title("🧭 x-ui 增强套件 - 客户端单独日期")
-        print(f"{paint('入站 ID：', 'cyan')}{paint(inbound_id, 'white')}")
-        print(paint("说明：不单独设置时，客户端按入站规则处理。", "yellow"))
+        title("🧭 x-ui расширенный набор - индивидуальная дата для клиента")
+        print(f"{paint('ID входящего: ', 'cyan')}{paint(inbound_id, 'white')}")
+        print(paint("Примечание: если не задано индивидуально, клиент следует правилам входящего.", "yellow"))
         separator()
 
         if not clients_for_inbound:
-            print(paint("当前入站没有客户端。", "yellow"))
+            print(paint("В этом входящем нет клиентов.", "yellow"))
         for idx, client in enumerate(clients_for_inbound, start=1):
-            email = client["email"] or "无邮箱"
+            email = client["email"] or "без email"
             ccfg = inbound_cfg.get("clients", {}).get(email, {})
             if ccfg.get("enabled") and ccfg.get("day"):
-                status = paint(f"每月 {ccfg['day']} 号", "green")
+                status = paint(f"ежемесячно {ccfg['day']} числа", "green")
             else:
-                status = paint("不单独设置", "yellow")
+                status = paint("не задано индивидуально", "yellow")
             print(f" {paint(str(idx) + '.', 'cyan')} {paint(email, 'white')}")
             print(f"    {status}")
 
         separator()
-        print(f" {paint('0.', 'red')} 返回上级 / q 返回")
+        print(f" {paint('0.', 'red')} Назад / q")
         print(paint("================================================", "cyan"))
 
         valid = {"0", "q", "Q"} | {str(i) for i in range(1, len(clients_for_inbound) + 1)}
-        choice = input_choice("👉 请选择客户端: ", valid)
+        choice = input_choice("👉 Выберите клиента: ", valid)
         if choice in {"0", "q", "Q"}:
             return
 
         email = clients_for_inbound[int(choice) - 1]["email"] or ""
         if not require_config_write():
             continue
-        day = ask_day("输入 1-31 设置该客户端日期，输入 0 删除单独日期：", allow_zero=True)
+        day = ask_day("Введите 1-31 для установки даты клиента, 0 для удаления индивидуальной даты: ", allow_zero=True)
         inbound_cfg.setdefault("clients", {})
         if day == 0:
             inbound_cfg["clients"].pop(email, None)
-            print("已删除该客户端单独日期。")
+            print("Индивидуальная дата клиента удалена.")
         else:
             inbound_cfg["clients"][email] = {"enabled": True, "day": day}
-            print(f"已设置为每月 {day} 号。")
+            print(f"Установлена дата: ежемесячно {day} числа.")
         save_config(config)
 
 def manage_inbound(inbound):
@@ -963,29 +963,29 @@ def manage_inbound(inbound):
 
     while True:
         clear_screen()
-        title("🧭 x-ui 增强套件 - 入站设置")
-        print(f"{paint('ID：', 'cyan')}{paint(iid, 'white')}")
-        print(f"{paint('端口：', 'cyan')}{paint(str(inbound['port']), 'white')}")
-        print(f"{paint('备注：', 'cyan')}{paint(inbound['remark'] or '无备注', 'white')}")
+        title("🧭 x-ui расширенный набор - настройка входящего")
+        print(f"{paint('ID: ', 'cyan')}{paint(iid, 'white')}")
+        print(f"{paint('Порт: ', 'cyan')}{paint(str(inbound['port']), 'white')}")
+        print(f"{paint('Примечание: ', 'cyan')}{paint(inbound['remark'] or 'нет', 'white')}")
         print()
-        print(f"{paint('外置重置：', 'cyan')}{status_value(cfg.get('enabled'))}")
-        print(f"{paint('入站日期：', 'cyan')}{paint('每月 ' + str(cfg.get('day', config.get('default_day', 1))) + ' 号', 'white')}")
-        print(f"{paint('入站自身 up/down：', 'cyan')}{paint('重置', 'green') if cfg.get('reset_inbound', True) else paint('不重置', 'yellow')}")
-        print(f"{paint('未单独设置日期的客户端：', 'cyan')}{paint('跟随入站', 'green') if cfg.get('reset_clients_without_custom_day', False) else paint('忽略', 'yellow')}")
+        print(f"{paint('Внешний сброс: ', 'cyan')}{status_value(cfg.get('enabled'))}")
+        print(f"{paint('Дата входящего: ', 'cyan')}{paint('ежемесячно ' + str(cfg.get('day', config.get('default_day', 1))) + ' числа', 'white')}")
+        print(f"{paint('Сброс up/down самого входящего: ', 'cyan')}{paint('сброс', 'green') if cfg.get('reset_inbound', True) else paint('без сброса', 'yellow')}")
+        print(f"{paint('Клиенты без индивидуальной даты: ', 'cyan')}{paint('следуют входящему', 'green') if cfg.get('reset_clients_without_custom_day', False) else paint('игнорируются', 'yellow')}")
         if inbound["traffic_reset"] == "monthly":
             print()
-            print(paint("提醒：面板原生 monthly 仍启用，请在 3x-ui 面板中改为 never/不重置。", "yellow"))
+            print(paint("Напоминание: в панели всё ещё включён monthly, переключите в 3x-ui на never/не сбрасывать.", "yellow"))
         separator()
-        menu_line(1, "开启/关闭该入站外置重置")
-        menu_line(2, "设置该入站日期")
-        menu_line(3, "开启/关闭重置入站自身 up/down")
-        menu_line(4, "开启/关闭客户端跟随入站")
-        menu_line(5, "管理客户端单独日期")
+        menu_line(1, "Включить/выключить внешний сброс для этого входящего")
+        menu_line(2, "Установить дату сброса для этого входящего")
+        menu_line(3, "Включить/выключить сброс up/down самого входящего")
+        menu_line(4, "Включить/выключить следование клиентов входящему")
+        menu_line(5, "Управление индивидуальными датами клиентов")
         separator()
-        print(f" {paint('0.', 'red')} 返回上级 / q 返回")
+        print(f" {paint('0.', 'red')} Назад / q")
         print(paint("================================================", "cyan"))
 
-        choice = input_choice("👉 请选择操作: ", {"0", "q", "Q", "1", "2", "3", "4", "5"})
+        choice = input_choice("👉 Выберите действие: ", {"0", "q", "Q", "1", "2", "3", "4", "5"})
         if choice in {"0", "q", "Q"}:
             return
         if choice in {"1", "2", "3", "4"} and not require_config_write():
@@ -993,7 +993,7 @@ def manage_inbound(inbound):
         if choice == "1":
             cfg["enabled"] = not cfg.get("enabled", False)
         elif choice == "2":
-            cfg["day"] = ask_day("请输入该入站每月重置日期 (1-31)：")
+            cfg["day"] = ask_day("Введите дату ежемесячного сброса для этого входящего (1-31): ")
         elif choice == "3":
             cfg["reset_inbound"] = not cfg.get("reset_inbound", True)
         elif choice == "4":
@@ -1005,57 +1005,57 @@ def manage_inbound(inbound):
 def choose_inbound():
     while True:
         clear_screen()
-        title("🧭 x-ui 增强套件 - 选择入站")
+        title("🧭 x-ui расширенный набор - выбор входящего")
 
         if not inbounds:
-            print(paint("未读取到入站。", "yellow"))
+            print(paint("Входящие не найдены.", "yellow"))
         for idx, inbound in enumerate(inbounds, start=1):
             iid = str(inbound["id"])
             cfg = config.get("inbounds", {}).get(iid, {})
             enabled = status_value(cfg.get("enabled"))
             day = cfg.get("day", config.get("default_day", 1))
-            print(f" {paint(str(idx) + '.', 'cyan')} ID={paint(iid, 'white')}  端口={paint(str(inbound['port']), 'white')}  备注={paint(trunc(inbound['remark']), 'white')}")
-            print(f"    外置重置：{enabled}  日期：{paint('每月 ' + str(day) + ' 号', 'green')}")
+            print(f" {paint(str(idx) + '.', 'cyan')} ID={paint(iid, 'white')}   порт={paint(str(inbound['port']), 'white')}   примечание={paint(trunc(inbound['remark']), 'white')}")
+            print(f"    Внешний сброс: {enabled}   дата: {paint('ежемесячно ' + str(day) + ' числа', 'green')}")
             if inbound["traffic_reset"] == "monthly":
-                print(f"    面板原生：{paint('monthly', 'red')}  {paint('警告：请在面板中改为 never/不重置', 'yellow')}")
+                print(f"    Панель: {paint('monthly', 'red')}  {paint('ВНИМАНИЕ: переключите в панели на never/не сбрасывать', 'yellow')}")
             else:
-                print(f"    面板原生：{paint(inbound['traffic_reset'] or 'unknown', 'white')}")
+                print(f"    Панель: {paint(inbound['traffic_reset'] or 'unknown', 'white')}")
             print()
 
         separator()
-        print(f" {paint('0.', 'red')} 返回上级 / q 返回")
+        print(f" {paint('0.', 'red')} Назад / q")
         print(paint("================================================", "cyan"))
 
         valid = {"0", "q", "Q"} | {str(i) for i in range(1, len(inbounds) + 1)}
-        choice = input_choice("👉 请选择入站: ", valid)
+        choice = input_choice("👉 Выберите входящий: ", valid)
         if choice in {"0", "q", "Q"}:
             return
         manage_inbound(inbounds[int(choice) - 1])
 
 while True:
     clear_screen()
-    title("🧭 x-ui 增强套件 - 自定义流量重置日期")
-    print(f"{paint('全局状态：', 'cyan')}{status_value(config.get('enabled'), '启用', '禁用')}")
-    print(f"{paint('默认日期：', 'cyan')}{paint('每月 ' + str(config.get('default_day', 1)) + ' 号', 'white')}")
-    print(f"{paint('自动检查：', 'cyan')}{status_value(timer_status(), '已启用', '未启用')}")
+    title("🧭 x-ui расширенный набор - пользовательская дата сброса трафика")
+    print(f"{paint('Глобальный статус: ', 'cyan')}{status_value(config.get('enabled'), 'Включён', 'Отключён')}")
+    print(f"{paint('Дата по умолчанию: ', 'cyan')}{paint('ежемесячно ' + str(config.get('default_day', 1)) + ' числа', 'white')}")
+    print(f"{paint('Автоматическая проверка: ', 'cyan')}{status_value(timer_status(), 'включена', 'отключена')}")
     print()
     if not write_allowed:
-        print(paint(f"兼容性：当前 3x-ui v{detected_version} 不在支持范围内，或数据库表/字段关键字未通过检查。", "yellow"))
-        print(paint("当前只允许查看配置和预览，不允许修改配置或启用自动重置。", "yellow"))
+        print(paint(f"Совместимость: текущая 3x-ui v{detected_version} не входит в поддерживаемый диапазон, или проверка таблиц/полей БД не пройдена.", "yellow"))
+        print(paint("В текущем режиме разрешены только просмотр конфигурации и предпросмотр, изменение конфигурации и включение автоматического сброса запрещены.", "yellow"))
         print()
-    print(paint("提示：请在 3x-ui 面板里关闭对应入站的原生 monthly 重置。", "yellow"))
-    print(paint("如果只是想看本次会影响谁，选 [4]，会先预览，输入 YES 才会执行。", "yellow"))
+    print(paint("Подсказка: в панели 3x-ui отключите встроенный monthly для соответствующих входящих.", "yellow"))
+    print(paint("Если хотите только посмотреть, кого затронет сброс, выберите [4] — сначала будет предпросмотр, и только после ввода YES выполнится запись.", "yellow"))
     separator()
-    menu_line(1, "开启/关闭自定义重置")
-    menu_line(2, "设置默认重置日", f"当前：每月 {config.get('default_day', 1)} 号")
-    menu_line(3, "管理入站/客户端重置日")
-    menu_line(4, "预览并手动执行一次重置检查")
-    menu_line(5, "查看当前 JSON 配置")
+    menu_line(1, "Включить/выключить пользовательский сброс")
+    menu_line(2, "Установить дату сброса по умолчанию", f"текущая: {config.get('default_day', 1)}-е")
+    menu_line(3, "Управление датами сброса для входящих/клиентов")
+    menu_line(4, "Предпросмотр и ручной запуск сброса")
+    menu_line(5, "Просмотреть текущую конфигурацию (JSON)")
     separator()
-    print(f" {paint('0.', 'red')} 返回主菜单 / q 返回")
+    print(f" {paint('0.', 'red')} В главное меню / q")
     print(paint("================================================", "cyan"))
 
-    choice = input_choice("👉 请选择操作: ", {"0", "q", "Q", "1", "2", "3", "4", "5"})
+    choice = input_choice("👉 Выберите действие: ", {"0", "q", "Q", "1", "2", "3", "4", "5"})
     if choice in {"0", "q", "Q"}:
         sys.exit(0)
     if choice == "1":
@@ -1067,7 +1067,7 @@ while True:
     if choice == "2":
         if not require_config_write():
             continue
-        config["default_day"] = ask_day("请输入默认日期 (1-31)：")
+        config["default_day"] = ask_day("Введите дату по умолчанию (1-31): ")
         save_config(config)
     elif choice == "3":
         choose_inbound()
@@ -1090,25 +1090,25 @@ PY
             ;;
         200)
             if ensure_reset_timer_installed; then
-                echo "自定义重置已启用，自动检查已安装并启动。"
-                echo "timer 状态：$(timer_active_status)"
+                echo "Пользовательский сброс включён, автоматическая проверка установлена и запущена."
+                echo "Состояние таймера: $(timer_active_status)"
             else
-                echo "错误：自定义重置已启用，但自动检查安装或启动失败。"
-                echo "你仍然可以使用“预览并手动执行一次重置检查”手动执行。"
+                echo "Ошибка: пользовательский сброс включён, но не удалось установить или запустить автоматическую проверку."
+                echo "Вы всё ещё можете выполнить сброс вручную через 'Предпросмотр и ручной запуск'."
             fi
             pause
             ;;
         201)
             disable_reset_timer
-            echo "自定义重置已禁用，自动检查 timer 已停用。"
-            echo "配置文件未删除：$CONFIG_FILE"
+            echo "Пользовательский сброс отключён, таймер автоматической проверки остановлен."
+            echo "Конфигурационный файл сохранён: $CONFIG_FILE"
             pause
             ;;
         202)
             run_reset_check_interactive
             ;;
         *)
-            echo "自定义重置菜单异常退出，状态码：$ret"
+            echo "Меню пользовательского сброса завершилось с кодом: $ret"
             pause
             ;;
     esac
@@ -1176,9 +1176,9 @@ def parse_gib(raw):
     try:
         value = Decimal(raw.strip())
     except (InvalidOperation, AttributeError):
-        raise ValueError("请输入有效数字")
+        raise ValueError("Введите корректное число")
     if value < 0:
-        raise ValueError("流量不能为负数")
+        raise ValueError("Трафик не может быть отрицательным")
     return int((value * GIB).to_integral_value(rounding=ROUND_HALF_UP))
 
 def input_choice(prompt, valid_choices):
@@ -1186,24 +1186,24 @@ def input_choice(prompt, valid_choices):
         try:
             choice = input(prompt).strip()
         except (EOFError, KeyboardInterrupt):
-            print("\n已取消。")
+            print("\nОтменено.")
             sys.exit(100)
         if choice in valid_choices:
             return choice
-        print("无效选择，请重新输入。")
+        print("Неверный выбор, попробуйте снова.")
 
 def ask_gib(prompt):
     while True:
         try:
             return parse_gib(input(prompt))
         except (EOFError, KeyboardInterrupt):
-            print("\n已取消。")
+            print("\nОтменено.")
             sys.exit(100)
         except ValueError as exc:
-            print(f"输入无效：{exc}")
+            print(f"Некорректный ввод: {exc}")
 
 def trunc(text, limit=20):
-    text = text or "无备注"
+    text = text or "нет примечания"
     return text if len(text) <= limit else text[:limit] + "..."
 
 def table_columns(conn, table):
@@ -1253,7 +1253,7 @@ def load_rows():
 try:
     conn, inbounds = load_rows()
 except Exception as exc:
-    print(f"数据库读取失败：{exc}")
+    print(f"Ошибка чтения БД: {exc}")
     sys.exit(1)
 
 def build_write(target, up, down):
@@ -1271,18 +1271,18 @@ def build_write(target, up, down):
 
 def calibrate_target(target):
     clear_screen()
-    title("🧭 x-ui 增强套件 - 输入校准流量")
-    print(f"{paint('对象：', 'cyan')}{paint(target['label'], 'white')}")
-    print(f"{paint('当前已用：', 'cyan')}{paint(format_gib((target['up'] or 0) + (target['down'] or 0)), 'green')}")
+    title("🧭 x-ui расширенный набор - ввод корректируемых значений")
+    print(f"{paint('Объект: ', 'cyan')}{paint(target['label'], 'white')}")
+    print(f"{paint('Текущий использованный трафик: ', 'cyan')}{paint(format_gib((target['up'] or 0) + (target['down'] or 0)), 'green')}")
     print()
-    print(paint("请选择写入方式：", "yellow"))
-    menu_line(1, "输入总已用流量，全部写入 down")
-    menu_line(2, "输入总已用流量，按当前 up/down 比例分配")
-    menu_line(3, "分别输入 up 和 down")
+    print(paint("Выберите способ ввода:", "yellow"))
+    menu_line(1, "Ввести общий использованный трафик, записать всё в down")
+    menu_line(2, "Ввести общий использованный трафик, распределить пропорционально текущим up/down")
+    menu_line(3, "Ввести up и down отдельно")
     separator()
-    print(f" {paint('0.', 'red')} 返回上级 / q 返回")
+    print(f" {paint('0.', 'red')} Назад / q")
     print(paint("================================================", "cyan"))
-    mode = input_choice("👉 请选择操作: ", {"0", "q", "Q", "1", "2", "3"})
+    mode = input_choice("👉 Выберите действие: ", {"0", "q", "Q", "1", "2", "3"})
     if mode in {"0", "q", "Q"}:
         return None
 
@@ -1291,41 +1291,41 @@ def calibrate_target(target):
     cur_total = cur_up + cur_down
 
     if mode in ("1", "2"):
-        total = ask_gib("请输入总已用流量 (GiB)：")
+        total = ask_gib("Введите общий использованный трафик (GiB): ")
         if mode == "1" or cur_total <= 0:
             new_up, new_down = 0, total
         else:
             new_up = int(Decimal(total) * Decimal(cur_up) / Decimal(cur_total))
             new_down = total - new_up
     else:
-        new_up = ask_gib("请输入上传 up 流量 (GiB)：")
-        new_down = ask_gib("请输入下载 down 流量 (GiB)：")
+        new_up = ask_gib("Введите трафик up (GiB): ")
+        new_down = ask_gib("Введите трафик down (GiB): ")
 
     return build_write(target, new_up, new_down)
 
 while True:
     clear_screen()
-    title("🧭 x-ui 增强套件 - 校准已用流量")
-    print(paint("说明：这里只校准已用流量 up/down，不修改流量上限 total。", "yellow"))
-    print(paint("单位：GiB，1 GiB = 1024^3 bytes", "yellow"))
+    title("🧭 x-ui расширенный набор - корректировка использованного трафика")
+    print(paint("Здесь корректируется только использованный трафик up/down, лимит total не меняется.", "yellow"))
+    print(paint("Единица: GiB (1 GiB = 1024^3 байт)", "yellow"))
     separator()
 
     if not inbounds:
-        print(paint("当前没有入站。", "yellow"))
+        print(paint("Нет входящих.", "yellow"))
     for idx, inbound in enumerate(inbounds, start=1):
         used = int(inbound["up"] or 0) + int(inbound["down"] or 0)
         total = int(inbound["total"] or 0)
-        total_text = format_gib(total) if total > 0 else "不限量"
-        print(f" {paint(str(idx) + '.', 'cyan')} ID={paint(str(inbound['id']), 'white')}  端口={paint(str(inbound['port']), 'white')}  备注={paint(trunc(inbound['remark']), 'white')}")
-        print(f"    已用：{paint(format_gib(used), 'green')} / 上限：{paint(total_text, 'yellow' if total <= 0 else 'white')}")
+        total_text = format_gib(total) if total > 0 else "безлимит"
+        print(f" {paint(str(idx) + '.', 'cyan')} ID={paint(str(inbound['id']), 'white')}   порт={paint(str(inbound['port']), 'white')}   примечание={paint(trunc(inbound['remark']), 'white')}")
+        print(f"    Использовано: {paint(format_gib(used), 'green')} / лимит: {paint(total_text, 'yellow' if total <= 0 else 'white')}")
         print()
 
     separator()
-    print(f" {paint('0.', 'red')} 返回主菜单 / q 返回")
+    print(f" {paint('0.', 'red')} В главное меню / q")
     print(paint("================================================", "cyan"))
 
     valid_inbounds = {"0", "q", "Q"} | {str(i) for i in range(1, len(inbounds) + 1)}
-    choice = input_choice("👉 请选择入站: ", valid_inbounds)
+    choice = input_choice("👉 Выберите входящий: ", valid_inbounds)
     if choice in {"0", "q", "Q"}:
         sys.exit(100)
 
@@ -1336,37 +1336,37 @@ while True:
 
     while True:
         clear_screen()
-        title("🧭 x-ui 增强套件 - 选择校准对象")
-        print(f"{paint('入站 ID：', 'cyan')}{paint(str(inbound_id), 'white')}")
-        print(f"{paint('端口：', 'cyan')}{paint(str(inbound['port']), 'white')}")
-        print(f"{paint('备注：', 'cyan')}{paint(inbound['remark'] or '无备注', 'white')}")
+        title("🧭 x-ui расширенный набор - выбор объекта для корректировки")
+        print(f"{paint('ID входящего: ', 'cyan')}{paint(str(inbound_id), 'white')}")
+        print(f"{paint('Порт: ', 'cyan')}{paint(str(inbound['port']), 'white')}")
+        print(f"{paint('Примечание: ', 'cyan')}{paint(inbound['remark'] or 'нет', 'white')}")
         separator()
 
         inbound_used = int(inbound["up"] or 0) + int(inbound["down"] or 0)
-        menu_line(1, "入站自身")
-        print(f"    已用：{paint(format_gib(inbound_used), 'green')}")
+        menu_line(1, "Сам входящий")
+        print(f"    Использовано: {paint(format_gib(inbound_used), 'green')}")
         print()
 
         for idx, client in enumerate(clients, start=2):
             used = int(client["up"] or 0) + int(client["down"] or 0)
             total = int(client["total"] or 0)
-            total_text = format_gib(total) if total > 0 else "不限量"
-            print(f" {paint(str(idx) + '.', 'cyan')} {paint(client['email'] or '无邮箱', 'white')}")
-            print(f"    已用：{paint(format_gib(used), 'green')} / 上限：{paint(total_text, 'yellow' if total <= 0 else 'white')}")
+            total_text = format_gib(total) if total > 0 else "безлимит"
+            print(f" {paint(str(idx) + '.', 'cyan')} {paint(client['email'] or 'без email', 'white')}")
+            print(f"    Использовано: {paint(format_gib(used), 'green')} / лимит: {paint(total_text, 'yellow' if total <= 0 else 'white')}")
             print()
 
         all_clients_choice = str(len(clients) + 2)
         if clients:
-            menu_line(all_clients_choice, "逐个校准全部客户端")
+            menu_line(all_clients_choice, "Корректировать всех клиентов по очереди")
         separator()
-        print(f" {paint('0.', 'red')} 返回上级 / q 返回")
+        print(f" {paint('0.', 'red')} Назад / q")
         print(paint("================================================", "cyan"))
 
         valid_objects = {"0", "q", "Q", "1"} | {str(i) for i in range(2, len(clients) + 2)}
         if clients:
             valid_objects.add(all_clients_choice)
 
-        obj_choice = input_choice("👉 请选择对象: ", valid_objects)
+        obj_choice = input_choice("👉 Выберите объект: ", valid_objects)
         if obj_choice in {"0", "q", "Q"}:
             break
 
@@ -1375,7 +1375,7 @@ while True:
             targets.append({
                 "table": "inbounds",
                 "id": inbound_id,
-                "label": f"入站 ID={inbound_id}",
+                "label": f"Входящий ID={inbound_id}",
                 "up": inbound["up"],
                 "down": inbound["down"],
             })
@@ -1384,7 +1384,7 @@ while True:
                 targets.append({
                     "table": "client_traffics",
                     "id": client["id"],
-                    "label": client["email"] or f"客户端 ID={client['id']}",
+                    "label": client["email"] or f"Клиент ID={client['id']}",
                     "up": client["up"],
                     "down": client["down"],
                 })
@@ -1393,7 +1393,7 @@ while True:
             targets.append({
                 "table": "client_traffics",
                 "id": client["id"],
-                "label": client["email"] or f"客户端 ID={client['id']}",
+                "label": client["email"] or f"Клиент ID={client['id']}",
                 "up": client["up"],
                 "down": client["down"],
             })
@@ -1410,24 +1410,24 @@ while True:
             continue
 
         clear_screen()
-        title("🧭 x-ui 增强套件 - 确认写入")
-        print(paint("以下操作只会修改 up/down，不会修改 total。", "yellow"))
-        print(paint("写库前会自动备份数据库，并重启 x-ui。", "yellow"))
+        title("🧭 x-ui расширенный набор - подтверждение записи")
+        print(paint("Будут изменены только up/down, total не трогаем.", "yellow"))
+        print(paint("Перед записью автоматически создается резервная копия БД и перезапускается x-ui.", "yellow"))
         separator()
         for write in writes:
             before_total = write["before_up"] + write["before_down"]
             after_total = write["after_up"] + write["after_down"]
-            print(f"{paint('对象：', 'cyan')}{paint(write['label'], 'white')}")
-            print(f"  修改前：up {paint(format_gib(write['before_up']), 'yellow')} / down {paint(format_gib(write['before_down']), 'yellow')} / 合计 {paint(format_gib(before_total), 'yellow')}")
-            print(f"  修改后：up {paint(format_gib(write['after_up']), 'green')} / down {paint(format_gib(write['after_down']), 'green')} / 合计 {paint(format_gib(after_total), 'green')}")
+            print(f"{paint('Объект: ', 'cyan')}{paint(write['label'], 'white')}")
+            print(f"  До: up {paint(format_gib(write['before_up']), 'yellow')} / down {paint(format_gib(write['before_down']), 'yellow')} / всего {paint(format_gib(before_total), 'yellow')}")
+            print(f"  После: up {paint(format_gib(write['after_up']), 'green')} / down {paint(format_gib(write['after_down']), 'green')} / всего {paint(format_gib(after_total), 'green')}")
             print()
         try:
-            answer = input("请输入 YES 确认写入：").strip()
+            answer = input("Введите YES для подтверждения записи: ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\n已取消。")
+            print("\nОтменено.")
             sys.exit(100)
         if answer != "YES":
-            print("已取消，没有写入数据库。")
+            print("Отменено, запись не выполнена.")
             sys.exit(100)
 
         with open(writes_file, "w", encoding="utf-8") as f:
@@ -1448,7 +1448,7 @@ PY
     fi
     if [ "$ret" -ne 200 ]; then
         rm -f "$writes_file"
-        echo "流量校准已取消或失败。"
+        echo "Корректировка трафика отменена или не удалась."
         pause
         trap - RETURN
         return 0
@@ -1461,7 +1461,7 @@ PY
         return 1
     }
 
-    echo "正在备份数据库..."
+    echo "Создание резервной копии БД..."
     local db_backup
     db_backup="$(backup_database)" || {
         rm -f "$writes_file"
@@ -1469,9 +1469,9 @@ PY
         trap - RETURN
         return 1
     }
-    echo "数据库备份：$db_backup"
+    echo "Резервная копия БД: $db_backup"
 
-    echo "停止 x-ui..."
+    echo "Остановка x-ui..."
     systemctl stop x-ui || true
 
     set +e
@@ -1493,18 +1493,18 @@ try:
     for write in writes:
         table = write["table"]
         if table not in {"inbounds", "client_traffics"}:
-            raise ValueError(f"非法表名：{table}")
+            raise ValueError(f"Недопустимое имя таблицы: {table}")
         cur.execute(f"UPDATE {table} SET up=?, down=? WHERE id=?", (write["after_up"], write["after_down"], write["id"]))
         if cur.rowcount <= 0:
-            raise RuntimeError(f"未找到对象：{write['label']}")
+            raise RuntimeError(f"Объект не найден: {write['label']}")
     conn.commit()
-    print("写入成功。")
+    print("Запись выполнена успешно.")
 except Exception as exc:
     try:
         conn.rollback()
     except Exception:
         pass
-    print(f"写入失败：{exc}")
+    print(f"Ошибка записи: {exc}")
     sys.exit(1)
 finally:
     try:
@@ -1517,13 +1517,13 @@ PY
 
     rm -f "$writes_file"
     trap - RETURN
-    echo "启动 x-ui..."
+    echo "Запуск x-ui..."
     systemctl start x-ui || true
 
     if [ "$write_ret" -eq 0 ]; then
-        echo "流量校准完成。"
+        echo "Корректировка трафика завершена."
     else
-        echo "流量校准失败，数据库已保留写入前备份：$db_backup"
+        echo "Корректировка трафика не удалась, база данных сохранена в резервной копии: $db_backup"
     fi
     pause
 }
@@ -1584,11 +1584,11 @@ def load_config():
         with config_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception as exc:
-        print(f"错误：读取配置失败：{config_path}")
-        print(f"原因：{exc}")
+        print(f"Ошибка чтения конфигурации: {config_path}")
+        print(f"Причина: {exc}")
         return None
     if not isinstance(data, dict):
-        print(f"错误：配置格式无效：{config_path}")
+        print(f"Ошибка: неверный формат конфигурации: {config_path}")
         return None
     data.setdefault("enabled", False)
     data.setdefault("default_day", 1)
@@ -1604,12 +1604,12 @@ def load_state():
         with state_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception as exc:
-        print(f"错误：读取状态文件失败：{state_path}")
-        print(f"原因：{exc}")
-        print("为避免重复重置，脚本不会覆盖损坏的状态文件。请手动检查或恢复备份。")
+        print(f"Ошибка чтения файла состояния: {state_path}")
+        print(f"Причина: {exc}")
+        print("Во избежание повторного сброса скрипт не будет перезаписывать повреждённый файл состояния. Проверьте вручную или восстановите из резервной копии.")
         return None
     if not isinstance(data, dict):
-        print(f"错误：状态文件格式无效：{state_path}")
+        print(f"Ошибка: неверный формат файла состояния: {state_path}")
         return None
     if "schema_version" not in data:
         data = {
@@ -1666,14 +1666,14 @@ def should_reset(configured_day, state_record):
     day = safe_day(configured_day)
     eff = effective_day(day)
     if today.day < eff:
-        return False, f"未到本月重置日：每月 {day} 号，本月有效日 {eff} 号"
+        return False, f"Ещё не наступил день сброса: {day} числа, в этом месяце эффективный день {eff}"
     if state_record.get("last_reset_month") == current_month:
-        reset_date = state_record.get("last_reset_date", "未知日期")
-        return False, f"本月已在 {reset_date} 重置过"
-    return True, f"每月 {day} 号，本月有效日 {eff} 号，本月尚未重置"
+        reset_date = state_record.get("last_reset_date", "неизвестно")
+        return False, f"В этом месяце уже был сброс {reset_date}"
+    return True, f"День сброса {day} числа, эффективный день {eff}, в этом месяце ещё не сбрасывалось"
 
 def truncate(text, limit=20):
-    text = text or "无备注"
+    text = text or "нет примечания"
     return text if len(text) <= limit else text[:limit] + "..."
 
 def connect_db():
@@ -1739,10 +1739,10 @@ def build_plan(config, state, inbounds, clients):
     def add_client_plan(item):
         email = item.get("email") or ""
         if not email:
-            skipped.append((item["label"], "客户端 email 为空，跳过"))
+            skipped.append((item["label"], "email клиента пуст, пропуск"))
             return
         if email in planned_client_emails:
-            skipped.append((item["label"], "同一 email 已在本次计划中处理，3x-ui 客户端流量按 email 共享"))
+            skipped.append((item["label"], "этот email уже обработан в текущем плане, трафик клиентов в 3x-ui общий по email"))
             return
         planned_client_emails.add(email)
         plan_clients.append(item)
@@ -1753,24 +1753,24 @@ def build_plan(config, state, inbounds, clients):
 
         inbound = inbound_map.get(str(iid))
         if inbound is None:
-            skipped.append((f"入站 ID={iid}", "入站已不存在，跳过"))
+            skipped.append((f"Входящий ID={iid}", "входящий больше не существует, пропуск"))
             continue
 
         if inbound["traffic_reset"] == "monthly":
-            warnings.append(f"入站 ID={iid} 仍启用面板原生 monthly。")
-            warnings.append("使用外置自定义重置日期时，请在 3x-ui 面板中改为 never/不重置。")
+            warnings.append(f"Входящий ID={iid} всё ещё имеет включённый monthly в панели.")
+            warnings.append("При использовании внешней даты сброса переключите в 3x-ui на never/не сбрасывать.")
 
         inbound_day = safe_day(cfg.get("day", default_day), default_day)
         inbound_due, inbound_reason = should_reset(inbound_day, state["inbounds"].get(str(iid), {}))
-        inbound_label = f"入站 ID={iid}，端口={inbound['port']}，备注={truncate(inbound['remark'])}"
+        inbound_label = f"Входящий ID={iid}, порт={inbound['port']}, примечание={truncate(inbound['remark'])}"
 
         if cfg.get("reset_inbound", True):
             if inbound_due:
                 plan_inbounds.append({"id": str(iid), "label": inbound_label, "reason": inbound_reason})
             else:
-                skipped.append((f"入站 ID={iid}", inbound_reason))
+                skipped.append((f"Входящий ID={iid}", inbound_reason))
         else:
-            skipped.append((f"入站 ID={iid}", "入站自身 up/down 已设置为不重置"))
+            skipped.append((f"Входящий ID={iid}", "сброс up/down самого входящего отключён"))
 
         client_rules = cfg.get("clients", {}) if isinstance(cfg.get("clients"), dict) else {}
 
@@ -1782,9 +1782,9 @@ def build_plan(config, state, inbounds, clients):
                     continue
                 key = f"{iid}|{email}"
                 due, reason = should_reset(inbound_day, state["clients"].get(key, {}))
-                label = f"客户端 {email or '无邮箱'}，入站 ID={iid}"
+                label = f"Клиент {email or 'без email'}, входящий ID={iid}"
                 if due:
-                    add_client_plan({"inbound_id": str(iid), "email": email, "key": key, "label": label, "reason": f"跟随入站，{reason}", "reset_scope": "inbound"})
+                    add_client_plan({"inbound_id": str(iid), "email": email, "key": key, "label": label, "reason": f"следует входящему, {reason}", "reset_scope": "inbound"})
                 else:
                     skipped.append((label, reason))
 
@@ -1795,14 +1795,14 @@ def build_plan(config, state, inbounds, clients):
             if cday <= 0:
                 continue
             key_tuple = (str(iid), email)
-            label = f"客户端 {email or '无邮箱'}，入站 ID={iid}"
+            label = f"Клиент {email or 'без email'}, входящий ID={iid}"
             if key_tuple not in client_lookup:
-                skipped.append((label, "客户端已不存在，跳过"))
+                skipped.append((label, "клиент больше не существует, пропуск"))
                 continue
             key = f"{iid}|{email}"
             due, reason = should_reset(cday, state["clients"].get(key, {}))
             if due:
-                add_client_plan({"inbound_id": str(iid), "email": email, "key": key, "label": label, "reason": f"客户端单独日期，{reason}", "reset_scope": "client"})
+                add_client_plan({"inbound_id": str(iid), "email": email, "key": key, "label": label, "reason": f"индивидуальная дата клиента, {reason}", "reset_scope": "client"})
             else:
                 skipped.append((label, reason))
 
@@ -1810,34 +1810,34 @@ def build_plan(config, state, inbounds, clients):
 
 def print_preview(plan_inbounds, plan_clients, skipped, warnings):
     print("================================================")
-    print("本次重置预览")
+    print("Предпросмотр сброса")
     print("================================================")
-    print(f"日期：{today.isoformat()}")
-    print("模式：预览模式，只预览，不写数据库")
-    print("说明：真实执行时只重置本月 up/down；客户端会按官方逻辑重新启用；不修改 all_time 和 total")
+    print(f"Дата: {today.isoformat()}")
+    print("Режим: предпросмотр, запись в БД не выполняется")
+    print("При реальном выполнении сбрасываются только up/down за текущий месяц; клиенты включаются по логике панели; all_time и total не изменяются.")
     print()
     if not plan_inbounds and not plan_clients:
-        print("本次没有需要重置的入站或客户端。")
+        print("В этом месяце нет объектов для сброса.")
     else:
-        print("将重置：")
+        print("Будут сброшены:")
         for item in plan_inbounds:
             print(f"  {item['label']}")
-            print(f"    原因：{item['reason']}")
+            print(f"    Причина: {item['reason']}")
             print()
         for item in plan_clients:
             print(f"  {item['label']}")
-            print(f"    原因：{item['reason']}")
+            print(f"    Причина: {item['reason']}")
             print()
-    print("不会重置：")
+    print("Не будут сброшены:")
     if not skipped:
-        print("  无")
+        print("  нет")
     else:
         for label, reason in skipped:
             print(f"  {label}")
-            print(f"    原因：{reason}")
+            print(f"    Причина: {reason}")
     if warnings:
         print()
-        print("提醒：")
+        print("Предупреждения:")
         seen = set()
         for warning in warnings:
             if warning in seen:
@@ -1862,16 +1862,16 @@ def backup_database():
 
 def quick_health():
     print()
-    print("简短健康检查：")
+    print("Краткая проверка состояния:")
     active = subprocess.run(["systemctl", "is-active", "--quiet", "x-ui"]).returncode == 0
-    print(f"  x-ui 服务：{'运行中' if active else '未运行'}")
+    print(f"  Служба x-ui: {'запущена' if active else 'не запущена'}")
     try:
         conn = sqlite3.connect(db_path)
         result = conn.execute("PRAGMA integrity_check;").fetchone()[0]
         conn.close()
-        print(f"  数据库完整性：{result}")
+        print(f"  Целостность БД: {result}")
     except Exception as exc:
-        print(f"  数据库完整性：检查失败：{exc}")
+        print(f"  Целостность БД: ошибка проверки: {exc}")
 
 def add_preserved_traffic(state_record, up, down):
     totals = state_record.setdefault("traffic_totals", {})
@@ -1891,9 +1891,9 @@ def get_table_columns(cur, table):
         return set()
 
 def execute_plan(plan_inbounds, plan_clients, state):
-    print("准备执行自定义重置...")
+    print("Начинаем выполнение пользовательского сброса...")
     backup_path = backup_database()
-    print(f"数据库备份：{backup_path}")
+    print(f"Резервная копия БД: {backup_path}")
 
     service_stopped = False
     conn = None
@@ -1917,7 +1917,7 @@ def execute_plan(plan_inbounds, plan_clients, state):
         for item in plan_inbounds:
             row = cur.execute("SELECT up, down FROM inbounds WHERE id=?", (item["id"],)).fetchone()
             if row is None:
-                skipped_write.append((item["label"], "写入时入站已不存在"))
+                skipped_write.append((item["label"], "в момент записи входящий уже не существует"))
                 continue
             cur.execute("UPDATE inbounds SET up=0, down=0 WHERE id=?", (item["id"],))
             if cur.rowcount > 0:
@@ -1929,15 +1929,15 @@ def execute_plan(plan_inbounds, plan_clients, state):
                 updated_inbounds.append(item)
                 inbounds_to_mark.add(item["id"])
             else:
-                skipped_write.append((item["label"], "写入时入站已不存在"))
+                skipped_write.append((item["label"], "в момент записи входящий уже не существует"))
 
         for item in plan_clients:
             if item["email"] in reset_client_emails:
-                skipped_write.append((item["label"], "同一 email 已在本次执行中重置"))
+                skipped_write.append((item["label"], "этот email уже сброшен в текущем запуске"))
                 continue
             row = cur.execute("SELECT up, down FROM client_traffics WHERE email=?", (item["email"],)).fetchone()
             if row is None:
-                skipped_write.append((item["label"], "写入时客户端已不存在"))
+                skipped_write.append((item["label"], "в момент записи клиент уже не существует"))
                 continue
             if "enable" in client_columns:
                 cur.execute(
@@ -1960,7 +1960,7 @@ def execute_plan(plan_inbounds, plan_clients, state):
                 if item.get("reset_scope") == "inbound":
                     inbounds_to_mark.add(item["inbound_id"])
             else:
-                skipped_write.append((item["label"], "写入时客户端已不存在"))
+                skipped_write.append((item["label"], "в момент записи клиент уже не существует"))
 
         if "last_traffic_reset_time" in inbound_columns:
             for inbound_id in sorted(inbounds_to_mark, key=lambda value: int(value) if str(value).isdigit() else str(value)):
@@ -1978,15 +1978,15 @@ def execute_plan(plan_inbounds, plan_clients, state):
         save_state(state)
 
         if updated_inbounds or updated_clients:
-            print("重置完成：")
+            print("Сброс выполнен:")
             for item in updated_inbounds:
-                print(f"  {item['label']}，累计历史总流量已保留 {item['preserved_totals']['total']} bytes")
+                print(f"  {item['label']}, кумулятивный исторический трафик сохранён: {item['preserved_totals']['total']} байт")
             for item in updated_clients:
-                print(f"  {item['label']}，累计历史总流量已保留 {item['preserved_totals']['total']} bytes")
+                print(f"  {item['label']}, кумулятивный исторический трафик сохранён: {item['preserved_totals']['total']} байт")
         else:
-            print("没有对象被写入，状态文件未新增记录。")
+            print("Ни один объект не был изменён, файл состояния не обновлён.")
         for label, reason in skipped_write:
-            print(f"跳过：{label}，{reason}")
+            print(f"Пропущено: {label}, {reason}")
         return 0
     except Exception as exc:
         if conn is not None:
@@ -1994,7 +1994,7 @@ def execute_plan(plan_inbounds, plan_clients, state):
                 conn.rollback()
             except Exception:
                 pass
-        print(f"执行失败：{exc}")
+        print(f"Ошибка выполнения: {exc}")
         return 1
     finally:
         if conn is not None:
@@ -2012,16 +2012,16 @@ def main():
     if not config.get("enabled", False):
         if dry_run:
             print("================================================")
-            print("本次重置预览")
+            print("Предпросмотр сброса")
             print("================================================")
-            print(f"日期：{today.isoformat()}")
-            print("模式：预览模式，只预览，不写数据库")
-            print("说明：真实执行时只重置本月 up/down；客户端会按官方逻辑重新启用；不修改 all_time 和 total")
+            print(f"Дата: {today.isoformat()}")
+            print("Режим: предпросмотр, запись в БД не выполняется")
+            print("При реальном выполнении сбрасываются только up/down за текущий месяц; клиенты включаются по логике панели; all_time и total не изменяются.")
             print()
-            print("自定义重置已禁用，跳过。")
+            print("Пользовательский сброс отключён, пропускаем.")
             print("================================================")
         else:
-            print("自定义重置已禁用，跳过。")
+            print("Пользовательский сброс отключён, пропускаем.")
         write_plan_count(0)
         return 0
 
@@ -2031,7 +2031,7 @@ def main():
         return 1
 
     if not db_path.exists():
-        print(f"错误：数据库不存在：{db_path}")
+        print(f"Ошибка: база данных не найдена: {db_path}")
         write_plan_count(0)
         return 1
 
@@ -2040,7 +2040,7 @@ def main():
         inbounds, clients = load_db_rows(conn)
         conn.close()
     except Exception as exc:
-        print(f"数据库读取失败：{exc}")
+        print(f"Ошибка чтения БД: {exc}")
         write_plan_count(0)
         return 1
 
@@ -2053,10 +2053,10 @@ def main():
         return 0
 
     for warning in warnings:
-        print(f"提醒：{warning}")
+        print(f"Предупреждение: {warning}")
 
     if plan_count == 0:
-        print("本次没有需要重置的对象。")
+        print("В этом месяце нет объектов для сброса.")
         return 0
 
     return execute_plan(plan_inbounds, plan_clients, state)
@@ -2064,10 +2064,10 @@ def main():
 try:
     sys.exit(main())
 except KeyboardInterrupt:
-    print("已取消。")
+    print("Отменено.")
     sys.exit(100)
 except Exception as exc:
-    print(f"执行异常：{exc}")
+    print(f"Исключение: {exc}")
     sys.exit(1)
 PY
 }
@@ -2092,7 +2092,7 @@ run_reset_check_interactive() {
 
     if [ "$dry_ret" -ne 0 ]; then
         echo
-        echo "预览失败，未执行任何写库操作。"
+        echo "Предпросмотр не удался, запись в БД не выполнялась."
         pause
         return 0
     fi
@@ -2104,9 +2104,9 @@ run_reset_check_interactive() {
 
     echo
     local answer
-    read -rp "是否立即执行以上重置？请输入 YES 确认： " answer
+    read -rp "Выполнить сброс согласно предпросмотру? Введите YES для подтверждения: " answer
     if [ "$answer" != "YES" ]; then
-        echo "已取消，没有写入数据库。"
+        echo "Отменено, запись не выполнялась."
         pause
         return 0
     fi
@@ -2172,7 +2172,7 @@ port_is_listening() {
 
 print_monthly_conflicts() {
     if [ ! -f "$CONFIG_FILE" ] || [ ! -f "$XUI_DB" ]; then
-        echo "monthly 冲突：未发现"
+        echo "Конфликт monthly: не обнаружен"
         return 0
     fi
 
@@ -2188,12 +2188,12 @@ try:
     with open(config_path, "r", encoding="utf-8") as f:
         config = json.load(f)
 except Exception:
-    print("monthly 冲突：配置读取失败")
+    print("Конфликт monthly: ошибка чтения конфигурации")
     raise SystemExit(0)
 
 enabled_ids = [str(k) for k, v in config.get("inbounds", {}).items() if isinstance(v, dict) and v.get("enabled")]
 if not enabled_ids:
-    print("monthly 冲突：未发现")
+    print("Конфликт monthly: не обнаружен")
     raise SystemExit(0)
 
 conn = sqlite3.connect(db_path)
@@ -2206,15 +2206,15 @@ conflicts = [row for row in rows if str(row["id"]) in enabled_ids and row["traff
 conn.close()
 
 if not conflicts:
-    print("monthly 冲突：未发现")
+    print("Конфликт monthly: не обнаружен")
 else:
-    print("monthly 冲突：发现提醒")
+    print("Конфликт monthly: обнаружено предупреждение")
     for row in conflicts:
-        remark = row["remark"] or "无备注"
+        remark = row["remark"] or "нет примечания"
         if len(remark) > 20:
             remark = remark[:20] + "..."
-        print(f"  入站 ID={row['id']} 备注={remark}")
-    print("  建议：请在 3x-ui 面板中关闭原生 monthly，改为 never/不重置。")
+        print(f"  Входящий ID={row['id']} примечание={remark}")
+    print("  Рекомендация: в панели 3x-ui отключите monthly и выберите never/не сбрасывать.")
 PY
 }
 
@@ -2223,75 +2223,75 @@ print_health_report() {
 
     print_xui_version_warning
 
-    echo "x-ui 服务："
+    echo "Служба x-ui:"
     if systemctl is-active --quiet x-ui 2>/dev/null; then
-        echo -e "  ${GREEN}运行中${PLAIN}"
+        echo -e "  ${GREEN}запущена${PLAIN}"
     else
-        echo -e "  ${RED}未运行${PLAIN}"
+        echo -e "  ${RED}не запущена${PLAIN}"
     fi
 
-    echo "数据库文件："
+    echo "Файл БД:"
     if [ -f "$XUI_DB" ]; then
-        echo -e "  ${GREEN}存在：$XUI_DB${PLAIN}"
+        echo -e "  ${GREEN}существует: $XUI_DB${PLAIN}"
         local integrity
         integrity="$(sqlite3 "$XUI_DB" "PRAGMA integrity_check;" 2>&1 || true)"
         if [ "$integrity" = "ok" ]; then
-            echo -e "  ${GREEN}完整性：ok${PLAIN}"
+            echo -e "  ${GREEN}целостность: ok${PLAIN}"
         else
-            echo -e "  ${RED}完整性异常：$integrity${PLAIN}"
+            echo -e "  ${RED}целостность нарушена: $integrity${PLAIN}"
         fi
         local schema_result
         if schema_result="$(check_xui_db_schema_readonly 2>&1)"; then
-            echo -e "  ${GREEN}字段兼容：ok${PLAIN}"
+            echo -e "  ${GREEN}совместимость полей: ok${PLAIN}"
         else
-            echo -e "  ${RED}字段兼容异常：$schema_result${PLAIN}"
+            echo -e "  ${RED}совместимость полей: $schema_result${PLAIN}"
         fi
     else
-        echo -e "  ${RED}缺失：$XUI_DB${PLAIN}"
+        echo -e "  ${RED}отсутствует: $XUI_DB${PLAIN}"
     fi
 
-    echo "本地执行器："
+    echo "Локальный исполнитель:"
     if [ -x "$LOCAL_RUNNER" ]; then
-        echo -e "  ${GREEN}已安装：$LOCAL_RUNNER${PLAIN}"
+        echo -e "  ${GREEN}установлен: $LOCAL_RUNNER${PLAIN}"
     else
-        echo -e "  ${YELLOW}未安装：$LOCAL_RUNNER${PLAIN}"
+        echo -e "  ${YELLOW}не установлен: $LOCAL_RUNNER${PLAIN}"
     fi
 
-    echo "xcm："
+    echo "xcm:"
     if [ -x "$XCM_PATH" ]; then
-        echo -e "  ${GREEN}已注册：$XCM_PATH${PLAIN}"
+        echo -e "  ${GREEN}зарегистрирован: $XCM_PATH${PLAIN}"
     else
-        echo -e "  ${YELLOW}未注册：$XCM_PATH${PLAIN}"
+        echo -e "  ${YELLOW}не зарегистрирован: $XCM_PATH${PLAIN}"
     fi
 
-    echo "自动检查 timer："
+    echo "Таймер автоматической проверки:"
     if [ -f "$RESET_TIMER" ]; then
-        echo "  文件：存在"
+        echo "  Файл: существует"
     else
-        echo "  文件：不存在"
+        echo "  Файл: отсутствует"
     fi
-    echo "  enabled：$(timer_enabled_status)"
-    echo "  active：$(timer_active_status)"
+    echo "  enabled: $(timer_enabled_status)"
+    echo "  active: $(timer_active_status)"
 
-    echo "端口监听："
+    echo "Порты прослушивания:"
     local ports=()
     mapfile -t ports < <({ collect_db_ports; collect_process_ports; } | sort -n | uniq)
     if [ "${#ports[@]}" -eq 0 ]; then
-        echo "  未从数据库读取到入站端口。"
+        echo "  Не найдены порты входящих из БД."
     else
         local port
         for port in "${ports[@]}"; do
             if port_is_listening "$port"; then
-                echo -e "  ${GREEN}$port 已监听${PLAIN}"
+                echo -e "  ${GREEN}$port прослушивается${PLAIN}"
             else
-                echo -e "  ${YELLOW}$port 未监听，请检查 x-ui / xray 服务${PLAIN}"
+                echo -e "  ${YELLOW}$port не прослушивается, проверьте службу x-ui / xray${PLAIN}"
             fi
         done
     fi
 
     print_monthly_conflicts
 
-    echo "最近日志关键词："
+    echo "Ключевые слова в логах:"
     local log_hit=0
     if [ -f "$LOG_FILE" ] && tail -n 100 "$LOG_FILE" | grep -Eiq "panic|error|failed|no such column"; then
         log_hit=1
@@ -2300,13 +2300,13 @@ print_health_report() {
         log_hit=1
     fi
     if [ "$log_hit" -eq 1 ]; then
-        echo -e "  ${YELLOW}发现错误关键词，请进入 [5] 查看日志。${PLAIN}"
+        echo -e "  ${YELLOW}Обнаружены ключевые слова ошибок, перейдите в [5] для просмотра логов.${PLAIN}"
     else
-        echo -e "  ${GREEN}未发现明显错误关键词。${PLAIN}"
+        echo -e "  ${GREEN}Явных ключевых слов ошибок не найдено.${PLAIN}"
     fi
 
-    echo "预览模式："
-    echo "  可在“自定义流量重置日期 -> 预览并手动执行一次重置检查”预览本次计划。"
+    echo "Режим предпросмотра:"
+    echo "  В разделе 'Пользовательская дата сброса -> Предпросмотр и ручной запуск' можно посмотреть план на текущий месяц."
 }
 
 run_self_test() {
@@ -2326,34 +2326,34 @@ run_self_test() {
         echo "WARN: $*"
     }
 
-    echo "xui-custom-manager self-test"
+    echo "xui-custom-manager самопроверка"
     echo "========================================"
 
     if bash -n "$self_path"; then
-        selftest_pass "当前脚本 bash -n 通过"
+        selftest_pass "текущий скрипт: bash -n пройден"
     else
-        selftest_fail "当前脚本 bash -n 未通过"
+        selftest_fail "текущий скрипт: bash -n не пройден"
     fi
 
     if command -v python3 >/dev/null 2>&1; then
-        selftest_pass "python3 存在：$(command -v python3)"
+        selftest_pass "python3 найден: $(command -v python3)"
     else
-        selftest_fail "python3 不存在"
+        selftest_fail "python3 не найден"
     fi
 
     if command -v sqlite3 >/dev/null 2>&1; then
-        selftest_pass "sqlite3 存在：$(command -v sqlite3)"
+        selftest_pass "sqlite3 найден: $(command -v sqlite3)"
     else
-        selftest_fail "sqlite3 不存在"
+        selftest_fail "sqlite3 не найден"
     fi
 
     detected_version="$(detect_xui_version)"
-    echo "检测到的 3x-ui 版本：$detected_version"
-    echo "支持版本范围：$(format_supported_version_ranges)"
+    echo "Обнаруженная версия 3x-ui: $detected_version"
+    echo "Поддерживаемые версии: $(format_supported_version_ranges)"
     if xui_version_is_supported "$detected_version"; then
-        selftest_pass "3x-ui 版本在支持范围内"
+        selftest_pass "3x-ui версия входит в поддерживаемый диапазон"
     else
-        selftest_fail "写库功能不可用：当前 3x-ui 版本不在支持范围内"
+        selftest_fail "запись в БД недоступна: текущая версия 3x-ui не поддерживается"
     fi
 
     if [ -f "$CONFIG_FILE" ]; then
@@ -2365,12 +2365,12 @@ with open(os.environ["CONFIG_FILE"], "r", encoding="utf-8") as f:
     json.load(f)
 PY
         then
-            selftest_pass "配置文件 JSON 可解析：$CONFIG_FILE"
+            selftest_pass "конфигурационный JSON читается: $CONFIG_FILE"
         else
-            selftest_fail "配置文件 JSON 解析失败：$CONFIG_FILE"
+            selftest_fail "конфигурационный JSON не читается: $CONFIG_FILE"
         fi
     else
-        selftest_warn "配置文件不存在，跳过 JSON 检查：$CONFIG_FILE"
+        selftest_warn "конфигурационный файл отсутствует, пропуск проверки JSON: $CONFIG_FILE"
     fi
 
     if [ -f "$XUI_DB" ]; then
@@ -2390,48 +2390,48 @@ finally:
     conn.close()
 PY
         then
-            selftest_pass "数据库只读 integrity_check 可执行：$XUI_DB"
+            selftest_pass "БД: integrity_check (только чтение) выполняется: $XUI_DB"
         else
-            selftest_fail "数据库只读 integrity_check 失败：$XUI_DB"
+            selftest_fail "БД: integrity_check (только чтение) не выполняется: $XUI_DB"
         fi
 
         if check_xui_db_schema_readonly; then
-            selftest_pass "数据库关键字段兼容"
+            selftest_pass "БД: ключевые поля совместимы"
         else
-            selftest_fail "数据库关键字段不兼容"
+            selftest_fail "БД: ключевые поля не совместимы"
         fi
     else
-        selftest_warn "数据库不存在，跳过只读 integrity/schema 检查：$XUI_DB"
+        selftest_warn "БД отсутствует, пропуск проверки целостности/схемы: $XUI_DB"
     fi
 
     if [ -e "$LOCAL_RUNNER" ]; then
         if [ -x "$LOCAL_RUNNER" ]; then
-            selftest_pass "LOCAL_RUNNER 可执行：$LOCAL_RUNNER"
+            selftest_pass "LOCAL_RUNNER исполняемый: $LOCAL_RUNNER"
         else
-            selftest_fail "LOCAL_RUNNER 存在但不可执行：$LOCAL_RUNNER"
+            selftest_fail "LOCAL_RUNNER существует, но не исполняемый: $LOCAL_RUNNER"
         fi
         if bash -n "$LOCAL_RUNNER"; then
-            selftest_pass "LOCAL_RUNNER bash -n 通过"
+            selftest_pass "LOCAL_RUNNER: bash -n пройден"
         else
-            selftest_fail "LOCAL_RUNNER bash -n 未通过"
+            selftest_fail "LOCAL_RUNNER: bash -n не пройден"
         fi
     else
-        selftest_warn "LOCAL_RUNNER 不存在：$LOCAL_RUNNER"
+        selftest_warn "LOCAL_RUNNER отсутствует: $LOCAL_RUNNER"
     fi
 
     if [ -e "$XCM_PATH" ]; then
         if [ -x "$XCM_PATH" ]; then
-            selftest_pass "XCM_PATH 可执行：$XCM_PATH"
+            selftest_pass "XCM_PATH исполняемый: $XCM_PATH"
         else
-            selftest_fail "XCM_PATH 存在但不可执行：$XCM_PATH"
+            selftest_fail "XCM_PATH существует, но не исполняемый: $XCM_PATH"
         fi
         if bash -n "$XCM_PATH"; then
-            selftest_pass "XCM_PATH bash -n 通过"
+            selftest_pass "XCM_PATH: bash -n пройден"
         else
-            selftest_fail "XCM_PATH bash -n 未通过"
+            selftest_fail "XCM_PATH: bash -n не пройден"
         fi
     else
-        selftest_warn "XCM_PATH 不存在：$XCM_PATH"
+        selftest_warn "XCM_PATH отсутствует: $XCM_PATH"
     fi
 
     echo "========================================"
@@ -2439,14 +2439,14 @@ PY
         echo "PASS"
         return 0
     fi
-    echo "FAIL: $failures 项失败"
+    echo "FAIL: $failures ошибок"
     return 1
 }
 
 health_check() {
     clear_screen
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧪 x-ui 增强套件 - 健康检查${PLAIN}"
+    echo -e "${BOLD}🧪 x-ui расширенный набор - проверка состояния${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
     print_health_report
 }
@@ -2455,60 +2455,60 @@ menu_logs() {
     while true; do
         clear_screen
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${BOLD}🧾 x-ui 增强套件 - 查看日志与报错${PLAIN}"
+        echo -e "${BOLD}🧾 x-ui расширенный набор - просмотр логов и ошибок${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}用途：查看外置脚本、自动检查 timer 和 x-ui 服务日志。${PLAIN}"
-        echo -e "${YELLOW}提示：脚本日志包含历史记录，旧菜单或 read error 可能是旧版本留下的。${PLAIN}"
+        echo -e "${YELLOW}Назначение: просмотр логов внешнего скрипта, автоматической проверки и службы x-ui.${PLAIN}"
+        echo -e "${YELLOW}Подсказка: в логах могут быть записи из старых версий, например ошибки чтения меню.${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}  1. 查看脚本日志${PLAIN}              ${YELLOW}(/var/log/xui-custom-manager.log)${PLAIN}"
-        echo -e "${GREEN}  2. 只看 reset-check 日志${PLAIN}      ${YELLOW}(过滤自动重置检查记录)${PLAIN}"
-        echo -e "${GREEN}  3. 查看自动检查 timer 日志${PLAIN}    ${YELLOW}(xui-custom-reset.service)${PLAIN}"
-        echo -e "${GREEN}  4. 查看 x-ui 服务日志${PLAIN}         ${YELLOW}(x-ui.service)${PLAIN}"
+        echo -e "${GREEN}  1. Просмотр лога скрипта${PLAIN}              ${YELLOW}(/var/log/xui-custom-manager.log)${PLAIN}"
+        echo -e "${GREEN}  2. Только записи reset-check${PLAIN}          ${YELLOW}(фильтр по автоматическим проверкам)${PLAIN}"
+        echo -e "${GREEN}  3. Просмотр лога таймера${PLAIN}             ${YELLOW}(xui-custom-reset.service)${PLAIN}"
+        echo -e "${GREEN}  4. Просмотр лога x-ui${PLAIN}                ${YELLOW}(x-ui.service)${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${RED}  0. 返回主菜单 / q 返回上一级${PLAIN}"
+        echo -e "${RED}  0. Вернуться в главное меню / q${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
         read_menu_choice choice
 
         case "$choice" in
             1)
                 clear_screen
-                echo "脚本日志：$LOG_FILE"
-                echo "提示：这里包含历史记录，旧菜单或 read error 可能是以前版本留下的日志。"
+                echo "Лог скрипта: $LOG_FILE"
+                echo "Примечание: здесь могут быть записи из старых версий."
                 echo "------------------------------------------------"
                 tail -n 100 "$LOG_FILE" || true
                 pause
                 ;;
             2)
                 clear_screen
-                echo "reset-check 日志：$LOG_FILE"
+                echo "reset-check лог: $LOG_FILE"
                 echo "------------------------------------------------"
                 if [ -f "$LOG_FILE" ]; then
                     local reset_log
                     reset_log="$(awk '
-                        /^===== .*reset-check 执行 =====/ { printing=1; print; next }
+                        /^===== .*reset-check выполнение =====/ { printing=1; print; next }
                         /^===== / && printing { printing=0 }
                         printing { print }
                     ' "$LOG_FILE" | tail -n 120)"
                     if [ -n "$reset_log" ]; then
                         echo "$reset_log"
                     else
-                        echo "暂无 reset-check 日志记录。"
+                        echo "Нет записей reset-check."
                     fi
                 else
-                    echo "日志文件不存在。"
+                    echo "Файл лога не существует."
                 fi
                 pause
                 ;;
             3)
                 clear_screen
-                echo "自动检查 timer 日志"
+                echo "Лог таймера автоматической проверки"
                 echo "------------------------------------------------"
                 journalctl -u xui-custom-reset.service -n 100 --no-pager || true
                 pause
                 ;;
             4)
                 clear_screen
-                echo "x-ui 服务日志"
+                echo "Лог службы x-ui"
                 echo "------------------------------------------------"
                 journalctl -u x-ui -n 100 --no-pager || true
                 pause
@@ -2517,7 +2517,7 @@ menu_logs() {
                 return 0
                 ;;
             *)
-                echo -e "${RED}❌ 无效选择！${PLAIN}"
+                echo -e "${RED}❌ Неверный выбор!${PLAIN}"
                 sleep 1
                 ;;
         esac
@@ -2528,17 +2528,17 @@ menu_backup_restore() {
     while true; do
         clear_screen
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${BOLD}💾 x-ui 增强套件 - 备份 / 恢复 x-ui${PLAIN}"
+        echo -e "${BOLD}💾 x-ui расширенный набор - резервирование / восстановление x-ui${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}用途：备份或恢复 x-ui 数据库、配置目录和程序目录。${PLAIN}"
-        echo -e "${YELLOW}备份目录：$BACKUP_DIR${PLAIN}"
+        echo -e "${YELLOW}Назначение: резервное копирование или восстановление БД, каталогов конфигурации и программы.${PLAIN}"
+        echo -e "${YELLOW}Каталог резервных копий: $BACKUP_DIR${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${GREEN}  1. 立即备份${PLAIN}                  ${YELLOW}(数据库 / 配置 / 程序)${PLAIN}"
-        echo -e "${GREEN}  2. 恢复数据库${PLAIN}                ${YELLOW}(x-ui.db)${PLAIN}"
-        echo -e "${GREEN}  3. 恢复程序目录${PLAIN}              ${YELLOW}(/usr/local/x-ui)${PLAIN}"
-        echo -e "${GREEN}  4. 恢复配置目录${PLAIN}              ${YELLOW}(/etc/x-ui)${PLAIN}"
+        echo -e "${GREEN}  1. Создать резервную копию${PLAIN}           ${YELLOW}(БД / конфигурация / программа)${PLAIN}"
+        echo -e "${GREEN}  2. Восстановить БД${PLAIN}                  ${YELLOW}(x-ui.db)${PLAIN}"
+        echo -e "${GREEN}  3. Восстановить каталог программы${PLAIN}    ${YELLOW}(/usr/local/x-ui)${PLAIN}"
+        echo -e "${GREEN}  4. Восстановить каталог конфигурации${PLAIN} ${YELLOW}(/etc/x-ui)${PLAIN}"
         echo -e "------------------------------------------------"
-        echo -e "${RED}  0. 返回主菜单 / q 返回上一级${PLAIN}"
+        echo -e "${RED}  0. Вернуться в главное меню / q${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
         read_menu_choice choice
 
@@ -2564,7 +2564,7 @@ menu_backup_restore() {
                 return 0
                 ;;
             *)
-                echo -e "${RED}❌ 无效选择！${PLAIN}"
+                echo -e "${RED}❌ Неверный выбор!${PLAIN}"
                 sleep 1
                 ;;
         esac
@@ -2574,23 +2574,23 @@ menu_backup_restore() {
 show_quick_guide() {
     clear_screen
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${BOLD}🧭 x-ui 增强套件 - 功能索引${PLAIN}"
+    echo -e "${BOLD}🧭 x-ui расширенный набор - указатель функций${PLAIN}"
     echo -e "${CYAN}================================================${PLAIN}"
-    echo -e "${YELLOW}按你想做的事选入口：${PLAIN}"
-    echo "  想让不同入站/客户端按不同日期重置流量 -> [1] 自定义流量重置日期"
-    echo "  想先看看今天会重置谁，不想直接写库       -> [1] -> [4] 预览并手动执行一次重置检查"
-    echo "  想把面板里的已用流量改成实际值           -> [2] 校准已用流量"
-    echo "  想先留后路，或从旧状态恢复               -> [3] 备份 / 恢复 x-ui"
-    echo "  想检查 timer、数据库、monthly 冲突        -> [4] 健康检查 / monthly 冲突"
-    echo "  想看报错、自动检查记录或 x-ui 日志        -> [5] 查看日志与报错"
-    echo "  想删旧备份文件                            -> [6] 清理旧备份"
+    echo -e "${YELLOW}Выберите то, что вам нужно:${PLAIN}"
+    echo "  Настроить разные даты сброса для разных входящих/клиентов -> [1] Пользовательская дата сброса"
+    echo "  Посмотреть, кто будет сброшен сегодня, без записи в БД       -> [1] -> [4] Предпросмотр и ручной запуск"
+    echo "  Исправить показания использованного трафика в панели        -> [2] Калибровка трафика"
+    echo "  Сделать резервную копию или откатить состояние              -> [3] Резервирование / восстановление"
+    echo "  Проверить таймер, БД, конфликты monthly                     -> [4] Проверка состояния / monthly"
+    echo "  Посмотреть ошибки, логи автоматической проверки или x-ui   -> [5] Просмотр логов и ошибок"
+    echo "  Удалить старые резервные копии                             -> [6] Очистка старых копий"
     echo "------------------------------------------------"
-    echo "命令行入口："
-    echo "  xcm                                  打开本菜单"
-    echo "  xui-custom-manager.sh --dry-run      只预览本次重置计划"
-    echo "  xui-custom-manager.sh --reset-check  执行一次自动重置检查"
+    echo "Команды:"
+    echo "  xcm                                  открыть это меню"
+    echo "  xui-custom-manager.sh --dry-run      только предпросмотр плана сброса"
+    echo "  xui-custom-manager.sh --reset-check  выполнить автоматическую проверку сброса"
     echo "------------------------------------------------"
-    echo -e "${YELLOW}注意：涉及写数据库或恢复备份的操作都会先备份，并要求输入大写 YES。${PLAIN}"
+    echo -e "${YELLOW}Важно: перед записью в БД или восстановлением автоматически создаётся резервная копия, и требуется ввод YES.${PLAIN}"
 }
 
 main_menu() {
@@ -2599,35 +2599,35 @@ main_menu() {
     while true; do
         clear_screen
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${BOLD}${WHITE}🧭 x-ui 增强套件${PLAIN}"
+        echo -e "${BOLD}${WHITE}🧭 x-ui расширенный набор${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${YELLOW}用途：补充 3x-ui 面板缺失能力，例如自定义重置、校准已用流量、备份恢复和健康检查。${PLAIN}"
+        echo -e "${YELLOW}Назначение: дополнение возможностей 3x-ui: пользовательский сброс, калибровка трафика, бэкапы и диагностика.${PLAIN}"
         print_xui_version_warning
-        echo -e "${YELLOW}提示：不知道选哪个时输入 ? 查看“我要做什么”索引；写库前会自动备份。${PLAIN}"
+        echo -e "${YELLOW}Подсказка: если не знаете, что выбрать, введите ? для индекса; перед записью автоматически создаётся бэкап.${PLAIN}"
         echo -e "${BLUE}------------------------------------------------${PLAIN}"
-        echo -e "${CYAN}配置：${WHITE}$CONFIG_FILE${PLAIN}"
-        echo -e "${CYAN}备份：${WHITE}$BACKUP_DIR${PLAIN}"
-        echo -e "${CYAN}日志：${WHITE}$LOG_FILE${PLAIN}"
-        echo -e "${CYAN}自动检查：${GREEN}$(timer_active_status)${PLAIN} ${DIM}|${PLAIN} ${CYAN}本地执行器：${GREEN}$(runner_status)${PLAIN} ${DIM}|${PLAIN} ${CYAN}快捷命令：${WHITE}xcm${PLAIN}"
+        echo -e "${CYAN}Конфигурация: ${WHITE}$CONFIG_FILE${PLAIN}"
+        echo -e "${CYAN}Бэкапы: ${WHITE}$BACKUP_DIR${PLAIN}"
+        echo -e "${CYAN}Лог: ${WHITE}$LOG_FILE${PLAIN}"
+        echo -e "${CYAN}Автопроверка: ${GREEN}$(timer_active_status)${PLAIN} ${DIM}|${PLAIN} ${CYAN}Локальный исполнитель: ${GREEN}$(runner_status)${PLAIN} ${DIM}|${PLAIN} ${CYAN}Быстрая команда: ${WHITE}xcm${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        echo -e "${BOLD}${MAGENTA} ▶ 重置${PLAIN}"
-        echo -e "  ${CYAN}1.${PLAIN} ${GREEN}自定义流量重置日期${PLAIN}        ${YELLOW}(入站 / 客户端分开设置)${PLAIN}"
-        echo -e "${BOLD}${MAGENTA} ▶ 流量${PLAIN}"
-        echo -e "  ${CYAN}2.${PLAIN} ${GREEN}校准已用流量${PLAIN}              ${YELLOW}(只改 up/down，不改 total)${PLAIN}"
-        echo -e "${BOLD}${MAGENTA} ▶ 备份${PLAIN}"
-        echo -e "  ${CYAN}3.${PLAIN} ${GREEN}备份 / 恢复 x-ui${PLAIN}          ${YELLOW}(数据库 / 配置 / 程序)${PLAIN}"
-        echo -e "${BOLD}${MAGENTA} ▶ 诊断${PLAIN}"
-        echo -e "  ${CYAN}4.${PLAIN} ${GREEN}健康检查 / monthly 冲突${PLAIN}   ${YELLOW}(服务 / 数据库 / timer)${PLAIN}"
-        echo -e "  ${CYAN}5.${PLAIN} ${GREEN}查看日志与报错${PLAIN}            ${YELLOW}(脚本 / reset-check / systemd)${PLAIN}"
-        echo -e "  ${CYAN}6.${PLAIN} ${GREEN}清理旧备份${PLAIN}                ${YELLOW}(每次只删一个明确备份文件)${PLAIN}"
+        echo -e "${BOLD}${MAGENTA} ▶ Сброс${PLAIN}"
+        echo -e "  ${CYAN}1.${PLAIN} ${GREEN}Пользовательская дата сброса трафика${PLAIN}        ${YELLOW}(входящие / клиенты отдельно)${PLAIN}"
+        echo -e "${BOLD}${MAGENTA} ▶ Трафик${PLAIN}"
+        echo -e "  ${CYAN}2.${PLAIN} ${GREEN}Калибровка использованного трафика${PLAIN}           ${YELLOW}(меняет up/down, не total)${PLAIN}"
+        echo -e "${BOLD}${MAGENTA} ▶ Бэкапы${PLAIN}"
+        echo -e "  ${CYAN}3.${PLAIN} ${GREEN}Резервирование / восстановление x-ui${PLAIN}       ${YELLOW}(БД / конфиг / программа)${PLAIN}"
+        echo -e "${BOLD}${MAGENTA} ▶ Диагностика${PLAIN}"
+        echo -e "  ${CYAN}4.${PLAIN} ${GREEN}Проверка состояния / monthly конфликты${PLAIN}    ${YELLOW}(служба / БД / таймер)${PLAIN}"
+        echo -e "  ${CYAN}5.${PLAIN} ${GREEN}Просмотр логов и ошибок${PLAIN}                     ${YELLOW}(скрипт / reset-check / systemd)${PLAIN}"
+        echo -e "  ${CYAN}6.${PLAIN} ${GREEN}Очистка старых резервных копий${PLAIN}             ${YELLOW}(удаление по одному файлу)${PLAIN}"
         echo -e "${BLUE}------------------------------------------------${PLAIN}"
-        echo -e "  ${BLUE}?.${PLAIN} ${WHITE}功能索引 / 我想做什么${PLAIN}"
-        echo -e "${RED}  0. 退出 / q 返回上一级${PLAIN}"
+        echo -e "  ${BLUE}?.${PLAIN} ${WHITE}Индекс функций / что мне нужно${PLAIN}"
+        echo -e "${RED}  0. Выход / q вернуться на уровень выше${PLAIN}"
         echo -e "${CYAN}================================================${PLAIN}"
-        read_menu_choice choice "👉 请输入数字 / ? 查看索引 / q 返回: "
+        read_menu_choice choice "👉 Введите номер / ? для индекса / q для выхода: "
 
         case "$choice" in
-            "?"|help|HELP|帮助)
+            "?"|help|HELP|помощь)
                 show_quick_guide
                 pause
                 ;;
@@ -2656,7 +2656,7 @@ main_menu() {
                 exit 0
                 ;;
             *)
-                echo -e "${RED}❌ 无效选择！${PLAIN}"
+                echo -e "${RED}❌ Неверный выбор!${PLAIN}"
                 sleep 1
                 ;;
         esac
